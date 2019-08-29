@@ -10,7 +10,7 @@ pub type AttributeIdentifier = ShortAddress;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReadAttributes {
-    attributes: Vec<AttributeIdentifier>,
+    pub attributes: Vec<AttributeIdentifier>,
 }
 
 impl Pack<ReadAttributes, Error> for ReadAttributes {
@@ -44,9 +44,9 @@ impl Pack<ReadAttributes, Error> for ReadAttributes {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct AttributeStatus {
-    identifier: AttributeIdentifier,
-    status: ClusterLibraryStatus,
-    value: Option<AttributeValue>,
+    pub identifier: AttributeIdentifier,
+    pub status: ClusterLibraryStatus,
+    pub value: Option<AttributeValue>,
 }
 
 impl Pack<AttributeStatus, Error> for AttributeStatus {
@@ -102,7 +102,7 @@ impl Pack<AttributeStatus, Error> for AttributeStatus {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReadAttributesResponse {
-    attributes: Vec<AttributeStatus>,
+    pub attributes: Vec<AttributeStatus>,
 }
 
 impl Pack<ReadAttributesResponse, Error> for ReadAttributesResponse {

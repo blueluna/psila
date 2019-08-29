@@ -6,6 +6,7 @@ use ieee802154::mac::{self, beacon::BeaconOrder};
 use psila_data::{
     self,
     application_service::{self, ApplicationServiceHeader},
+    cluster_library,
     common::profile_identifier::ProfileIdentifier,
     device_profile::DeviceProfileFrame,
     network::{self, beacon::BeaconInformation, header::DiscoverRoute, NetworkHeader},
@@ -22,9 +23,60 @@ impl Parser {
             security: SecurityService::new(),
         }
     }
+    fn handle_cluser_library_command(
+        &self,
+        payload: &[u8],
+        command: cluster_library::GeneralCommandIdentifier,
+    ) {
+        match cluster_library::Command::unpack(&payload, command) {
+            Ok((cmd, _used)) => {
+                print!("ZCL CMD ");
+                match cmd {
+                    cluster_library::Command::ReadAttributes(cmd) => {
+                        print!("Read attributes ");
+                        for attr in cmd.attributes.iter() {
+                            print!("{} ", attr);
+                        }
+                        println!();
+                    }
+                    cluster_library::Command::ReadAttributesResponse(cmd) => {
+                        print!("Read attributes response ");
+                        for attr in cmd.attributes.iter() {
+                            print!("{} ", attr.identifier);
+                            match attr.status {
+                                cluster_library::ClusterLibraryStatus::Success => {
+                                    if let Some(value) = &attr.value {
+                                        print!("{} ", value);
+                                    }
+                                    else {
+                                        print!("None ");
+                                    }
+                                }
+                                _ => {
+                                    print!("{:?} ", attr.status);
+                                }
+                            }
+                        }
+                        println!();
+                    }
+                    _ => {
+                        println!("{:?}", cmd);
+                    }
+                }
+            }
+            Err(e) => {
+                print!("Failed to parse ZCL command, {:?}", e);
+                print!(" Payload: ");
+                for b in payload.iter() {
+                    print!("{:02x}", b);
+                }
+                println!();
+            }
+        }
+    }
 
     fn handle_cluser_library(&self, payload: &[u8], profile: ProfileIdentifier, cluster: u16) {
-        use psila_data::cluster_library::{self, ClusterLibraryHeader};
+        use psila_data::cluster_library::ClusterLibraryHeader;
 
         print!("ZCL {:?} {:04x} ", profile, cluster);
         match ClusterLibraryHeader::unpack(payload) {
@@ -53,19 +105,7 @@ impl Parser {
                 println!();
                 if let Ok(cmd) = cluster_library::GeneralCommandIdentifier::try_from(header.command)
                 {
-                    match cluster_library::Command::unpack(&payload[used..], cmd) {
-                        Ok((cmd, _)) => {
-                            println!("ZCL CMD {:?}", cmd);
-                        }
-                        Err(e) => {
-                            print!("Failed to parse ZCL command, {:?}", e);
-                            print!(" Payload: ");
-                            for b in payload[used..].iter() {
-                                print!("{:02x}", b);
-                            }
-                            println!();
-                        }
-                    }
+                    self.handle_cluser_library_command(&payload[used..], cmd);
                 }
             }
             Err(e) => {
