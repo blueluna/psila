@@ -1,0 +1,22 @@
+[package]
+name = "nrf52840-host"
+version = "0.0.1"
+authors = ["Erik Svensson <erik.public@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+clap = "2.32"
+byteorder = { version = "1", default-features = false }
+slice-deque = "0.1.16"
+ieee802154 = "0.3"
+esercom = { git = "https://blueluna@bitbucket.org/blueluna/esercom.git", branch = "master" }
+psila-data = { path = "../psila-data" }
+serde = "1.0"
+serde_derive = "1.0"
+toml = "0.5"
+gcrypt = "0.6"
+
+[dependencies.serialport]
+version = "3.2"
+default-features = false
+features = []

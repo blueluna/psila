@@ -1,0 +1,3 @@
+
+[workspace]
+members = ["host-tool", "psila-data"]

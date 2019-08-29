@@ -1,0 +1,15 @@
+[package]
+name = "psila-data"
+description = "Library for reading/writing Zigbee packages."
+version = "0.0.1"
+authors = ["Erik Svensson <erik.public@gmail.com>"]
+license = "MIT"
+edition = "2018"
+repository = "https://github.com/blueluna/psilas"
+categories = ["network-programming"]
+keywords = ["zigbee", "iot", "wpan", "network"]
+
+[dependencies]
+byteorder = { version = "1", default-features = false }
+bitflags = "1.0"
+gcrypt = "0.6"
