@@ -141,4 +141,3 @@ mod tests {
         assert_eq!(cmd.attributes[0], 0x050b);
     }
 }
-

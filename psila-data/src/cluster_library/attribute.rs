@@ -1,4 +1,5 @@
 use core::convert::TryFrom;
+use std::fmt;
 use std::string::String;
 
 use crate::Error;
@@ -136,30 +137,36 @@ pub enum AttributeValue {
     Data24(u32),
     Data32(u32),
     Data64(u64),
-    Boolean(Option<bool>),
+    Boolean(u8),
     Bitmap8(u8),
     Bitmap16(u16),
     Bitmap24(u32),
     Bitmap32(u32),
     Bitmap64(u64),
-    Unsigned8(Option<u8>),
-    Unsigned16(Option<u16>),
-    Unsigned24(Option<u32>),
-    Unsigned32(Option<u32>),
-    Unsigned64(Option<u64>),
-    Signed8(Option<i8>),
-    Signed16(Option<i16>),
-    Signed24(Option<i32>),
-    Signed32(Option<i32>),
-    Signed64(Option<i64>),
-    Enumeration8(Option<u8>),
-    Enumeration16(Option<u16>),
+    Unsigned8(u8),
+    Unsigned16(u16),
+    Unsigned24(u32),
+    Unsigned32(u32),
+    Unsigned64(u64),
+    Signed8(i8),
+    Signed16(i16),
+    Signed24(i32),
+    Signed32(i32),
+    Signed64(i64),
+    Enumeration8(u8),
+    Enumeration16(u16),
     FloatingPoint32(f32),
     FloatingPoint64(f64),
     OctetString(Option<Vec<u8>>),
     CharacterString(Option<String>),
     LongOctetString(Option<Vec<u8>>),
     LongCharacterString(Option<String>),
+    TimeOfDay(u32),
+    Date(u32),
+    UtcTime(u32),
+    ClusterIdentifier(u16),
+    AttributeIdentifier(u16),
+    IeeeAddress(u64),
 }
 
 impl AttributeValue {
@@ -194,9 +201,7 @@ impl AttributeValue {
             }
             AttributeDataType::Boolean => {
                 let value = match data[0] {
-                    0x00 => Some(false),
-                    0x01 => Some(true),
-                    0xff => None,
+                    0x00 | 0x01 | 0xff => data[0],
                     _ => return Err(Error::InvalidValue),
                 };
                 Ok((AttributeValue::Boolean(value), 1))
@@ -218,88 +223,43 @@ impl AttributeValue {
                 let value = LittleEndian::read_u64(&data[0..8]);
                 Ok((AttributeValue::Bitmap64(value), 8))
             }
-            AttributeDataType::Unsigned8 => {
-                let value = match data[0] {
-                    0xff => None,
-                    v => Some(v),
-                };
-                Ok((AttributeValue::Unsigned8(value), 1))
-            }
+            AttributeDataType::Unsigned8 => Ok((AttributeValue::Unsigned8(data[0]), 1)),
             AttributeDataType::Unsigned16 => {
-                let value = match LittleEndian::read_u16(&data[0..2]) {
-                    0xffff => None,
-                    v => Some(v),
-                };
+                let value = LittleEndian::read_u16(&data[0..2]);
                 Ok((AttributeValue::Unsigned16(value), 2))
             }
             AttributeDataType::Unsigned24 => {
-                let value = match LittleEndian::read_u24(&data[0..3]) {
-                    0x00ff_ffff => None,
-                    v => Some(v),
-                };
+                let value = LittleEndian::read_u24(&data[0..3]);
                 Ok((AttributeValue::Unsigned24(value), 3))
             }
             AttributeDataType::Unsigned32 => {
-                let value = match LittleEndian::read_u32(&data[0..4]) {
-                    0xffff_ffff => None,
-                    v => Some(v),
-                };
+                let value = LittleEndian::read_u32(&data[0..4]);
                 Ok((AttributeValue::Unsigned32(value), 4))
             }
             AttributeDataType::Unsigned64 => {
-                let value = match LittleEndian::read_u64(&data[0..8]) {
-                    0xffff_ffff_ffff_ffff => None,
-                    v => Some(v),
-                };
+                let value = LittleEndian::read_u64(&data[0..8]);
                 Ok((AttributeValue::Unsigned64(value), 8))
             }
-            AttributeDataType::Signed8 => {
-                let value = match data[0] as i8 {
-                    -128 => None,
-                    v => Some(v),
-                };
-                Ok((AttributeValue::Signed8(value), 1))
-            }
+            AttributeDataType::Signed8 => Ok((AttributeValue::Signed8(data[0] as i8), 1)),
             AttributeDataType::Signed16 => {
-                let value = match LittleEndian::read_i16(&data[0..2]) {
-                    -32_768 => None,
-                    v => Some(v),
-                };
+                let value = LittleEndian::read_i16(&data[0..2]);
                 Ok((AttributeValue::Signed16(value), 2))
             }
             AttributeDataType::Signed24 => {
-                let value = match LittleEndian::read_i24(&data[0..3]) {
-                    0x0080_0000 => None,
-                    v => Some(v),
-                };
+                let value = LittleEndian::read_i24(&data[0..3]);
                 Ok((AttributeValue::Signed24(value), 3))
             }
             AttributeDataType::Signed32 => {
-                let value = match LittleEndian::read_i32(&data[0..4]) {
-                    -2_147_483_648 => None,
-                    v => Some(v),
-                };
+                let value = LittleEndian::read_i32(&data[0..4]);
                 Ok((AttributeValue::Signed32(value), 4))
             }
             AttributeDataType::Signed64 => {
-                let value = match LittleEndian::read_i64(&data[0..8]) {
-                    -9_223_372_036_854_775_808 => None,
-                    v => Some(v),
-                };
+                let value = LittleEndian::read_i64(&data[0..8]);
                 Ok((AttributeValue::Signed64(value), 8))
             }
-            AttributeDataType::Enumeration8 => {
-                let value = match data[0] {
-                    0xff => None,
-                    v => Some(v),
-                };
-                Ok((AttributeValue::Enumeration8(value), 1))
-            }
+            AttributeDataType::Enumeration8 => Ok((AttributeValue::Enumeration8(data[0]), 1)),
             AttributeDataType::Enumeration16 => {
-                let value = match LittleEndian::read_u16(&data[0..2]) {
-                    0xffff => None,
-                    v => Some(v),
-                };
+                let value = LittleEndian::read_u16(&data[0..2]);
                 Ok((AttributeValue::Enumeration16(value), 2))
             }
             AttributeDataType::FloatingPoint32 => Ok((
@@ -388,6 +348,30 @@ impl AttributeValue {
                 };
                 Ok((AttributeValue::CharacterString(value), used))
             }
+            AttributeDataType::TimeOfDay => {
+                let value = LittleEndian::read_u32(&data[0..4]);
+                Ok((AttributeValue::TimeOfDay(value), 4))
+            }
+            AttributeDataType::Date => {
+                let value = LittleEndian::read_u32(&data[0..4]);
+                Ok((AttributeValue::Date(value), 4))
+            }
+            AttributeDataType::UtcTime => {
+                let value = LittleEndian::read_u32(&data[0..4]);
+                Ok((AttributeValue::UtcTime(value), 4))
+            }
+            AttributeDataType::ClusterIdentifier => {
+                let value = LittleEndian::read_u16(&data[0..2]);
+                Ok((AttributeValue::ClusterIdentifier(value), 2))
+            }
+            AttributeDataType::AttributeIdentifier => {
+                let value = LittleEndian::read_u16(&data[0..2]);
+                Ok((AttributeValue::ClusterIdentifier(value), 2))
+            }
+            AttributeDataType::IeeeAddress => {
+                let value = LittleEndian::read_u64(&data[0..8]);
+                Ok((AttributeValue::IeeeAddress(value), 8))
+            }
             _ => Err(Error::UnsupportedAttributeValue),
         }
     }
@@ -424,6 +408,314 @@ impl AttributeValue {
             AttributeValue::CharacterString(_) => AttributeDataType::CharacterString,
             AttributeValue::LongOctetString(_) => AttributeDataType::LongOctetString,
             AttributeValue::LongCharacterString(_) => AttributeDataType::LongCharacterString,
+            AttributeValue::TimeOfDay(_) => AttributeDataType::TimeOfDay,
+            AttributeValue::Date(_) => AttributeDataType::Date,
+            AttributeValue::UtcTime(_) => AttributeDataType::UtcTime,
+            AttributeValue::ClusterIdentifier(_) => AttributeDataType::ClusterIdentifier,
+            AttributeValue::AttributeIdentifier(_) => AttributeDataType::AttributeIdentifier,
+            AttributeValue::IeeeAddress(_) => AttributeDataType::IeeeAddress,
         }
     }
+
+    pub fn is_valid(&self) -> bool {
+        match self {
+            AttributeValue::None
+            | AttributeValue::Data8(_)
+            | AttributeValue::Data16(_)
+            | AttributeValue::Data24(_)
+            | AttributeValue::Data32(_)
+            | AttributeValue::Data64(_)
+            | AttributeValue::Bitmap8(_)
+            | AttributeValue::Bitmap16(_)
+            | AttributeValue::Bitmap24(_)
+            | AttributeValue::Bitmap32(_)
+            | AttributeValue::Bitmap64(_) => true,
+            AttributeValue::Boolean(v) => *v == 0x00 || *v == 0x01,
+            AttributeValue::Unsigned8(v) | AttributeValue::Enumeration8(v) => *v != u8::max_value(),
+            AttributeValue::Unsigned16(v)
+            | AttributeValue::Enumeration16(v)
+            | AttributeValue::ClusterIdentifier(v)
+            | AttributeValue::AttributeIdentifier(v) => *v != u16::max_value(),
+            AttributeValue::Unsigned24(v) => *v < 0x00ff_ffff,
+            AttributeValue::Unsigned32(v)
+            | AttributeValue::TimeOfDay(v)
+            | AttributeValue::Date(v)
+            | AttributeValue::UtcTime(v) => *v != u32::max_value(),
+            AttributeValue::Unsigned64(v) | AttributeValue::IeeeAddress(v) => {
+                *v != u64::max_value()
+            }
+            AttributeValue::Signed8(v) => *v != i8::min_value(),
+            AttributeValue::Signed16(v) => *v != i16::min_value(),
+            AttributeValue::Signed24(v) => *v > -8_388_608 && *v < 8_388_607,
+            AttributeValue::Signed32(v) => *v != i32::min_value(),
+            AttributeValue::Signed64(v) => *v != i64::min_value(),
+            AttributeValue::FloatingPoint32(v) => !v.is_normal(),
+            AttributeValue::FloatingPoint64(v) => !v.is_normal(),
+            AttributeValue::OctetString(v) => v.is_none(),
+            AttributeValue::CharacterString(v) => v.is_none(),
+            AttributeValue::LongOctetString(v) => v.is_none(),
+            AttributeValue::LongCharacterString(v) => v.is_none(),
+        }
+    }
+}
+
+const STRING_INVALID: &str = "Invalid";
+
+impl fmt::Display for AttributeValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if !self.is_valid() {
+            write!(f, "{}", STRING_INVALID)
+        } else {
+            match self {
+                AttributeValue::None => write!(f, "None"),
+                AttributeValue::Data8(v) | AttributeValue::Bitmap8(v) => write!(f, "{}", v),
+                AttributeValue::Data16(v) | AttributeValue::Bitmap16(v) => write!(f, "{}", v),
+                AttributeValue::Data24(v) | AttributeValue::Bitmap24(v) => write!(f, "{}", v),
+                AttributeValue::Data32(v) | AttributeValue::Bitmap32(v) => write!(f, "{}", v),
+                AttributeValue::Data64(v) | AttributeValue::Bitmap64(v) => write!(f, "{}", v),
+                AttributeValue::Boolean(v) => write!(f, "{}", *v == 0x01),
+                AttributeValue::Unsigned8(v) | AttributeValue::Enumeration8(v) => {
+                    write!(f, "{}", v)
+                }
+                AttributeValue::Unsigned16(v) | AttributeValue::Enumeration16(v) => {
+                    write!(f, "{}", v)
+                }
+                AttributeValue::Unsigned24(v)
+                | AttributeValue::Unsigned32(v)
+                | AttributeValue::UtcTime(v) => write!(f, "{}", v),
+                AttributeValue::Unsigned64(v) => write!(f, "{}", v),
+                AttributeValue::Signed8(v) => write!(f, "{}", v),
+                AttributeValue::Signed16(v) => write!(f, "{}", v),
+                AttributeValue::Signed24(v) | AttributeValue::Signed32(v) => write!(f, "{}", v),
+                AttributeValue::Signed64(v) => write!(f, "{}", v),
+                AttributeValue::FloatingPoint32(v) => write!(f, "{}", v),
+                AttributeValue::FloatingPoint64(v) => write!(f, "{}", v),
+                AttributeValue::OctetString(v) | AttributeValue::LongOctetString(v) => {
+                    if let Some(v) = v {
+                        let hex: String = v.iter().map(|i| format!("{:02x}", i)).collect();
+                        write!(f, "{}", hex)
+                    } else {
+                        write!(f, "{}", STRING_INVALID)
+                    }
+                }
+                AttributeValue::CharacterString(v) | AttributeValue::LongCharacterString(v) => {
+                    if let Some(v) = v {
+                        write!(f, "{}", v)
+                    } else {
+                        write!(f, "{}", STRING_INVALID)
+                    }
+                }
+                AttributeValue::TimeOfDay(v) => write!(
+                    f,
+                    "{}:{}:{}.{}",
+                    v & 0b0000_0000_0000_1111,
+                    (v & 0b0000_0000_1111_0000) >> 8,
+                    (v & 0b0000_1111_0000_0000) >> 16,
+                    (v & 0b1111_0000_0000_0000) >> 24
+                ),
+                AttributeValue::Date(v) => write!(
+                    f,
+                    "{}-{}-{}",
+                    (v & 0b0000_0000_0000_1111) + 1900,
+                    (v & 0b0000_0000_1111_0000) >> 8,
+                    (v & 0b0000_1111_0000_0000) >> 16
+                ),
+                AttributeValue::ClusterIdentifier(v) | AttributeValue::AttributeIdentifier(v) => {
+                    write!(f, "{:04x}", v)
+                }
+                AttributeValue::IeeeAddress(v) => write!(f, "{:08x}", v),
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn attribute_value_none() {
+        let value = AttributeValue::None;
+        assert_eq!(value.data_type(), AttributeDataType::None);
+        assert_eq!(format!("{}", value), "None");
+    }
+
+    #[test]
+    fn attribute_value_data8() {
+        let value = AttributeValue::Data8(0);
+        assert_eq!(value.data_type(), AttributeDataType::Data8);
+        assert_eq!(format!("{}", value), "0");
+        let value = AttributeValue::Data8(127);
+        assert_eq!(format!("{}", value), "127");
+        let value = AttributeValue::Data8(255);
+        assert_eq!(format!("{}", value), "255");
+    }
+
+    #[test]
+    fn attribute_value_data16() {
+        let value = AttributeValue::Data16(0);
+        assert_eq!(value.data_type(), AttributeDataType::Data16);
+        assert_eq!(format!("{}", value), "0");
+        let value = AttributeValue::Data16(16384);
+        assert_eq!(format!("{}", value), "16384");
+        let value = AttributeValue::Data16(65535);
+        assert_eq!(format!("{}", value), "65535");
+    }
+
+    #[test]
+    fn attribute_value_unsigned8() {
+        for v in u8::min_value()..u8::max_value() {
+            let value = AttributeValue::Unsigned8(v);
+            assert_eq!(value.data_type(), AttributeDataType::Unsigned8);
+            if v == u8::max_value() {
+                assert_eq!(value.is_valid(), false);
+                assert_eq!(format!("{}", value), "Invalid");
+            } else {
+                assert_eq!(value.is_valid(), true);
+                assert_eq!(format!("{}", value), format!("{}", v));
+            }
+        }
+    }
+
+    #[test]
+    fn attribute_value_unsigned16() {
+        for v in u16::min_value()..u16::max_value() {
+            let value = AttributeValue::Unsigned16(v);
+            assert_eq!(value.data_type(), AttributeDataType::Unsigned16);
+            if v == u16::max_value() {
+                assert_eq!(value.is_valid(), false);
+                assert_eq!(format!("{}", value), "Invalid");
+            } else {
+                assert_eq!(value.is_valid(), true);
+                assert_eq!(format!("{}", value), format!("{}", v));
+            }
+        }
+    }
+
+    #[test]
+    fn attribute_value_unsigned24() {
+        for v in [
+            u32::min_value(),
+            u32::max_value() / 2,
+            0x00ffffff,
+            u32::max_value(),
+        ]
+        .iter()
+        {
+            let value = AttributeValue::Unsigned24(*v);
+            assert_eq!(value.data_type(), AttributeDataType::Unsigned24);
+            if *v >= 0x00ffffff {
+                assert_eq!(value.is_valid(), false);
+                assert_eq!(format!("{}", value), "Invalid");
+            } else {
+                assert_eq!(value.is_valid(), true);
+                assert_eq!(format!("{}", value), format!("{}", v));
+            }
+        }
+    }
+
+    #[test]
+    fn attribute_value_unsigned32() {
+        for v in [u32::min_value(), u32::max_value() / 2, u32::max_value()].iter() {
+            let value = AttributeValue::Unsigned32(*v);
+            assert_eq!(value.data_type(), AttributeDataType::Unsigned32);
+            if *v == u32::max_value() {
+                assert_eq!(value.is_valid(), false);
+                assert_eq!(format!("{}", value), "Invalid");
+            } else {
+                assert_eq!(value.is_valid(), true);
+                assert_eq!(format!("{}", value), format!("{}", v));
+            }
+        }
+    }
+
+    #[test]
+    fn attribute_value_signed8() {
+        for v in i8::min_value()..i8::max_value() {
+            let value = AttributeValue::Signed8(v);
+            assert_eq!(value.data_type(), AttributeDataType::Signed8);
+            if v == i8::min_value() {
+                assert_eq!(value.is_valid(), false);
+                assert_eq!(format!("{}", value), "Invalid");
+            } else {
+                assert_eq!(value.is_valid(), true);
+                assert_eq!(format!("{}", value), format!("{}", v));
+            }
+        }
+    }
+
+    #[test]
+    fn attribute_value_signed16() {
+        for v in i16::min_value()..i16::max_value() {
+            let value = AttributeValue::Signed16(v);
+            assert_eq!(value.data_type(), AttributeDataType::Signed16);
+            if v == i16::min_value() {
+                assert_eq!(value.is_valid(), false);
+                assert_eq!(format!("{}", value), "Invalid");
+            } else {
+                assert_eq!(value.is_valid(), true);
+                assert_eq!(format!("{}", value), format!("{}", v));
+            }
+        }
+    }
+
+    #[test]
+    fn attribute_value_signed24() {
+        for v in [
+            i32::min_value(),
+            i32::max_value() / 2,
+            0x00ffffff,
+            i32::max_value(),
+        ]
+        .iter()
+        {
+            let value = AttributeValue::Signed24(*v);
+            assert_eq!(value.data_type(), AttributeDataType::Signed24);
+            if *v < -8_388_608 || *v > 8_388_607 {
+                assert_eq!(value.is_valid(), false);
+                assert_eq!(format!("{}", value), "Invalid");
+            } else {
+                assert_eq!(value.is_valid(), true);
+                assert_eq!(format!("{}", value), format!("{}", v));
+            }
+        }
+    }
+
+    #[test]
+    fn attribute_value_signed32() {
+        for v in [i32::min_value(), i32::max_value() / 2, i32::max_value()].iter() {
+            let value = AttributeValue::Signed32(*v);
+            assert_eq!(value.data_type(), AttributeDataType::Signed32);
+            if *v == i32::min_value() {
+                assert_eq!(value.is_valid(), false);
+                assert_eq!(format!("{}", value), "Invalid");
+            } else {
+                assert_eq!(value.is_valid(), true);
+                assert_eq!(format!("{}", value), format!("{}", v));
+            }
+        }
+    }
+
+    #[test]
+    fn attribute_value_bool() {
+        for v in [0u8, 1u8, 2u8, 255u8].iter() {
+            let value = AttributeValue::Boolean(*v);
+            assert_eq!(value.data_type(), AttributeDataType::Boolean);
+            match *v {
+                0 => {
+                    assert_eq!(value.is_valid(), true);
+                    assert_eq!(format!("{}", value), "false");
+                }
+                1 => {
+                    assert_eq!(value.is_valid(), true);
+                    assert_eq!(format!("{}", value), "true");
+                }
+                _ => {
+                    assert_eq!(value.is_valid(), false);
+                    assert_eq!(format!("{}", value), "Invalid");
+                }
+            }
+        }
+    }
+
 }
