@@ -1,6 +1,6 @@
 use core::convert::TryFrom;
 
-use crate::common::address::EXTENDED_ADDRESS_SIZE;
+use crate::common::address::{EXTENDED_ADDRESS_SIZE, SHORT_ADDRESS_SIZE};
 use crate::pack::{Pack, PackFixed};
 use crate::{Error, ExtendedAddress, NetworkAddress};
 
@@ -144,9 +144,7 @@ impl PackFixed<MulticastControl, Error> for MulticastControl {
         if data.len() != 1 {
             Err(Error::WrongNumberOfBytes)
         } else {
-            data[0] = self.multicast_mode as u8
-                & (self.nonmember_radius << 2)
-                & (self.max_nonmember_radius << 5);
+            data[0] = self.mode as u8 & (self.radius << 2) & (self.max_radius << 5);
             Ok(())
         }
     }
@@ -155,11 +153,11 @@ impl PackFixed<MulticastControl, Error> for MulticastControl {
         if data.len() != 1 {
             Err(Error::WrongNumberOfBytes)
         } else {
-            let multicast_mode = MulticastMode::try_from(data[0])?;
+            let mode = MulticastMode::try_from(data[0])?;
             Ok(Self {
-                multicast_mode,
-                nonmember_radius: (data[0] >> 2) & 0b111,
-                max_nonmember_radius: (data[0] >> 5) & 0b111,
+                mode,
+                radius: (data[0] >> 2) & 0b111,
+                max_radius: (data[0] >> 5) & 0b111,
             })
         }
     }
@@ -167,12 +165,12 @@ impl PackFixed<MulticastControl, Error> for MulticastControl {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceRouteFrame {
-    relay_index: u8,
-    relay_list: Vec<[u8; 2]>,
+    pub relay_index: u8,
+    pub relay_list: Vec<NetworkAddress>,
 }
 
 impl SourceRouteFrame {
-    pub fn new(relay_list: Vec<[u8; 2]>) -> Self {
+    pub fn new(relay_list: Vec<NetworkAddress>) -> Self {
         if relay_list.is_empty() {
             panic!("Relay list cannot be of length 0.");
         }
@@ -206,11 +204,12 @@ impl Pack<SourceRouteFrame, Error> for SourceRouteFrame {
         } else {
             data[0] = self.relay_list.len() as u8;
             data[1] = self.relay_index;
-            for (i, address) in self.relay_list.iter().enumerate() {
-                data[(i + 1) * 2] = address[0];
-                data[(i + 1) * 2 + 1] = address[1];
+            let mut offset = 2;
+            for address in self.relay_list.iter() {
+                address.pack(&mut data[offset..offset + SHORT_ADDRESS_SIZE])?;
+                offset += SHORT_ADDRESS_SIZE;
             }
-            Ok(2 + self.relay_list.len() * 2)
+            Ok(offset)
         }
     }
 
@@ -226,9 +225,10 @@ impl Pack<SourceRouteFrame, Error> for SourceRouteFrame {
         if count == 0 || index as usize >= count {
             return Err(Error::BrokenRelayList);
         }
-        let mut relay_list = vec![[0; 2]; count];
-        for (i, chunk) in data[2..].chunks(2).enumerate() {
-            relay_list[i].clone_from_slice(chunk);
+        let mut relay_list: Vec<NetworkAddress> = Vec::with_capacity(count);
+        for chunk in data[2..].chunks(SHORT_ADDRESS_SIZE) {
+            let address = NetworkAddress::unpack(chunk)?;
+            relay_list.push(address);
         }
         Ok((
             Self {

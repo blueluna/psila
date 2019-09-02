@@ -1,4 +1,5 @@
 use core::convert::From;
+use std::fmt;
 
 pub mod address;
 pub mod key;
@@ -71,5 +72,40 @@ impl From<CapabilityInformation> for u8 {
             byte |= CAPABILITY_ALLOCATE_ADDRESS;
         }
         byte
+    }
+}
+
+impl fmt::Display for CapabilityInformation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{}{}{}{}{}",
+            if self.pan_coordinator {
+                "Coordinator "
+            } else {
+                ""
+            },
+            if self.full_function_device {
+                "Full function "
+            } else {
+                "Reduced function "
+            },
+            if self.mains_power { "Mains power " } else { "" },
+            if self.idle_receive {
+                "Idle receive "
+            } else {
+                ""
+            },
+            if self.frame_protection {
+                "Frame protection "
+            } else {
+                ""
+            },
+            if self.allocate_address {
+                "Allocate address "
+            } else {
+                ""
+            },
+        )
     }
 }

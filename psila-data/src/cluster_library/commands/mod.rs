@@ -1,11 +1,16 @@
 mod attributes;
+mod default_response;
 
 use core::convert::TryFrom;
 
 use crate::pack::Pack;
 use crate::Error;
 
-use attributes::{ReadAttributes, ReadAttributesResponse};
+use attributes::{
+    ReadAttributes, ReadAttributesResponse, ReportAttributes, WriteAttributes,
+    WriteAttributesResponse,
+};
+use default_response::DefaultResponse;
 
 extended_enum!(
     /// Cluster library general command identifiers
@@ -39,16 +44,16 @@ extended_enum!(
 pub enum Command {
     ReadAttributes(ReadAttributes),
     ReadAttributesResponse(ReadAttributesResponse),
-    WriteAttributes,
-    WriteAttributesUndivided,
-    WriteAttributesResponse,
-    WriteAttributesNoResponse,
+    WriteAttributes(WriteAttributes),
+    WriteAttributesUndivided(WriteAttributes),
+    WriteAttributesResponse(WriteAttributesResponse),
+    WriteAttributesNoResponse(WriteAttributes),
     ConfigureReporting,
     ConfigureReportingResponse,
     ReadReportingConfiguration,
     ReadReportingConfigurationResponse,
-    ReportAttributes,
-    DefaultResponse,
+    ReportAttributes(ReportAttributes),
+    DefaultResponse(DefaultResponse),
     DiscoverAttributes,
     DiscoverAttributesResponse,
     ReadAttributesStructured,
@@ -77,15 +82,21 @@ impl Command {
                 let (cmd, used) = ReadAttributesResponse::unpack(&data)?;
                 Ok((Command::ReadAttributesResponse(cmd), used))
             }
-            GeneralCommandIdentifier::WriteAttributes => Ok((Command::WriteAttributes, 0)),
+            GeneralCommandIdentifier::WriteAttributes => {
+                let (cmd, used) = WriteAttributes::unpack(&data)?;
+                Ok((Command::WriteAttributes(cmd), used))
+            }
             GeneralCommandIdentifier::WriteAttributesUndivided => {
-                Ok((Command::WriteAttributesUndivided, 0))
+                let (cmd, used) = WriteAttributes::unpack(&data)?;
+                Ok((Command::WriteAttributesUndivided(cmd), used))
             }
             GeneralCommandIdentifier::WriteAttributesResponse => {
-                Ok((Command::WriteAttributesResponse, 0))
+                let (cmd, used) = WriteAttributesResponse::unpack(&data)?;
+                Ok((Command::WriteAttributesResponse(cmd), used))
             }
             GeneralCommandIdentifier::WriteAttributesNoResponse => {
-                Ok((Command::WriteAttributesNoResponse, 0))
+                let (cmd, used) = WriteAttributes::unpack(&data)?;
+                Ok((Command::WriteAttributesNoResponse(cmd), used))
             }
             GeneralCommandIdentifier::ConfigureReporting => Ok((Command::ConfigureReporting, 0)),
             GeneralCommandIdentifier::ConfigureReportingResponse => {
@@ -97,8 +108,14 @@ impl Command {
             GeneralCommandIdentifier::ReadReportingConfigurationResponse => {
                 Ok((Command::ReadReportingConfigurationResponse, 0))
             }
-            GeneralCommandIdentifier::ReportAttributes => Ok((Command::ReportAttributes, 0)),
-            GeneralCommandIdentifier::DefaultResponse => Ok((Command::DefaultResponse, 0)),
+            GeneralCommandIdentifier::ReportAttributes => {
+                let (cmd, used) = ReportAttributes::unpack(&data)?;
+                Ok((Command::ReportAttributes(cmd), used))
+            }
+            GeneralCommandIdentifier::DefaultResponse => {
+                let (cmd, used) = DefaultResponse::unpack(&data)?;
+                Ok((Command::DefaultResponse(cmd), used))
+            }
             GeneralCommandIdentifier::DiscoverAttributes => Ok((Command::DiscoverAttributes, 0)),
             GeneralCommandIdentifier::DiscoverAttributesResponse => {
                 Ok((Command::DiscoverAttributesResponse, 0))

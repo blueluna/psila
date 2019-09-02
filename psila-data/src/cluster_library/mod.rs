@@ -1,5 +1,7 @@
-use crate::Error;
 use core::convert::TryFrom;
+
+use crate::common::address::ShortAddress;
+use crate::Error;
 
 mod attribute;
 mod commands;
@@ -7,7 +9,10 @@ mod frame;
 
 pub use attribute::{AttributeDataType, AttributeValue};
 pub use commands::{Command, GeneralCommandIdentifier};
-pub use frame::ClusterLibraryHeader;
+pub use frame::{ClusterLibraryHeader, Direction, FrameType};
+
+/// 16-bit attribute identifier
+pub type AttributeIdentifier = ShortAddress;
 
 extended_enum!(
     /// Cluster library status codes

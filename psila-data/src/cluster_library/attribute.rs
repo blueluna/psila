@@ -451,10 +451,10 @@ impl AttributeValue {
             AttributeValue::Signed64(v) => *v != i64::min_value(),
             AttributeValue::FloatingPoint32(v) => !v.is_normal(),
             AttributeValue::FloatingPoint64(v) => !v.is_normal(),
-            AttributeValue::OctetString(v) => v.is_none(),
-            AttributeValue::CharacterString(v) => v.is_none(),
-            AttributeValue::LongOctetString(v) => v.is_none(),
-            AttributeValue::LongCharacterString(v) => v.is_none(),
+            AttributeValue::OctetString(v) => v.is_some(),
+            AttributeValue::CharacterString(v) => v.is_some(),
+            AttributeValue::LongOctetString(v) => v.is_some(),
+            AttributeValue::LongCharacterString(v) => v.is_some(),
         }
     }
 }

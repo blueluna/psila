@@ -58,8 +58,38 @@ impl Parser {
                         }
                         println!();
                     }
+                    cluster_library::Command::WriteAttributes(cmd)
+                    | cluster_library::Command::WriteAttributesUndivided(cmd)
+                    | cluster_library::Command::WriteAttributesNoResponse(cmd) => {
+                        print!("Write attributes ");
+                        for attr in cmd.attributes.iter() {
+                            print!("{} {} ", attr.identifier, attr.value);
+                        }
+                        println!();
+                    }
+                    cluster_library::Command::WriteAttributesResponse(cmd) => {
+                        print!("Write attributes response ");
+                        for attr in cmd.attributes.iter() {
+                            print!("{} {:?} ", attr.identifier, attr.status);
+                        }
+                        println!();
+                    }
+                    cluster_library::Command::ReportAttributes(cmd) => {
+                        print!("Report attributes ");
+                        for attr in cmd.attributes.iter() {
+                            print!("{} {} ", attr.identifier, attr.value);
+                        }
+                        println!();
+                    }
+                    cluster_library::Command::DefaultResponse(cmd) => {
+                        println!("Default response {:02x} {:?}", cmd.command, cmd.status);
+                    }
                     _ => {
-                        println!("{:?}", cmd);
+                        print!("{:?} Payload: ", cmd);
+                        for b in payload.iter() {
+                            print!("{:02x}", b);
+                        }
+                        println!();
                     }
                 }
             }
@@ -75,7 +105,7 @@ impl Parser {
     }
 
     fn handle_cluser_library(&self, payload: &[u8], profile: ProfileIdentifier, cluster: u16) {
-        use psila_data::cluster_library::ClusterLibraryHeader;
+        use psila_data::cluster_library::{ClusterLibraryHeader, FrameType};
 
         print!("ZCL {:?} {:04x} ", profile, cluster);
         match ClusterLibraryHeader::unpack(payload) {
@@ -101,10 +131,25 @@ impl Parser {
                         print!("{:02x}", b);
                     }
                 }
-                println!();
-                if let Ok(cmd) = cluster_library::GeneralCommandIdentifier::try_from(header.command)
-                {
-                    self.handle_cluser_library_command(&payload[used..], cmd);
+                if header.control.frame_type == FrameType::Global {
+                    if let Ok(cmd) =
+                        cluster_library::GeneralCommandIdentifier::try_from(header.command)
+                    {
+                        println!();
+                        self.handle_cluser_library_command(&payload[used..], cmd);
+                    } else {
+                        print!("Unknown command {:02x} Payload: ", header.command);
+                        for b in payload[used..].iter() {
+                            print!("{:02x}", b);
+                        }
+                        println!();
+                    }
+                } else {
+                    print!("Payload: ");
+                    for b in payload[used..].iter() {
+                        print!("{:02x}", b);
+                    }
+                    println!();
                 }
             }
             Err(e) => {
@@ -195,7 +240,7 @@ impl Parser {
                     }
                     DeviceProfileMessage::DeviceAnnounce(da) => {
                         print!(
-                            "Device Announce {} {} {:?}",
+                            "Device Announce {} {} {}",
                             da.network_address, da.ieee_address, da.capability
                         );
                     }
@@ -466,7 +511,7 @@ impl Parser {
                 if let Some(srf) = network_frame.source_route_frame {
                     print!("SRF I {}", srf.relay_index);
                     for address in srf.relay_list.iter() {
-                        print!(" {:02x}", address);
+                        print!(" {}", address);
                     }
                 }
                 println!();
