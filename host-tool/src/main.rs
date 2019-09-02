@@ -6,8 +6,8 @@ use std::io::{self, Read};
 use std::str::FromStr;
 use std::time::Duration;
 
-use clap::{App, AppSettings, Arg};
 use chrono::{Local, SecondsFormat};
+use clap::{App, AppSettings, Arg};
 
 use serialport::prelude::*;
 
@@ -89,7 +89,10 @@ fn main() {
                                     if written == 0 {
                                         break;
                                     }
-                                    print!("{} ", Local::now().to_rfc3339_opts(SecondsFormat::Millis, true));
+                                    print!(
+                                        "{} ",
+                                        Local::now().to_rfc3339_opts(SecondsFormat::Millis, true)
+                                    );
                                     match msg {
                                         esercom::MessageType::RadioReceive => {
                                             let pkt_len = written;
@@ -129,7 +132,10 @@ fn main() {
                                                 );
                                             }
                                         }
-                                        _ => println!("Other packet {:?} -------------------------------", msg),
+                                        _ => println!(
+                                            "Other packet {:?} -------------------------------",
+                                            msg
+                                        ),
                                     }
                                     buffer.truncate_front(buffer.len() - used);
                                 }

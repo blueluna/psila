@@ -47,8 +47,7 @@ impl Parser {
                                 cluster_library::ClusterLibraryStatus::Success => {
                                     if let Some(value) = &attr.value {
                                         print!("{} ", value);
-                                    }
-                                    else {
+                                    } else {
                                         print!("None ");
                                     }
                                 }
@@ -341,9 +340,10 @@ impl Parser {
                     println!();
                 }
                 Command::RouteReply(rr) => {
-                    print!("Route Reply Identifier {:02x} Orginator {} Responder {} Path cost {}",
-                        rr.identifier, rr.orginator_address, rr.responder_address,
-                        rr.path_cost);
+                    print!(
+                        "Route Reply Identifier {:02x} Orginator {} Responder {} Path cost {}",
+                        rr.identifier, rr.orginator_address, rr.responder_address, rr.path_cost
+                    );
                     if let Some(address) = rr.orginator_ieee_address {
                         print!(" Orginator {}", address);
                     }
@@ -353,10 +353,22 @@ impl Parser {
                     println!();
                 }
                 Command::NetworkStatus(ns) => {
-                    println!("Network Status {:?}", ns);
+                    println!(
+                        "Network Status Destination {} Status {:?}",
+                        ns.destination, ns.status
+                    );
                 }
                 Command::Leave(leave) => {
-                    println!("Leave {:?}", leave);
+                    println!(
+                        "Leave {}{}{}",
+                        if leave.rejoin { "Rejoin " } else { "" },
+                        if leave.request { "Request " } else { "" },
+                        if leave.remove_children {
+                            "Remove children "
+                        } else {
+                            ""
+                        },
+                    );
                 }
                 Command::RouteRecord(rr) => {
                     print!("Route Record ");
@@ -449,10 +461,13 @@ impl Parser {
                     print!("SRC {} ", src);
                 }
                 if let Some(mc) = network_frame.multicast_control {
-                    print!("MC {:?} ", mc);
+                    print!("MC {:?} RAD {} MAX {}", mc.mode, mc.radius, mc.max_radius);
                 }
                 if let Some(srf) = network_frame.source_route_frame {
-                    print!("SRF {:?} ", srf);
+                    print!("SRF I {}", srf.relay_index);
+                    for address in srf.relay_list.iter() {
+                        print!(" {:02x}", address);
+                    }
                 }
                 println!();
                 let mut processed_payload = [0u8; 256];

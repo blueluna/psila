@@ -1,7 +1,7 @@
 use core::convert::TryFrom;
 
-use crate::pack::{Pack, PackFixed};
 use crate::common::address::EXTENDED_ADDRESS_SIZE;
+use crate::pack::{Pack, PackFixed};
 use crate::{Error, ExtendedAddress, NetworkAddress};
 
 /// 3.3.1.1.1 Frame Type Sub-Field
@@ -103,10 +103,13 @@ impl PackFixed<FrameControl, Error> for FrameControl {
     }
 }
 
-/// 3.3.1.8.1 Multicast Mode Sub-Field
+// 3.3.1.8.1 Multicast Mode Sub-Field
+/// Multi-cast member mode
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MulticastMode {
+    /// Sent from a device which is not member of the group
     NonmemberMode = 0b0000_0000,
+    /// Sent from a device which is member of the group
     MemberMode = 0b0000_0001,
 }
 
@@ -122,15 +125,18 @@ impl TryFrom<u8> for MulticastMode {
     }
 }
 
-/// 3.3.1.8 Multicast Control Field
+// 3.3.1.8 Multicast Control Field
+/// Multi-cast control field
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct MulticastControl {
-    // 3.3.1.8.1 Multicast Mode Sub-Field
-    pub multicast_mode: MulticastMode,
-    // 3.3.1.8.2 NonmemberRadius Sub-Field
-    pub nonmember_radius: u8,
-    // 3.3.1.8.3 MaxNonmemberRadius Sub-Field
-    pub max_nonmember_radius: u8,
+    /// Multi-cast member mode
+    pub mode: MulticastMode,
+    /// Non-member radius
+    /// Decremeted for each hop, discard if the radius is zero. The value 7 has
+    /// a special meaning, infinite. Then the value shall not decremented.
+    pub radius: u8,
+    /// Maximum radius
+    pub max_radius: u8,
 }
 
 impl PackFixed<MulticastControl, Error> for MulticastControl {
@@ -381,9 +387,7 @@ impl Pack<NetworkHeader, Error> for NetworkHeader {
         };
 
         let multicast_control = if frame_control.multicast {
-            let multicast_control = Some(MulticastControl::unpack(
-                &data[offset..=offset],
-            )?);
+            let multicast_control = Some(MulticastControl::unpack(&data[offset..=offset])?);
             offset += 1;
             multicast_control
         } else {
