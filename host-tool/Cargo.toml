@@ -15,6 +15,7 @@ serde = "1.0"
 serde_derive = "1.0"
 toml = "0.5"
 gcrypt = "0.6"
+chrono = "0.4"
 
 [dependencies.serialport]
 version = "3.2"

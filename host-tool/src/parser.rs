@@ -341,7 +341,16 @@ impl Parser {
                     println!();
                 }
                 Command::RouteReply(rr) => {
-                    println!("Route Reply {:?}", rr);
+                    print!("Route Reply Identifier {:02x} Orginator {} Responder {} Path cost {}",
+                        rr.identifier, rr.orginator_address, rr.responder_address,
+                        rr.path_cost);
+                    if let Some(address) = rr.orginator_ieee_address {
+                        print!(" Orginator {}", address);
+                    }
+                    if let Some(address) = rr.responder_ieee_address {
+                        print!(" Responder {}", address);
+                    }
+                    println!();
                 }
                 Command::NetworkStatus(ns) => {
                     println!("Network Status {:?}", ns);

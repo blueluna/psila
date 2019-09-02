@@ -1,6 +1,7 @@
 use core::convert::TryFrom;
 
 use crate::pack::{Pack, PackFixed};
+use crate::common::address::EXTENDED_ADDRESS_SIZE;
 use crate::{Error, ExtendedAddress, NetworkAddress};
 
 /// 3.3.1.1.1 Frame Type Sub-Field
@@ -346,10 +347,25 @@ impl Pack<NetworkHeader, Error> for NetworkHeader {
 
         let mut total_length = MIN_NUM_BYTES;
 
+        if frame_control.contains_destination_ieee_address {
+            total_length += EXTENDED_ADDRESS_SIZE;
+        }
+        if frame_control.contains_source_ieee_address {
+            total_length += EXTENDED_ADDRESS_SIZE;
+        }
+        if frame_control.multicast {
+            total_length += 1;
+        }
+        if data.len() < total_length {
+            return Err(Error::WrongNumberOfBytes);
+        }
+
+        let mut offset = MIN_NUM_BYTES;
+
         let destination_ieee_address = if frame_control.contains_destination_ieee_address {
             let destination_ieee_address =
-                ExtendedAddress::unpack(&data[total_length..total_length + 8])?;
-            total_length += 8;
+                ExtendedAddress::unpack(&data[offset..offset + EXTENDED_ADDRESS_SIZE])?;
+            offset += EXTENDED_ADDRESS_SIZE;
             Some(destination_ieee_address)
         } else {
             None
@@ -357,8 +373,8 @@ impl Pack<NetworkHeader, Error> for NetworkHeader {
 
         let source_ieee_address = if frame_control.contains_source_ieee_address {
             let source_ieee_address =
-                ExtendedAddress::unpack(&data[total_length..total_length + 8])?;
-            total_length += 8;
+                ExtendedAddress::unpack(&data[offset..offset + EXTENDED_ADDRESS_SIZE])?;
+            offset += EXTENDED_ADDRESS_SIZE;
             Some(source_ieee_address)
         } else {
             None
@@ -366,18 +382,17 @@ impl Pack<NetworkHeader, Error> for NetworkHeader {
 
         let multicast_control = if frame_control.multicast {
             let multicast_control = Some(MulticastControl::unpack(
-                &data[total_length..=total_length],
+                &data[offset..=offset],
             )?);
-            total_length += 1;
+            offset += 1;
             multicast_control
         } else {
             None
         };
 
         let source_route_frame = if frame_control.contains_source_route_frame {
-            let (source_route_frame, used) = SourceRouteFrame::unpack(&data[total_length..])?;
-            total_length += used;
-            total_length += 2;
+            let (source_route_frame, used) = SourceRouteFrame::unpack(&data[offset..])?;
+            offset += used;
             Some(source_route_frame)
         } else {
             None
@@ -395,7 +410,7 @@ impl Pack<NetworkHeader, Error> for NetworkHeader {
                 multicast_control,
                 source_route_frame,
             },
-            total_length,
+            offset,
         ))
     }
 }

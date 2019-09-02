@@ -7,6 +7,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use clap::{App, AppSettings, Arg};
+use chrono::{Local, SecondsFormat};
 
 use serialport::prelude::*;
 
@@ -88,6 +89,7 @@ fn main() {
                                     if written == 0 {
                                         break;
                                     }
+                                    print!("{} ", Local::now().to_rfc3339_opts(SecondsFormat::Millis, true));
                                     match msg {
                                         esercom::MessageType::RadioReceive => {
                                             let pkt_len = written;
@@ -95,7 +97,7 @@ fn main() {
                                             let pkt_len = pkt_len - 1; // Remove LQI
                                             pkt_data[..pkt_len].copy_from_slice(&data[..pkt_len]);
                                             println!(
-                                                "## Packet {} LQI {}",
+                                                "Packet {} LQI {} -------------------------------",
                                                 pkt_len, link_quality_indicator
                                             );
                                             for b in &pkt_data[..pkt_len] {
@@ -109,12 +111,25 @@ fn main() {
                                                 let channel = data[0];
                                                 let energy_level = data[1];
                                                 println!(
-                                                    "## Energy on channel {}: {}",
+                                                    "Energy on channel {}: {} -------------------------------",
                                                     channel, energy_level
                                                 );
                                             }
                                         }
-                                        _ => println!("Other packet {:?}", msg),
+                                        esercom::MessageType::RadioState => {
+                                            if written == 5 {
+                                                let state = data[0];
+                                                let events = u32::from(data[1])
+                                                    | u32::from(data[2]) << 8
+                                                    | u32::from(data[3]) << 16
+                                                    | u32::from(data[4]) << 24;
+                                                println!(
+                                                    "++++++++++++++++ Radio State {} {:032b} ++++++++++++++++",
+                                                    state, events
+                                                );
+                                            }
+                                        }
+                                        _ => println!("Other packet {:?} -------------------------------", msg),
                                     }
                                     buffer.truncate_front(buffer.len() - used);
                                 }
