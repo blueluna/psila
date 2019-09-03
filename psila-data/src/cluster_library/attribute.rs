@@ -136,22 +136,34 @@ pub enum AttributeValue {
     Data16(u16),
     Data24(u32),
     Data32(u32),
+    Data40([u8; 5]),
+    Data48([u8; 6]),
+    Data56([u8; 7]),
     Data64(u64),
     Boolean(u8),
     Bitmap8(u8),
     Bitmap16(u16),
     Bitmap24(u32),
     Bitmap32(u32),
+    Bitmap40([u8; 5]),
+    Bitmap48([u8; 6]),
+    Bitmap56([u8; 7]),
     Bitmap64(u64),
     Unsigned8(u8),
     Unsigned16(u16),
     Unsigned24(u32),
     Unsigned32(u32),
+    Unsigned40([u8; 5]),
+    Unsigned48([u8; 6]),
+    Unsigned56([u8; 7]),
     Unsigned64(u64),
     Signed8(i8),
     Signed16(i16),
     Signed24(i32),
     Signed32(i32),
+    Signed40([u8; 5]),
+    Signed48([u8; 6]),
+    Signed56([u8; 7]),
     Signed64(i64),
     Enumeration8(u8),
     Enumeration16(u16),
@@ -195,6 +207,21 @@ impl AttributeValue {
                 let value = LittleEndian::read_u32(&data[0..4]);
                 Ok((AttributeValue::Data32(value), 4))
             }
+            AttributeDataType::Data40 => {
+                let mut value = [0; 5];
+                value.clone_from_slice(&data[0..5]);
+                Ok((AttributeValue::Data40(value), 5))
+            }
+            AttributeDataType::Data48 => {
+                let mut value = [0; 6];
+                value.clone_from_slice(&data[0..6]);
+                Ok((AttributeValue::Data48(value), 6))
+            }
+            AttributeDataType::Data56 => {
+                let mut value = [0; 7];
+                value.clone_from_slice(&data[0..7]);
+                Ok((AttributeValue::Data56(value), 7))
+            }
             AttributeDataType::Data64 => {
                 let value = LittleEndian::read_u64(&data[0..8]);
                 Ok((AttributeValue::Data64(value), 8))
@@ -219,6 +246,21 @@ impl AttributeValue {
                 let value = LittleEndian::read_u32(&data[0..4]);
                 Ok((AttributeValue::Bitmap32(value), 4))
             }
+            AttributeDataType::Bitmap40 => {
+                let mut value = [0; 5];
+                value.clone_from_slice(&data[0..5]);
+                Ok((AttributeValue::Bitmap40(value), 5))
+            }
+            AttributeDataType::Bitmap48 => {
+                let mut value = [0; 6];
+                value.clone_from_slice(&data[0..6]);
+                Ok((AttributeValue::Bitmap48(value), 6))
+            }
+            AttributeDataType::Bitmap56 => {
+                let mut value = [0; 7];
+                value.clone_from_slice(&data[0..7]);
+                Ok((AttributeValue::Bitmap56(value), 7))
+            }
             AttributeDataType::Bitmap64 => {
                 let value = LittleEndian::read_u64(&data[0..8]);
                 Ok((AttributeValue::Bitmap64(value), 8))
@@ -236,6 +278,21 @@ impl AttributeValue {
                 let value = LittleEndian::read_u32(&data[0..4]);
                 Ok((AttributeValue::Unsigned32(value), 4))
             }
+            AttributeDataType::Unsigned40 => {
+                let mut value = [0; 5];
+                value.clone_from_slice(&data[0..5]);
+                Ok((AttributeValue::Unsigned40(value), 5))
+            }
+            AttributeDataType::Unsigned48 => {
+                let mut value = [0; 6];
+                value.clone_from_slice(&data[0..6]);
+                Ok((AttributeValue::Unsigned48(value), 6))
+            }
+            AttributeDataType::Unsigned56 => {
+                let mut value = [0; 7];
+                value.clone_from_slice(&data[0..7]);
+                Ok((AttributeValue::Unsigned56(value), 7))
+            }
             AttributeDataType::Unsigned64 => {
                 let value = LittleEndian::read_u64(&data[0..8]);
                 Ok((AttributeValue::Unsigned64(value), 8))
@@ -252,6 +309,21 @@ impl AttributeValue {
             AttributeDataType::Signed32 => {
                 let value = LittleEndian::read_i32(&data[0..4]);
                 Ok((AttributeValue::Signed32(value), 4))
+            }
+            AttributeDataType::Signed40 => {
+                let mut value = [0; 5];
+                value.clone_from_slice(&data[0..5]);
+                Ok((AttributeValue::Signed40(value), 5))
+            }
+            AttributeDataType::Signed48 => {
+                let mut value = [0; 6];
+                value.clone_from_slice(&data[0..6]);
+                Ok((AttributeValue::Signed48(value), 6))
+            }
+            AttributeDataType::Signed56 => {
+                let mut value = [0; 7];
+                value.clone_from_slice(&data[0..7]);
+                Ok((AttributeValue::Signed56(value), 7))
             }
             AttributeDataType::Signed64 => {
                 let value = LittleEndian::read_i64(&data[0..8]);
@@ -383,22 +455,34 @@ impl AttributeValue {
             AttributeValue::Data16(_) => AttributeDataType::Data16,
             AttributeValue::Data24(_) => AttributeDataType::Data24,
             AttributeValue::Data32(_) => AttributeDataType::Data32,
+            AttributeValue::Data40(_) => AttributeDataType::Data40,
+            AttributeValue::Data48(_) => AttributeDataType::Data48,
+            AttributeValue::Data56(_) => AttributeDataType::Data56,
             AttributeValue::Data64(_) => AttributeDataType::Data64,
             AttributeValue::Boolean(_) => AttributeDataType::Boolean,
             AttributeValue::Bitmap8(_) => AttributeDataType::Bitmap8,
             AttributeValue::Bitmap16(_) => AttributeDataType::Bitmap16,
             AttributeValue::Bitmap24(_) => AttributeDataType::Bitmap24,
             AttributeValue::Bitmap32(_) => AttributeDataType::Bitmap32,
+            AttributeValue::Bitmap40(_) => AttributeDataType::Bitmap40,
+            AttributeValue::Bitmap48(_) => AttributeDataType::Bitmap48,
+            AttributeValue::Bitmap56(_) => AttributeDataType::Bitmap56,
             AttributeValue::Bitmap64(_) => AttributeDataType::Bitmap64,
             AttributeValue::Unsigned8(_) => AttributeDataType::Unsigned8,
             AttributeValue::Unsigned16(_) => AttributeDataType::Unsigned16,
             AttributeValue::Unsigned24(_) => AttributeDataType::Unsigned24,
             AttributeValue::Unsigned32(_) => AttributeDataType::Unsigned32,
+            AttributeValue::Unsigned40(_) => AttributeDataType::Unsigned40,
+            AttributeValue::Unsigned48(_) => AttributeDataType::Unsigned48,
+            AttributeValue::Unsigned56(_) => AttributeDataType::Unsigned56,
             AttributeValue::Unsigned64(_) => AttributeDataType::Unsigned64,
             AttributeValue::Signed8(_) => AttributeDataType::Signed8,
             AttributeValue::Signed16(_) => AttributeDataType::Signed16,
             AttributeValue::Signed24(_) => AttributeDataType::Signed24,
             AttributeValue::Signed32(_) => AttributeDataType::Signed32,
+            AttributeValue::Signed40(_) => AttributeDataType::Signed40,
+            AttributeValue::Signed48(_) => AttributeDataType::Signed48,
+            AttributeValue::Signed56(_) => AttributeDataType::Signed56,
             AttributeValue::Signed64(_) => AttributeDataType::Signed64,
             AttributeValue::Enumeration8(_) => AttributeDataType::Enumeration8,
             AttributeValue::Enumeration16(_) => AttributeDataType::Enumeration16,
@@ -424,11 +508,17 @@ impl AttributeValue {
             | AttributeValue::Data16(_)
             | AttributeValue::Data24(_)
             | AttributeValue::Data32(_)
+            | AttributeValue::Data40(_)
+            | AttributeValue::Data48(_)
+            | AttributeValue::Data56(_)
             | AttributeValue::Data64(_)
             | AttributeValue::Bitmap8(_)
             | AttributeValue::Bitmap16(_)
             | AttributeValue::Bitmap24(_)
             | AttributeValue::Bitmap32(_)
+            | AttributeValue::Bitmap40(_)
+            | AttributeValue::Bitmap48(_)
+            | AttributeValue::Bitmap56(_)
             | AttributeValue::Bitmap64(_) => true,
             AttributeValue::Boolean(v) => *v == 0x00 || *v == 0x01,
             AttributeValue::Unsigned8(v) | AttributeValue::Enumeration8(v) => *v != u8::max_value(),
@@ -441,6 +531,9 @@ impl AttributeValue {
             | AttributeValue::TimeOfDay(v)
             | AttributeValue::Date(v)
             | AttributeValue::UtcTime(v) => *v != u32::max_value(),
+            AttributeValue::Unsigned40(v) => *v == [0xff; 5],
+            AttributeValue::Unsigned48(v) => *v == [0xff; 6],
+            AttributeValue::Unsigned56(v) => *v == [0xff; 7],
             AttributeValue::Unsigned64(v) | AttributeValue::IeeeAddress(v) => {
                 *v != u64::max_value()
             }
@@ -448,6 +541,9 @@ impl AttributeValue {
             AttributeValue::Signed16(v) => *v != i16::min_value(),
             AttributeValue::Signed24(v) => *v > -8_388_608 && *v < 8_388_607,
             AttributeValue::Signed32(v) => *v != i32::min_value(),
+            AttributeValue::Signed40(v) => *v == [0x80, 0x00, 0x00, 0x00, 0x00],
+            AttributeValue::Signed48(v) => *v == [0x80, 0x00, 0x00, 0x00, 0x00, 0x00],
+            AttributeValue::Signed56(v) => *v == [0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
             AttributeValue::Signed64(v) => *v != i64::min_value(),
             AttributeValue::FloatingPoint32(v) => !v.is_normal(),
             AttributeValue::FloatingPoint64(v) => !v.is_normal(),
@@ -472,6 +568,18 @@ impl fmt::Display for AttributeValue {
                 AttributeValue::Data16(v) | AttributeValue::Bitmap16(v) => write!(f, "{}", v),
                 AttributeValue::Data24(v) | AttributeValue::Bitmap24(v) => write!(f, "{}", v),
                 AttributeValue::Data32(v) | AttributeValue::Bitmap32(v) => write!(f, "{}", v),
+                AttributeValue::Data40(v) | AttributeValue::Bitmap40(v) | AttributeValue::Unsigned40(v) | AttributeValue::Signed40(v) => {
+                    let hex: String = v.iter().map(|i| format!("{:02x}", i)).collect();
+                    write!(f, "{}", hex)
+                },
+                AttributeValue::Data48(v) | AttributeValue::Bitmap48(v) | AttributeValue::Unsigned48(v) | AttributeValue::Signed48(v) => {
+                    let hex: String = v.iter().map(|i| format!("{:02x}", i)).collect();
+                    write!(f, "{}", hex)
+                },
+                AttributeValue::Data56(v) | AttributeValue::Bitmap56(v) | AttributeValue::Unsigned56(v) | AttributeValue::Signed56(v) => {
+                    let hex: String = v.iter().map(|i| format!("{:02x}", i)).collect();
+                    write!(f, "{}", hex)
+                },
                 AttributeValue::Data64(v) | AttributeValue::Bitmap64(v) => write!(f, "{}", v),
                 AttributeValue::Boolean(v) => write!(f, "{}", *v == 0x01),
                 AttributeValue::Unsigned8(v) | AttributeValue::Enumeration8(v) => {
