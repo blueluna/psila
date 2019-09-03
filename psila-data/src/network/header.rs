@@ -327,6 +327,9 @@ impl Pack<NetworkHeader, Error> for NetworkHeader {
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
+        if data.len() < 2 {
+            return Err(Error::WrongNumberOfBytes);
+        }
         let frame_control = FrameControl::unpack(&data[0..2])?;
         if frame_control.frame_type == FrameType::InterPan {
             return Ok((
