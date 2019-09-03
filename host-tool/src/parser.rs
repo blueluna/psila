@@ -118,24 +118,14 @@ impl Parser {
                     print!("RSP ");
                 }
                 if let Some(manufacturer) = header.manufacturer {
-                    print!("MNF {} ", manufacturer);
+                    print!("MNF {:04x} ", manufacturer);
                 }
                 print!("SEQ {} ", header.transaction_sequence);
-                if let Ok(cmd) = cluster_library::GeneralCommandIdentifier::try_from(header.command)
-                {
-                    print!("CMD {:?} ", cmd);
-                } else {
-                    print!("CMD {} ", header.command);
-                    print!("Payload: ");
-                    for b in payload[used..].iter() {
-                        print!("{:02x}", b);
-                    }
-                }
                 if header.control.frame_type == FrameType::Global {
                     if let Ok(cmd) =
                         cluster_library::GeneralCommandIdentifier::try_from(header.command)
                     {
-                        println!();
+                        println!("CMD {:?} ", cmd);
                         self.handle_cluser_library_command(&payload[used..], cmd);
                     } else {
                         print!("Unknown command {:02x} Payload: ", header.command);
@@ -145,7 +135,7 @@ impl Parser {
                         println!();
                     }
                 } else {
-                    print!("Payload: ");
+                    print!("CMD {:02x} Payload: ", header.command);
                     for b in payload[used..].iter() {
                         print!("{:02x}", b);
                     }
