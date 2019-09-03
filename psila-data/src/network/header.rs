@@ -219,14 +219,15 @@ impl Pack<SourceRouteFrame, Error> for SourceRouteFrame {
         }
         let count = data[0] as usize;
         let index = data[1];
-        if (data.len() / 2) - 1 != count {
+        if data.len() < (count * SHORT_ADDRESS_SIZE) + 2 {
             return Err(Error::WrongNumberOfBytes);
         }
         if count == 0 || index as usize >= count {
             return Err(Error::BrokenRelayList);
         }
+        let end = 2 + (count * SHORT_ADDRESS_SIZE);
         let mut relay_list: Vec<NetworkAddress> = Vec::with_capacity(count);
-        for chunk in data[2..].chunks(SHORT_ADDRESS_SIZE) {
+        for chunk in data[2..end].chunks(SHORT_ADDRESS_SIZE) {
             let address = NetworkAddress::unpack(chunk)?;
             relay_list.push(address);
         }
@@ -235,7 +236,7 @@ impl Pack<SourceRouteFrame, Error> for SourceRouteFrame {
                 relay_index: index,
                 relay_list,
             },
-            (count * 2) + 2,
+            (count * SHORT_ADDRESS_SIZE) + 2,
         ))
     }
 }
@@ -688,4 +689,33 @@ mod tests {
         assert_eq!(nwk.multicast_control, None);
         assert_eq!(nwk.source_route_frame, None);
     }
+
+    #[test]
+    fn unpack_header() {
+        let data = [
+            0x08, 0x06, 0xa4, 0x31, 0x00, 0x00, 0x0a, 0x3b, 0x01, 0x00, 0xf9, 0xa7, 0x28, 0xa4,
+            0xde, 0x0a, 0x00, 0xb5, 0xb4, 0x03, 0xff, 0xff, 0x2e, 0x21, 0x00, 0x00, 0xb3, 0x5d,
+            0x06, 0xca, 0xec, 0x2c, 0xb3, 0xf3, 0x8a, 0x20, 0x4a, 0xb9,
+        ];
+        let (nwk, used) = NetworkHeader::unpack(&data[..]).unwrap();
+        print_frame(&nwk);
+        assert_eq!(used, 12);
+        assert_eq!(nwk.control.frame_type, FrameType::Data);
+        assert_eq!(nwk.control.protocol_version, 2);
+        assert_eq!(nwk.control.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(nwk.control.multicast, false);
+        assert_eq!(nwk.control.security, true);
+        assert_eq!(nwk.control.contains_source_route_frame, true);
+        assert_eq!(nwk.control.contains_destination_ieee_address, false);
+        assert_eq!(nwk.control.contains_source_ieee_address, false);
+        assert_eq!(nwk.destination_address, [0xa4, 0x31]);
+        assert_eq!(nwk.source_address, [0, 0]);
+        assert_eq!(nwk.radius, 10);
+        assert_eq!(nwk.sequence_number, 59);
+        assert_eq!(nwk.destination_ieee_address, None);
+        assert_eq!(nwk.source_ieee_address, None);
+        assert_eq!(nwk.multicast_control, None);
+        assert!(nwk.source_route_frame.is_some());
+    }
+
 }
