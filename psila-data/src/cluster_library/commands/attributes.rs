@@ -206,7 +206,7 @@ impl Pack<WriteAttributeStatus, Error> for WriteAttributeStatus {
         }
         let status = ClusterLibraryStatus::try_from(data[0])?;
         let identifier = AttributeIdentifier::unpack(&data[1..=2])?;
-        return Ok((Self { status, identifier }, 3));
+        Ok((Self { status, identifier }, 3))
     }
 }
 

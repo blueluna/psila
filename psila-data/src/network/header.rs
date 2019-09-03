@@ -318,9 +318,6 @@ impl Pack<NetworkHeader, Error> for NetworkHeader {
             false
         };
 
-        // TODO:
-        // total_length += self.payload.pack(&mut data[total_length..])? as usize;
-
         control.pack(&mut data[0..2])?;
 
         Ok(total_length)

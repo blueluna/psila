@@ -68,8 +68,8 @@ extended_enum!(
 );
 
 impl AttributeDataType {
-    pub fn num_octets(&self) -> Option<usize> {
-        match *self {
+    pub fn num_octets(self) -> Option<usize> {
+        match self {
             AttributeDataType::None | AttributeDataType::Unknown => Some(0),
             AttributeDataType::Data8
             | AttributeDataType::Boolean
@@ -714,14 +714,14 @@ mod tests {
         for v in [
             u32::min_value(),
             u32::max_value() / 2,
-            0x00ffffff,
+            0x00ff_ffff,
             u32::max_value(),
         ]
         .iter()
         {
             let value = AttributeValue::Unsigned24(*v);
             assert_eq!(value.data_type(), AttributeDataType::Unsigned24);
-            if *v >= 0x00ffffff {
+            if *v >= 0x00ff_ffff {
                 assert_eq!(value.is_valid(), false);
                 assert_eq!(format!("{}", value), "Invalid");
             } else {
@@ -781,7 +781,7 @@ mod tests {
         for v in [
             i32::min_value(),
             i32::max_value() / 2,
-            0x00ffffff,
+            0x00ff_ffff,
             i32::max_value(),
         ]
         .iter()
