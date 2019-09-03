@@ -531,9 +531,9 @@ impl AttributeValue {
             | AttributeValue::TimeOfDay(v)
             | AttributeValue::Date(v)
             | AttributeValue::UtcTime(v) => *v != u32::max_value(),
-            AttributeValue::Unsigned40(v) => *v == [0xff; 5],
-            AttributeValue::Unsigned48(v) => *v == [0xff; 6],
-            AttributeValue::Unsigned56(v) => *v == [0xff; 7],
+            AttributeValue::Unsigned40(v) => *v != [0xff; 5],
+            AttributeValue::Unsigned48(v) => *v != [0xff; 6],
+            AttributeValue::Unsigned56(v) => *v != [0xff; 7],
             AttributeValue::Unsigned64(v) | AttributeValue::IeeeAddress(v) => {
                 *v != u64::max_value()
             }
@@ -541,9 +541,9 @@ impl AttributeValue {
             AttributeValue::Signed16(v) => *v != i16::min_value(),
             AttributeValue::Signed24(v) => *v > -8_388_608 && *v < 8_388_607,
             AttributeValue::Signed32(v) => *v != i32::min_value(),
-            AttributeValue::Signed40(v) => *v == [0x80, 0x00, 0x00, 0x00, 0x00],
-            AttributeValue::Signed48(v) => *v == [0x80, 0x00, 0x00, 0x00, 0x00, 0x00],
-            AttributeValue::Signed56(v) => *v == [0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+            AttributeValue::Signed40(v) => *v != [0x80, 0x00, 0x00, 0x00, 0x00],
+            AttributeValue::Signed48(v) => *v != [0x80, 0x00, 0x00, 0x00, 0x00, 0x00],
+            AttributeValue::Signed56(v) => *v != [0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
             AttributeValue::Signed64(v) => *v != i64::min_value(),
             AttributeValue::FloatingPoint32(v) => !v.is_normal(),
             AttributeValue::FloatingPoint64(v) => !v.is_normal(),
@@ -568,18 +568,27 @@ impl fmt::Display for AttributeValue {
                 AttributeValue::Data16(v) | AttributeValue::Bitmap16(v) => write!(f, "{}", v),
                 AttributeValue::Data24(v) | AttributeValue::Bitmap24(v) => write!(f, "{}", v),
                 AttributeValue::Data32(v) | AttributeValue::Bitmap32(v) => write!(f, "{}", v),
-                AttributeValue::Data40(v) | AttributeValue::Bitmap40(v) | AttributeValue::Unsigned40(v) | AttributeValue::Signed40(v) => {
+                AttributeValue::Data40(v)
+                | AttributeValue::Bitmap40(v)
+                | AttributeValue::Unsigned40(v)
+                | AttributeValue::Signed40(v) => {
                     let hex: String = v.iter().map(|i| format!("{:02x}", i)).collect();
                     write!(f, "{}", hex)
-                },
-                AttributeValue::Data48(v) | AttributeValue::Bitmap48(v) | AttributeValue::Unsigned48(v) | AttributeValue::Signed48(v) => {
+                }
+                AttributeValue::Data48(v)
+                | AttributeValue::Bitmap48(v)
+                | AttributeValue::Unsigned48(v)
+                | AttributeValue::Signed48(v) => {
                     let hex: String = v.iter().map(|i| format!("{:02x}", i)).collect();
                     write!(f, "{}", hex)
-                },
-                AttributeValue::Data56(v) | AttributeValue::Bitmap56(v) | AttributeValue::Unsigned56(v) | AttributeValue::Signed56(v) => {
+                }
+                AttributeValue::Data56(v)
+                | AttributeValue::Bitmap56(v)
+                | AttributeValue::Unsigned56(v)
+                | AttributeValue::Signed56(v) => {
                     let hex: String = v.iter().map(|i| format!("{:02x}", i)).collect();
                     write!(f, "{}", hex)
-                },
+                }
                 AttributeValue::Data64(v) | AttributeValue::Bitmap64(v) => write!(f, "{}", v),
                 AttributeValue::Boolean(v) => write!(f, "{}", *v == 0x01),
                 AttributeValue::Unsigned8(v) | AttributeValue::Enumeration8(v) => {
