@@ -11,7 +11,7 @@ use crate::Error;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Tunnel {
     /// Extended address of the destination device
-    destination: ExtendedAddress,
+    pub destination: ExtendedAddress,
 }
 
 impl Pack<Tunnel, Error> for Tunnel {

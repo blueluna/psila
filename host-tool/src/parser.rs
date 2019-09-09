@@ -266,6 +266,148 @@ impl Parser {
         println!();
     }
 
+    fn handle_application_service_command(&self, payload: &[u8]) {
+        use application_service::Command;
+        print!("APS Command ");
+        match Command::unpack(payload) {
+            Ok((cmd, _used)) => {
+                match cmd {
+                    Command::SymmetricKeyKeyEstablishment1(cmd) => {
+                        print!(
+                            "SKKE1 Initator {} Responder {} ",
+                            cmd.initiator, cmd.responder
+                        );
+                        for b in cmd.data.iter() {
+                            print!("{:02x}", b);
+                        }
+                    }
+                    Command::SymmetricKeyKeyEstablishment2(cmd) => {
+                        print!(
+                            "SKKE2 Initator {} Responder {} ",
+                            cmd.initiator, cmd.responder
+                        );
+                        for b in cmd.data.iter() {
+                            print!("{:02x}", b);
+                        }
+                    }
+                    Command::SymmetricKeyKeyEstablishment3(cmd) => {
+                        print!(
+                            "SKKE3 Initator {} Responder {} ",
+                            cmd.initiator, cmd.responder
+                        );
+                        for b in cmd.data.iter() {
+                            print!("{:02x}", b);
+                        }
+                    }
+                    Command::SymmetricKeyKeyEstablishment4(cmd) => {
+                        print!(
+                            "SKKE4 Initator {} Responder {} ",
+                            cmd.initiator, cmd.responder
+                        );
+                        for b in cmd.data.iter() {
+                            print!("{:02x}", b);
+                        }
+                    }
+                    Command::TransportKey(cmd) => {
+                        use application_service::commands::TransportKey;
+                        print!("Transport Key ");
+                        match cmd {
+                            TransportKey::TrustCenterMasterKey(key) => {
+                                print!(
+                                    "Trust Center Master Key, DST {} SRC {} KEY {}",
+                                    key.destination, key.source, key.key
+                                );
+                            }
+                            TransportKey::StandardNetworkKey(key) => {
+                                print!(
+                                    "Standard Network Key, DST {} SRC {} SEQ {} KEY {}",
+                                    key.destination, key.source, key.sequence, key.key
+                                );
+                            }
+                            TransportKey::ApplicationMasterKey(key) => {
+                                print!(
+                                    "Application Master Key, Partner {} {} KEY {}",
+                                    key.partner,
+                                    if key.initiator { "Initiator" } else { "" },
+                                    key.key
+                                );
+                            }
+                            TransportKey::ApplicationLinkKey(key) => {
+                                print!(
+                                    "Application Link Key, Partner {} {} KEY {}",
+                                    key.partner,
+                                    if key.initiator { "Initiator" } else { "" },
+                                    key.key
+                                );
+                            }
+                            TransportKey::UniqueTrustCenterLinkKey(key) => {
+                                print!(
+                                    "Unique Trust Center Link Key, DST {} SRC {} KEY {}",
+                                    key.destination, key.source, key.key
+                                );
+                            }
+                            TransportKey::HighSecurityNetworkKey(key) => {
+                                print!(
+                                    "High Security Network Key, DST {} SRC {} SEQ {} KEY {}",
+                                    key.destination, key.source, key.sequence, key.key
+                                );
+                            }
+                        }
+                    }
+                    Command::UpdateDevice(cmd) => {
+                        print!(
+                            "Update Device, {} {} {:?}",
+                            cmd.address, cmd.short_address, cmd.status
+                        );
+                    }
+                    Command::RemoveDevice(cmd) => {
+                        print!("Remove Device, {}", cmd.address);
+                    }
+                    Command::RequestKey(cmd) => {
+                        print!("Request Key, {:?}", cmd.key_type);
+                        if let Some(partner) = cmd.partner_address {
+                            print!(" Partner {}", partner);
+                        }
+                    }
+                    Command::SwitchKey(cmd) => {
+                        print!("Switch Key, Sequence {}", cmd.sequence);
+                    }
+                    Command::EntityAuthenticationInitiatorChallange => {
+                        print!("EAC Initiator");
+                    }
+                    Command::EntityAuthenticationResponderChallange => {
+                        print!("EAC Responder");
+                    }
+                    Command::EntityAuthenticationInitiatorMacAndData => {
+                        print!("EAMD Initiator");
+                    }
+                    Command::EntityAuthenticationResponderMacAndData => {
+                        print!("EAMD Responder");
+                    }
+                    Command::Tunnel(cmd) => {
+                        print!("Tunnel {}", cmd.destination);
+                    }
+                    Command::VerifyKey(cmd) => {
+                        print!("Verify Key, Source {} Type {:?} ", cmd.source, cmd.key_type);
+                        for b in cmd.value.iter() {
+                            print!("{:02x}", b);
+                        }
+                    }
+                    Command::ConfirmKey(cmd) => {
+                        print!(
+                            "Confirm Key, Source {} Type {:?} Status {:?}",
+                            cmd.destination, cmd.key_type, cmd.status
+                        );
+                    }
+                }
+                println!();
+            }
+            Err(e) => {
+                println!("Failed to parse APS command, {:?}", e);
+            }
+        }
+    }
+
     fn parse_application_service_frame(&self, payload: &[u8]) {
         print!("APS ");
         match ApplicationServiceHeader::unpack(payload) {
@@ -298,7 +440,7 @@ impl Parser {
                 if let Some(addr) = header.source {
                     print!("Src {:02x} ", addr);
                 }
-                print!("Counter {:02x} ", header.counter);
+                println!("Counter {:02x}", header.counter);
                 let mut processed_payload = [0u8; 256];
                 let length = if header.control.security {
                     self.security
@@ -314,14 +456,12 @@ impl Parser {
                             match ProfileIdentifier::try_from(profile) {
                                 Ok(profile) => match profile {
                                     ProfileIdentifier::DeviceProfile => {
-                                        println!();
                                         self.handle_device_profile(
                                             &processed_payload[..length],
                                             cluster,
                                         );
                                     }
                                     _ => {
-                                        println!();
                                         self.handle_cluser_library(
                                             &processed_payload[..length],
                                             profile,
@@ -345,9 +485,25 @@ impl Parser {
                             println!();
                         }
                     }
-                    application_service::header::FrameType::Command => println!(),
-                    application_service::header::FrameType::Acknowledgement => println!(),
-                    application_service::header::FrameType::InterPan => println!(),
+                    application_service::header::FrameType::Command => {
+                        self.handle_application_service_command(&processed_payload[..length]);
+                    }
+                    application_service::header::FrameType::Acknowledgement => {
+                        if payload[used..].len() > 0 {
+                            print!("APS Acknowledgement Payload: ");
+                            for b in payload[used..].iter() {
+                                print!("{:02x}", b);
+                            }
+                            println!();
+                        }
+                    }
+                    application_service::header::FrameType::InterPan => {
+                        print!("APS Inter-PAN Payload: ");
+                        for b in payload[used..].iter() {
+                            print!("{:02x}", b);
+                        }
+                        println!();
+                    }
                 }
             }
             Err(e) => {

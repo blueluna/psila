@@ -20,11 +20,11 @@ extended_enum!(
 #[derive(Clone, Debug, PartialEq)]
 pub struct UpdateDevice {
     /// Extended address of the device
-    address: ExtendedAddress,
+    pub address: ExtendedAddress,
     /// Short address of the device
-    short_address: ShortAddress,
+    pub short_address: ShortAddress,
     /// Device status
-    status: Status,
+    pub status: Status,
 }
 
 impl Pack<UpdateDevice, Error> for UpdateDevice {
@@ -71,7 +71,7 @@ impl Pack<UpdateDevice, Error> for UpdateDevice {
 #[derive(Clone, Debug, PartialEq)]
 pub struct RemoveDevice {
     /// Extended address of the device
-    address: ExtendedAddress,
+    pub address: ExtendedAddress,
 }
 
 impl Pack<RemoveDevice, Error> for RemoveDevice {

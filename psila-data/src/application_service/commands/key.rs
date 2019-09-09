@@ -24,9 +24,9 @@ extended_enum!(
 #[derive(Clone, Debug, PartialEq)]
 pub struct RequestKey {
     /// Key type which is requested
-    key_type: RequestKeyType,
+    pub key_type: RequestKeyType,
     /// Optional partner address, used for application link keys
-    partner_address: Option<ExtendedAddress>,
+    pub partner_address: Option<ExtendedAddress>,
 }
 
 impl Pack<RequestKey, Error> for RequestKey {
@@ -84,7 +84,7 @@ impl Pack<RequestKey, Error> for RequestKey {
 #[derive(Clone, Debug, PartialEq)]
 pub struct SwitchKey {
     /// Sequence number
-    sequence: u8,
+    pub sequence: u8,
 }
 
 impl Pack<SwitchKey, Error> for SwitchKey {
@@ -110,11 +110,11 @@ impl Pack<SwitchKey, Error> for SwitchKey {
 #[derive(Clone, Debug, PartialEq)]
 pub struct VerifyKey {
     /// Key type which shall be verified
-    key_type: KeyType,
+    pub key_type: KeyType,
     /// 64-bit extended address of the source
-    source: ExtendedAddress,
+    pub source: ExtendedAddress,
     /// Hash value
-    value: [u8; BLOCK_SIZE],
+    pub value: [u8; BLOCK_SIZE],
 }
 
 impl Pack<VerifyKey, Error> for VerifyKey {
@@ -160,11 +160,11 @@ impl Pack<VerifyKey, Error> for VerifyKey {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConfirmKey {
     /// Status code
-    status: ApplicationServiceStatus,
+    pub status: ApplicationServiceStatus,
     /// Key type which shall be verified
-    key_type: KeyType,
+    pub key_type: KeyType,
     /// 64-bit extended address of the destination
-    destination: ExtendedAddress,
+    pub destination: ExtendedAddress,
 }
 
 impl Pack<ConfirmKey, Error> for ConfirmKey {
