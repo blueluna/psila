@@ -23,6 +23,7 @@ impl Parser {
             security: SecurityService::new(),
         }
     }
+
     fn handle_cluser_library_command(
         &self,
         payload: &[u8],
@@ -266,7 +267,7 @@ impl Parser {
         println!();
     }
 
-    fn handle_application_service_command(&self, payload: &[u8]) {
+    fn handle_application_service_command(&mut self, payload: &[u8]) {
         use application_service::Command;
         print!("APS Command ");
         match Command::unpack(payload) {
@@ -323,6 +324,7 @@ impl Parser {
                                     "Standard Network Key, DST {} SRC {} SEQ {} KEY {}",
                                     key.destination, key.source, key.sequence, key.key
                                 );
+                                self.security.add_transport_key(&key);
                             }
                             TransportKey::ApplicationMasterKey(key) => {
                                 print!(
@@ -408,7 +410,7 @@ impl Parser {
         }
     }
 
-    fn parse_application_service_frame(&self, payload: &[u8]) {
+    fn parse_application_service_frame(&mut self, payload: &[u8]) {
         print!("APS ");
         match ApplicationServiceHeader::unpack(payload) {
             Ok((header, used)) => {
@@ -627,7 +629,7 @@ impl Parser {
         }
     }
 
-    fn parse_network_frame(&self, payload: &[u8]) {
+    fn parse_network_frame(&mut self, payload: &[u8]) {
         match NetworkHeader::unpack(payload) {
             Ok((network_frame, used)) => {
                 print!("NWK TYP {:?} ", network_frame.control.frame_type);
@@ -715,7 +717,7 @@ impl Parser {
         }
     }
 
-    fn parse_mac(&self, packet: &[u8]) {
+    fn parse_mac(&mut self, packet: &[u8]) {
         use mac::Address;
         match mac::Frame::decode(packet, false) {
             Ok(frame) => {

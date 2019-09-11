@@ -1,6 +1,7 @@
 use std::convert::From;
 
 use gcrypt;
+use psila_data::application_service::commands::transport_key::NetworkKey;
 use psila_data::{common::key::Key, pack::Pack, security};
 
 pub struct SecurityService {
@@ -61,7 +62,7 @@ impl SecurityService {
             match result {
                 Ok(size) => {
                     if size > 0 {
-                        println!(" Key {}", key_name);
+                        println!(" Key \"{}\"", key_name);
                         return size;
                     }
                 }
@@ -76,5 +77,15 @@ impl SecurityService {
 
     pub fn add_key(&mut self, key: [u8; 16], name: &str) {
         self.keys.push((Key::from(key), name.to_string()));
+    }
+
+    pub fn add_transport_key(&mut self, new_key: &NetworkKey) {
+        for (key, _) in self.keys.iter() {
+            if *key == new_key.key {
+                return;
+            }
+        }
+        self.keys
+            .push((new_key.key, format!("Transport Key {}", new_key.source)));
     }
 }

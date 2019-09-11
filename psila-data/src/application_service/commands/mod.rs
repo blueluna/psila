@@ -1,7 +1,7 @@
 mod device;
 mod key;
 mod key_establishment;
-mod transport_key;
+pub mod transport_key;
 mod tunnel;
 
 use core::convert::TryFrom;

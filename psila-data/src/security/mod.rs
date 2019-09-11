@@ -221,123 +221,86 @@ impl Pack<SecurityHeader, Error> for SecurityHeader {
     }
 }
 
-fn hash_process_block(
+/// Process a block for the Key-hash hash function
+fn hash_key_process_block(
     cipher: &mut Cipher,
     input: &[u8],
     mut output: &mut [u8],
 ) -> Result<(), gcrypt::Error> {
     cipher.set_key(&output)?;
     cipher.encrypt(&input, &mut output)?;
-    /* Now we have to XOR the input into the hash block. */
+    // XOR the input into the hash block
     for n in 0..BLOCK_SIZE {
         output[n] ^= input[n];
     }
     Ok(())
 }
 
-pub fn hash(input: &[u8], output: &mut [u8]) -> Result<(), gcrypt::Error> {
-    /* Cipher Instance. */
-    let mut block = [0u8; BLOCK_SIZE];
+/// Key-hash hash function
+fn hash_key_hash(input: &[u8], output: &mut [u8]) -> Result<(), gcrypt::Error> {
+    assert!(input.len() < 4096);
 
-    /* Clear the first hash block (Hash0). */
-    for output_byte in &mut output[..BLOCK_SIZE] {
-        *output_byte = 0;
+    // Clear the first block of output
+    for b in output[..BLOCK_SIZE].iter_mut() {
+        *b = 0;
     }
 
-    /* Create the cipher instance in ECB mode. */
     let mut cipher = Cipher::new(Algorithm::Aes128, Mode::Ecb)?;
-    /* Create the subsequent hash blocks using the formula: Hash[i] = E(Hash[i-1], M[i]) XOR M[i]
-     *
-     * because we can't guarantee that M will be exactly a multiple of the
-     * block size, we will need to copy it into local buffers and pad it.
-     *
-     * Note that we check for the next cipher block at the end of the loop
-     * rather than the start. This is so that if the input happens to end
-     * on a block boundary, the next cipher block will be generated for the
-     * start of the padding to be placed into.
-     */
-    let mut j = 0;
-    for input_byte in input.iter() {
-        /* Copy data into the cipher input. */
-        block[j] = *input_byte;
-        j += 1;
-        /* Check if this cipher block is done. */
-        if j >= BLOCK_SIZE {
-            /* We have reached the end of this block. Process it with the
-             * cipher, note that the Key input to the cipher is actually
-             * the previous hash block, which we are keeping in output.
-             */
-            hash_process_block(&mut cipher, &block, &mut output[0..BLOCK_SIZE])?;
-            /* Reset j to start again at the beginning at the next block. */
-            j = 0;
+
+    let mut blocks = input.chunks_exact(BLOCK_SIZE);
+
+    // Process input data in cipher block sized chunks
+    loop {
+        match blocks.next() {
+            Some(input_block) => {
+                hash_key_process_block(&mut cipher, &input_block, &mut output[..BLOCK_SIZE])?;
+            }
+            None => {
+                let mut block = [0u8; BLOCK_SIZE];
+                let remainder = blocks.remainder();
+                assert!(remainder.len() < BLOCK_SIZE - 3);
+                block[..remainder.len()].copy_from_slice(remainder);
+                // Pad the message M by right-concatenating to M the bit ‘1’ followed by the
+                // smallest non-negative number of ‘0’ bits, such that the resulting string has
+                // length 14 (mod 16) octets:
+                block[remainder.len()] = 0x80;
+                let input_len = input.len() as u16 * 8;
+                // Form the padded message M' by right-concatenating to the resulting string the
+                // 16-bit string that is equal to the binary representation of the integer l:
+                block[BLOCK_SIZE - 2] = (input_len >> 8) as u8;
+                block[BLOCK_SIZE - 1] = (input_len & 0xff) as u8;
+                hash_key_process_block(&mut cipher, &block, &mut output[..BLOCK_SIZE])?;
+                break;
+            }
         }
     }
-    /* Need to append the bit '1', followed by '0' padding long enough to end
-     * the hash input on a block boundary. However, because 'n' is 16, and 'l'
-     * will be a multiple of 8, the padding will be >= 7-bits, and we can just
-     * append the byte 0x80.
-     */
-    block[j] = 0x80;
-    j += 1;
-    /* Pad with '0' until the the current block is exactly 'n' bits from the
-     * end.
-     */
-    while j != (BLOCK_SIZE - 2) {
-        if j >= BLOCK_SIZE {
-            /* We have reached the end of this block. Process it with the
-             * cipher, note that the Key input to the cipher is actually
-             * the previous hash block, which we are keeping in output.
-             */
-            hash_process_block(&mut cipher, &block, &mut output[0..BLOCK_SIZE])?;
-            /* Reset j to start again at the beginning at the next block. */
-            j = 0;
-        }
-        /* Pad the input with 0. */
-        block[j] = 0x00;
-        j += 1;
-    }
-    let input_len = input.len() as u16 * 8;
-    /* Add the 'n'-bit representation of 'l' to the end of the block. */
-    block[j] = (input_len >> 8) as u8;
-    j += 1;
-    block[j] = (input_len & 0xff) as u8;
-    /* Process the last cipher block. */
-    hash_process_block(&mut cipher, &block, &mut output[0..BLOCK_SIZE])?;
-    /* Cleanup the cipher. */
-    /* Done */
     Ok(())
 }
 
-pub fn keyed_hash(key: &[u8; KEY_SIZE], input: u8, result: &mut [u8]) -> Result<(), gcrypt::Error> {
+/// FIPS Pub 198 HMAC
+pub fn hash_key(key: &[u8; KEY_SIZE], input: u8, result: &mut [u8]) -> Result<(), gcrypt::Error> {
     const HASH_INNER_PAD: u8 = 0x36;
     const HASH_OUTER_PAD: u8 = 0x5c;
     let mut hash_in = [0; BLOCK_SIZE * 2];
     let mut hash_out = [0; BLOCK_SIZE + 1];
-
     {
-        /* Copy the key into hash_in and XOR with opad to form: (Key XOR opad) */
+        // XOR the key with the outer padding
         for n in 0..KEY_SIZE {
             hash_in[n] = key[n] ^ HASH_OUTER_PAD;
         }
-
-        /* Copy the Key into hash_out and XOR with ipad to form: (Key XOR ipad) */
+        // XOR the key with the inner padding
         for n in 0..KEY_SIZE {
             hash_out[n] = key[n] ^ HASH_INNER_PAD;
         }
-
-        /* Append the input byte to form: (Key XOR ipad) || text. */
+        // Append the input byte
         hash_out[BLOCK_SIZE] = input;
-
-        /* Hash the contents of hash_out and append the contents to hash_in to
-         * form: (Key XOR opad) || H((Key XOR ipad) || text).
-         */
-        hash(&hash_out[..=BLOCK_SIZE], &mut hash_in[BLOCK_SIZE..])?;
-
-        /* Hash the contents of hash_in to get the final result. */
-        hash(&hash_in, &mut hash_out)?;
+        // Hash hash_out to form (Key XOR opad) || H((Key XOR ipad) || text)
+        hash_key_hash(&hash_out[..=BLOCK_SIZE], &mut hash_in[BLOCK_SIZE..])?;
+        // Hash hash_in to get the result
+        hash_key_hash(&hash_in, &mut hash_out)?;
     }
-
     {
+        // Take the key
         let (output_key, _) = result.split_at_mut(KEY_SIZE);
         output_key.copy_from_slice(&hash_out[..KEY_SIZE]);
     }
@@ -550,10 +513,10 @@ pub fn handle_secure_payload(
 
     match header.control.identifier {
         KeyIdentifier::KeyTransport => {
-            keyed_hash(&key, 0x00, &mut updated_key)?;
+            hash_key(&key, 0x00, &mut updated_key)?;
         }
         KeyIdentifier::KeyLoad => {
-            keyed_hash(&key, 0x02, &mut updated_key)?;
+            hash_key(&key, 0x02, &mut updated_key)?;
         }
         _ => {
             updated_key.copy_from_slice(&key[..]);
@@ -646,7 +609,7 @@ mod tests {
             0x4E, 0x4F,
         ];
         let mut calculated = [0; BLOCK_SIZE];
-        keyed_hash(&key, 0xc0, &mut calculated).unwrap();
+        hash_key(&key, 0xc0, &mut calculated).unwrap();
         assert_eq!(
             calculated,
             [
@@ -915,10 +878,10 @@ mod tests {
 
         match f.control.identifier {
             KeyIdentifier::KeyTransport => {
-                keyed_hash(&DEFAULT_LINK_KEY, 0x00, &mut key).unwrap();
+                hash_key(&DEFAULT_LINK_KEY, 0x00, &mut key).unwrap();
             }
             KeyIdentifier::KeyLoad => {
-                keyed_hash(&DEFAULT_LINK_KEY, 0x02, &mut key).unwrap();
+                hash_key(&DEFAULT_LINK_KEY, 0x02, &mut key).unwrap();
             }
             _ => {
                 key.copy_from_slice(&DEFAULT_LINK_KEY);
