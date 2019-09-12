@@ -6,6 +6,7 @@ use psila_data::{common::key::Key, pack::Pack, security};
 
 pub struct SecurityService {
     pub keys: Vec<(Key, String)>,
+    crypto_provider: security::CryptoProvider<security::GCryptBackend>,
 }
 
 impl SecurityService {
@@ -24,7 +25,12 @@ impl SecurityService {
             Key::from(security::LIGHT_LINK_COMMISIONING_LINK_KEY),
             "Light Link Commisioning Link Key".to_string(),
         ));
-        SecurityService { keys }
+        let backend = security::GCryptBackend::default();
+        let crypto_provider = security::CryptoProvider::new(backend);
+        SecurityService {
+            keys,
+            crypto_provider,
+        }
     }
 
     fn print_header(header: &security::SecurityHeader) {
@@ -41,7 +47,7 @@ impl SecurityService {
         print!(" Counter {}", header.counter);
     }
 
-    pub fn decrypt(&self, payload: &[u8], offset: usize, mut output: &mut [u8]) -> usize {
+    pub fn decrypt(&mut self, payload: &[u8], offset: usize, mut output: &mut [u8]) -> usize {
         print!("SEC ");
         match security::SecurityHeader::unpack(&payload[offset..]) {
             Ok((header, _used)) => Self::print_header(&header),
@@ -52,7 +58,7 @@ impl SecurityService {
         }
         for (key, key_name) in self.keys.iter() {
             let key = (*key).into();
-            let result = security::handle_secure_payload(
+            let result = self.crypto_provider.decrypt_payload(
                 &key,
                 security::SecurityLevel::EncryptedIntegrity32,
                 &payload,

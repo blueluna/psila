@@ -6,9 +6,15 @@ use crate::cluster_library::{
 use crate::pack::{Pack, PackFixed};
 use crate::Error;
 
+#[cfg(feature = "std")]
+pub type AttributeIdentifierVec = std::vec::Vec<AttributeIdentifier>;
+
+#[cfg(feature = "core")]
+pub type AttributeIdentifierVec = heapless::Vec<AttributeIdentifier, heapless::consts::U32>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReadAttributes {
-    pub attributes: Vec<AttributeIdentifier>,
+    pub attributes: AttributeIdentifierVec,
 }
 
 impl Pack<ReadAttributes, Error> for ReadAttributes {
@@ -29,7 +35,7 @@ impl Pack<ReadAttributes, Error> for ReadAttributes {
             return Err(Error::WrongNumberOfBytes);
         }
         let num_attributes = data.len() / 2;
-        let mut attributes: Vec<AttributeIdentifier> = Vec::with_capacity(num_attributes);
+        let mut attributes = AttributeIdentifierVec::new();
         let mut offset = 0;
         for _ in 0..num_attributes {
             let attribute_id = AttributeIdentifier::unpack(&data[offset..offset + 2])?;
@@ -98,9 +104,15 @@ impl Pack<AttributeStatus, Error> for AttributeStatus {
     }
 }
 
+#[cfg(feature = "std")]
+pub type AttributeStatusVec = std::vec::Vec<AttributeStatus>;
+
+#[cfg(feature = "core")]
+pub type AttributeStatusVec = heapless::Vec<AttributeStatus, heapless::consts::U32>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReadAttributesResponse {
-    pub attributes: Vec<AttributeStatus>,
+    pub attributes: AttributeStatusVec,
 }
 
 impl Pack<ReadAttributesResponse, Error> for ReadAttributesResponse {
@@ -114,7 +126,7 @@ impl Pack<ReadAttributesResponse, Error> for ReadAttributesResponse {
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
         let mut offset = 0;
-        let mut attributes: Vec<AttributeStatus> = Vec::new();
+        let mut attributes = AttributeStatusVec::new();
         loop {
             if offset == data.len() {
                 break;
@@ -155,9 +167,15 @@ impl Pack<WriteAttributeRecord, Error> for WriteAttributeRecord {
     }
 }
 
+#[cfg(feature = "std")]
+pub type WriteAttributeRecordVec = std::vec::Vec<WriteAttributeRecord>;
+
+#[cfg(feature = "core")]
+pub type WriteAttributeRecordVec = heapless::Vec<WriteAttributeRecord, heapless::consts::U16>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct WriteAttributes {
-    pub attributes: Vec<WriteAttributeRecord>,
+    pub attributes: WriteAttributeRecordVec,
 }
 
 impl Pack<WriteAttributes, Error> for WriteAttributes {
@@ -171,7 +189,7 @@ impl Pack<WriteAttributes, Error> for WriteAttributes {
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
         let mut offset = 0;
-        let mut attributes: Vec<WriteAttributeRecord> = Vec::new();
+        let mut attributes = WriteAttributeRecordVec::new();
         loop {
             if offset == data.len() {
                 break;
@@ -210,9 +228,15 @@ impl Pack<WriteAttributeStatus, Error> for WriteAttributeStatus {
     }
 }
 
+#[cfg(feature = "std")]
+pub type WriteAttributeStatusVec = std::vec::Vec<WriteAttributeStatus>;
+
+#[cfg(feature = "core")]
+pub type WriteAttributeStatusVec = heapless::Vec<WriteAttributeStatus, heapless::consts::U16>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct WriteAttributesResponse {
-    pub attributes: Vec<WriteAttributeStatus>,
+    pub attributes: WriteAttributeStatusVec,
 }
 
 impl Pack<WriteAttributesResponse, Error> for WriteAttributesResponse {
@@ -226,7 +250,7 @@ impl Pack<WriteAttributesResponse, Error> for WriteAttributesResponse {
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
         let mut offset = 0;
-        let mut attributes: Vec<WriteAttributeStatus> = Vec::new();
+        let mut attributes = WriteAttributeStatusVec::new();
         loop {
             if offset == data.len() {
                 break;
@@ -241,7 +265,7 @@ impl Pack<WriteAttributesResponse, Error> for WriteAttributesResponse {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReportAttributes {
-    pub attributes: Vec<WriteAttributeRecord>,
+    pub attributes: WriteAttributeRecordVec,
 }
 
 impl Pack<ReportAttributes, Error> for ReportAttributes {
@@ -255,7 +279,7 @@ impl Pack<ReportAttributes, Error> for ReportAttributes {
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
         let mut offset = 0;
-        let mut attributes: Vec<WriteAttributeRecord> = Vec::new();
+        let mut attributes = WriteAttributeRecordVec::new();
         loop {
             if offset == data.len() {
                 break;
@@ -268,7 +292,7 @@ impl Pack<ReportAttributes, Error> for ReportAttributes {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
 

@@ -1,3 +1,5 @@
+use core::default::Default;
+
 use crate::error::Error;
 use crate::pack::{Pack, PackFixed};
 use crate::NetworkAddress;
@@ -40,6 +42,16 @@ impl PackFixed<LinkStatusEntry, Error> for LinkStatusEntry {
     }
 }
 
+impl Default for LinkStatusEntry {
+    fn default() -> Self {
+        Self {
+            address: NetworkAddress::default(),
+            incoming_cost: 0,
+            outgoing_cost: 0,
+        }
+    }
+}
+
 const NUMBER_OF_ENTRIES_MASK: u8 = 0b0001_1111;
 const FIRST_FRAME: u8 = 0b0010_0000;
 const LAST_FRAME: u8 = 0b0100_0000;
@@ -48,7 +60,22 @@ const LAST_FRAME: u8 = 0b0100_0000;
 pub struct LinkStatus {
     pub first_frame: bool,
     pub last_frame: bool,
-    pub entries: Vec<LinkStatusEntry>,
+    num_entries: u8,
+    entries: [LinkStatusEntry; 32],
+}
+
+impl LinkStatus {
+    pub fn is_empty(&self) -> bool {
+        self.num_entries == 0
+    }
+
+    pub fn len(&self) -> usize {
+        self.num_entries as usize
+    }
+
+    pub fn entries(&self) -> &[LinkStatusEntry] {
+        &self.entries[..self.num_entries as usize]
+    }
 }
 
 impl Pack<LinkStatus, Error> for LinkStatus {
@@ -58,11 +85,10 @@ impl Pack<LinkStatus, Error> for LinkStatus {
             return Err(Error::WrongNumberOfBytes);
         }
         let mut offset = 1;
-        let num_entries = self.entries.len() as u8;
-        data[0] = num_entries
+        data[0] = self.num_entries
             | if self.first_frame { FIRST_FRAME } else { 0 }
             | if self.last_frame { LAST_FRAME } else { 0 };
-        for entry in self.entries.iter() {
+        for entry in self.entries[..self.num_entries as usize].iter() {
             entry.pack(&mut data[offset..offset + LINK_STATUS_ENTRY_SIZE])?;
             offset += LINK_STATUS_ENTRY_SIZE;
         }
@@ -73,17 +99,16 @@ impl Pack<LinkStatus, Error> for LinkStatus {
         if data.is_empty() {
             return Err(Error::WrongNumberOfBytes);
         }
-        let num_entries = (data[0] & NUMBER_OF_ENTRIES_MASK) as usize;
-        if data.len() < (1 + (num_entries * LINK_STATUS_ENTRY_SIZE)) {
+        let num_entries = data[0] & NUMBER_OF_ENTRIES_MASK;
+        if data.len() < (1 + ((num_entries as usize) * LINK_STATUS_ENTRY_SIZE)) {
             return Err(Error::WrongNumberOfBytes);
         }
         let first_frame = (data[0] & FIRST_FRAME) == FIRST_FRAME;
         let last_frame = (data[0] & LAST_FRAME) == LAST_FRAME;
         let mut offset = 1;
-        let mut entries: Vec<LinkStatusEntry> = Vec::with_capacity(num_entries);
-        for _ in 0..num_entries {
-            let entry = LinkStatusEntry::unpack(&data[offset..offset + LINK_STATUS_ENTRY_SIZE])?;
-            entries.push(entry);
+        let mut entries = [LinkStatusEntry::default(); 32];
+        for entry in entries[..num_entries as usize].iter_mut() {
+            *entry = LinkStatusEntry::unpack(&data[offset..offset + LINK_STATUS_ENTRY_SIZE])?;
             offset += LINK_STATUS_ENTRY_SIZE;
         }
 
@@ -91,6 +116,7 @@ impl Pack<LinkStatus, Error> for LinkStatus {
             LinkStatus {
                 first_frame,
                 last_frame,
+                num_entries,
                 entries,
             },
             offset,

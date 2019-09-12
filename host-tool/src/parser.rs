@@ -173,12 +173,10 @@ impl Parser {
                             "Network Address Response {:?} {} {}",
                             rsp.status, rsp.network_address, rsp.ieee_address
                         );
-                        if let Some(index) = rsp.start_index {
-                            print!(" Start {}", index);
-                        }
-                        if let Some(associated_devices) = rsp.associated_devices {
+                        if !rsp.is_empty() {
+                            print!(" Start {}", rsp.start_index);
                             print!(" Associated Devices");
-                            for address in associated_devices {
+                            for address in rsp.devices() {
                                 print!(" {}", address);
                             }
                         }
@@ -194,12 +192,10 @@ impl Parser {
                             "Network Address Response {:?} {} {}",
                             rsp.status, rsp.network_address, rsp.ieee_address
                         );
-                        if let Some(index) = rsp.start_index {
-                            print!(" Start {}", index);
-                        }
-                        if let Some(associated_devices) = rsp.associated_devices {
+                        if !rsp.is_empty() {
+                            print!(" Start {}", rsp.start_index);
                             print!(" Associated Devices");
-                            for address in associated_devices {
+                            for address in rsp.devices() {
                                 print!(" {}", address);
                             }
                         }
@@ -212,11 +208,11 @@ impl Parser {
                             "Match Descriptor Request: Address {} Profile {:04x} Input",
                             req.address, req.profile
                         );
-                        for cluster in req.input_clusters {
+                        for cluster in req.input_clusters_entries() {
                             print!(" {:04x}", cluster);
                         }
                         print!(" Output");
-                        for cluster in req.output_clusters {
+                        for cluster in req.output_clusters_entries() {
                             print!(" {:04x}", cluster);
                         }
                     }
@@ -225,7 +221,7 @@ impl Parser {
                             "Match Descriptor Response: {:?} Address {} Nodes",
                             rsp.status, rsp.address
                         );
-                        for node in rsp.list {
+                        for node in rsp.entries() {
                             print!(" {:02x}", node);
                         }
                     }
@@ -240,10 +236,10 @@ impl Parser {
                     }
                     DeviceProfileMessage::ManagementLinkQualityIndicatorResponse(rsp) => {
                         print!("LQI Response: {:?} ", rsp.status);
-                        if rsp.neighbors.len() != rsp.neighbors_total as usize {
+                        if rsp.len() != rsp.neighbors_total as usize {
                             print!("Index {} Total {} ", rsp.neighbors_total, rsp.index);
                         }
-                        for neighbor in rsp.neighbors {
+                        for neighbor in rsp.neighbors() {
                             print!(
                                 "{} {:?} RX on idle {:?} {:?} LQI {} ",
                                 neighbor.extended_address,
@@ -491,7 +487,7 @@ impl Parser {
                         self.handle_application_service_command(&processed_payload[..length]);
                     }
                     application_service::header::FrameType::Acknowledgement => {
-                        if payload[used..].len() > 0 {
+                        if !payload[used..].is_empty() {
                             print!("APS Acknowledgement Payload: ");
                             for b in payload[used..].iter() {
                                 print!("{:02x}", b);
@@ -565,7 +561,7 @@ impl Parser {
                 }
                 Command::RouteRecord(rr) => {
                     print!("Route Record ");
-                    for address in rr.relay_list {
+                    for address in rr.entries() {
                         print!("{} ", address);
                     }
                     println!();
@@ -583,7 +579,7 @@ impl Parser {
                     } else if !ls.first_frame && ls.last_frame {
                         print!("Last ");
                     }
-                    for entry in ls.entries {
+                    for entry in ls.entries() {
                         print!(
                             "{} Incoming {} Outgoing {} ",
                             entry.address, entry.incoming_cost, entry.outgoing_cost
@@ -657,8 +653,8 @@ impl Parser {
                     print!("MC {:?} RAD {} MAX {}", mc.mode, mc.radius, mc.max_radius);
                 }
                 if let Some(srf) = network_frame.source_route_frame {
-                    print!("SRF I {}", srf.relay_index);
-                    for address in srf.relay_list.iter() {
+                    print!("SRF I {}", srf.index);
+                    for address in srf.entries() {
                         print!(" {}", address);
                     }
                 }

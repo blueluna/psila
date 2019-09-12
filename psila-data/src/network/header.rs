@@ -165,47 +165,55 @@ impl PackFixed<MulticastControl, Error> for MulticastControl {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceRouteFrame {
-    pub relay_index: u8,
-    pub relay_list: Vec<NetworkAddress>,
+    pub index: u8,
+    num_entries: u8,
+    entries: [NetworkAddress; 32],
 }
 
 impl SourceRouteFrame {
-    pub fn new(relay_list: Vec<NetworkAddress>) -> Self {
+    pub fn new(relay_list: &[NetworkAddress]) -> Self {
         if relay_list.is_empty() {
             panic!("Relay list cannot be of length 0.");
         }
+        let mut entries = [NetworkAddress::default(); 32];
+        entries[..relay_list.len()].copy_from_slice(relay_list);
         Self {
-            relay_index: relay_list.len() as u8 - 1,
-            relay_list,
+            index: relay_list.len() as u8 - 1,
+            num_entries: relay_list.len() as u8,
+            entries,
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.relay_list.is_empty()
+        self.num_entries == 0
     }
 
-    pub fn len(&self) -> u8 {
-        self.relay_list.len() as u8
+    pub fn len(&self) -> usize {
+        self.num_entries as usize
     }
 
     pub fn get_index(&self) -> u8 {
-        self.relay_index
+        self.index
     }
 
     pub fn decrement_index(&mut self) {
-        self.relay_index -= 1;
+        self.index -= 1;
+    }
+
+    pub fn entries(&self) -> &[NetworkAddress] {
+        &self.entries[..self.num_entries as usize]
     }
 }
 
 impl Pack<SourceRouteFrame, Error> for SourceRouteFrame {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
-        if data.len() < 2 + self.relay_list.len() * 2 {
+        if data.len() < 2 + self.len() * 2 {
             Err(Error::WrongNumberOfBytes)
         } else {
-            data[0] = self.relay_list.len() as u8;
-            data[1] = self.relay_index;
+            data[0] = self.num_entries;
+            data[1] = self.index;
             let mut offset = 2;
-            for address in self.relay_list.iter() {
+            for address in &self.entries[..self.len()] {
                 address.pack(&mut data[offset..offset + SHORT_ADDRESS_SIZE])?;
                 offset += SHORT_ADDRESS_SIZE;
             }
@@ -226,15 +234,15 @@ impl Pack<SourceRouteFrame, Error> for SourceRouteFrame {
             return Err(Error::BrokenRelayList);
         }
         let end = 2 + (count * SHORT_ADDRESS_SIZE);
-        let mut relay_list: Vec<NetworkAddress> = Vec::with_capacity(count);
-        for chunk in data[2..end].chunks(SHORT_ADDRESS_SIZE) {
-            let address = NetworkAddress::unpack(chunk)?;
-            relay_list.push(address);
+        let mut entries = [NetworkAddress::default(); 32];
+        for (n, chunk) in data[2..end].chunks(SHORT_ADDRESS_SIZE).enumerate() {
+            entries[n] = NetworkAddress::unpack(chunk)?;
         }
         Ok((
             Self {
-                relay_index: index,
-                relay_list,
+                index,
+                num_entries: data[0],
+                entries,
             },
             (count * SHORT_ADDRESS_SIZE) + 2,
         ))
@@ -420,7 +428,7 @@ impl Pack<NetworkHeader, Error> for NetworkHeader {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
 

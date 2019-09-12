@@ -1,6 +1,4 @@
 use core::convert::TryFrom;
-use std::fmt;
-use std::str;
 
 use crate::pack::PackFixed;
 use crate::Error;
@@ -51,16 +49,6 @@ impl PartialEq<[u8; KEY_SIZE]> for Key {
     }
 }
 
-impl fmt::Display for Key {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-            self.0[0], self.0[1], self.0[2], self.0[3],
-            self.0[4], self.0[5], self.0[6], self.0[7],
-            self.0[8], self.0[9], self.0[10], self.0[11],
-            self.0[12], self.0[13], self.0[14], self.0[15])
-    }
-}
-
 impl From<[u8; KEY_SIZE]> for Key {
     fn from(value: [u8; KEY_SIZE]) -> Self {
         Key(value)
@@ -73,7 +61,19 @@ impl From<Key> for [u8; KEY_SIZE] {
     }
 }
 
-impl str::FromStr for Key {
+#[cfg(feature = "std")]
+impl std::fmt::Display for Key {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+            self.0[0], self.0[1], self.0[2], self.0[3],
+            self.0[4], self.0[5], self.0[6], self.0[7],
+            self.0[8], self.0[9], self.0[10], self.0[11],
+            self.0[12], self.0[13], self.0[14], self.0[15])
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::str::FromStr for Key {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -93,10 +93,9 @@ impl str::FromStr for Key {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    use std::str::FromStr;
 
     #[test]
     fn key() {
@@ -112,7 +111,6 @@ mod tests {
                 0x30, 0x39
             ]
         );
-        assert_eq!(format!("{}", a), "5a6967426565416c6c69616e63653039");
 
         let a = Key::from([
             0xf0, 0xe1, 0xd2, 0xc3, 0xb4, 0xa5, 0x96, 0x87, 0x78, 0x69, 0x5a, 0x4b, 0x3c, 0x2d,
@@ -125,15 +123,21 @@ mod tests {
                 0x1e, 0x0f
             ]
         );
-        assert_eq!(format!("{}", a), "f0e1d2c3b4a5968778695a4b3c2d1e0f");
+    }
 
-        let a = Key::from_str("5a6967426565416c6c69616e63653039").unwrap();
-        assert_eq!(
-            a,
-            [
-                0x5a, 0x69, 0x67, 0x42, 0x65, 0x65, 0x41, 0x6c, 0x6c, 0x69, 0x61, 0x6e, 0x63, 0x65,
-                0x30, 0x39
-            ]
-        );
+    #[test]
+    fn key_std() {
+        let a = Key::unpack(&[
+            0x5a, 0x69, 0x67, 0x42, 0x65, 0x65, 0x41, 0x6c, 0x6c, 0x69, 0x61, 0x6e, 0x63, 0x65,
+            0x30, 0x39,
+        ])
+        .unwrap();
+        assert_eq!(format!("{}", a), "5a6967426565416c6c69616e63653039");
+
+        let a = Key::from([
+            0xf0, 0xe1, 0xd2, 0xc3, 0xb4, 0xa5, 0x96, 0x87, 0x78, 0x69, 0x5a, 0x4b, 0x3c, 0x2d,
+            0x1e, 0x0f,
+        ]);
+        assert_eq!(format!("{}", a), "f0e1d2c3b4a5968778695a4b3c2d1e0f");
     }
 }

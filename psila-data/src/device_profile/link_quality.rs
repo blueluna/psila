@@ -13,12 +13,24 @@ extended_enum!(
     Unknown => 0x03,
 );
 
+impl Default for DeviceType {
+    fn default() -> Self {
+        DeviceType::Unknown
+    }
+}
+
 extended_enum!(
     RxOnWhenIdle, u8,
     Off => 0x00,
     On => 0x01,
     Unknown => 0x02,
 );
+
+impl Default for RxOnWhenIdle {
+    fn default() -> Self {
+        RxOnWhenIdle::Unknown
+    }
+}
 
 extended_enum!(
     Relationship, u8,
@@ -29,6 +41,12 @@ extended_enum!(
     PreviousChild => 0x04,
 );
 
+impl Default for Relationship {
+    fn default() -> Self {
+        Relationship::NoneOfAbove
+    }
+}
+
 extended_enum!(
     PermitJoining, u8,
     Yes => 0x00,
@@ -36,10 +54,16 @@ extended_enum!(
     Unknown => 0x02,
 );
 
+impl Default for PermitJoining {
+    fn default() -> Self {
+        PermitJoining::No
+    }
+}
+
 // 2.4.3.1.1 NWK_addr_req
 /// Network address request
 /// Requests the network address for a remote device
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Neighbor {
     pub pan_identifier: ExtendedAddress,
     pub extended_address: ExtendedAddress,
@@ -85,6 +109,22 @@ impl Pack<Neighbor, Error> for Neighbor {
     }
 }
 
+impl Default for Neighbor {
+    fn default() -> Self {
+        Self {
+            pan_identifier: ExtendedAddress::default(),
+            extended_address: ExtendedAddress::default(),
+            network_address: NetworkAddress::default(),
+            device_type: DeviceType::default(),
+            rx_idle: RxOnWhenIdle::default(),
+            relationship: Relationship::default(),
+            permit_joining: PermitJoining::default(),
+            depth: 0,
+            link_quality: 0,
+        }
+    }
+}
+
 /// Network and IEEE address response
 ///
 #[derive(Clone, Debug, PartialEq)]
@@ -92,7 +132,22 @@ pub struct ManagementLinkQualityIndicatorResponse {
     pub status: Status,
     pub neighbors_total: u8,
     pub index: u8,
-    pub neighbors: Vec<Neighbor>,
+    num_neighbors: u8,
+    neighbors: [Neighbor; 16],
+}
+
+impl ManagementLinkQualityIndicatorResponse {
+    pub fn is_empty(&self) -> bool {
+        self.num_neighbors == 0
+    }
+
+    pub fn len(&self) -> usize {
+        self.num_neighbors as usize
+    }
+
+    pub fn neighbors(&self) -> &[Neighbor] {
+        &self.neighbors[..self.num_neighbors as usize]
+    }
 }
 
 impl Pack<ManagementLinkQualityIndicatorResponse, Error>
@@ -114,10 +169,10 @@ impl Pack<ManagementLinkQualityIndicatorResponse, Error>
             return Err(Error::WrongNumberOfBytes);
         }
         let mut offset = 4;
-        let mut neighbors: Vec<Neighbor> = Vec::with_capacity(num_entries);
-        for _ in 0..num_entries {
-            let (neighbor, used) = Neighbor::unpack(&data[offset..])?;
-            neighbors.push(neighbor);
+        let mut neighbors = [Neighbor::default(); 16];
+        for neighbor in neighbors[..num_entries].iter_mut() {
+            let (n, used) = Neighbor::unpack(&data[offset..])?;
+            *neighbor = n;
             offset += used;
         }
         Ok((
@@ -125,6 +180,7 @@ impl Pack<ManagementLinkQualityIndicatorResponse, Error>
                 status,
                 neighbors_total,
                 index,
+                num_neighbors: data[3],
                 neighbors,
             },
             offset,

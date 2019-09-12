@@ -94,8 +94,23 @@ pub struct AddressResponse {
     pub status: Status,
     pub ieee_address: ExtendedAddress,
     pub network_address: NetworkAddress,
-    pub start_index: Option<u8>,
-    pub associated_devices: Option<Vec<NetworkAddress>>,
+    pub start_index: u8,
+    num_devices: u8,
+    devices: [NetworkAddress; 32],
+}
+
+impl AddressResponse {
+    pub fn is_empty(&self) -> bool {
+        self.num_devices == 0
+    }
+
+    pub fn len(&self) -> usize {
+        self.num_devices as usize
+    }
+
+    pub fn devices(&self) -> &[NetworkAddress] {
+        &self.devices[..self.num_devices as usize]
+    }
 }
 
 impl Pack<AddressResponse, Error> for AddressResponse {
@@ -107,19 +122,15 @@ impl Pack<AddressResponse, Error> for AddressResponse {
         self.ieee_address.pack(&mut data[1..9])?;
         self.network_address.pack(&mut data[9..11])?;
         let mut offset = 11;
-        if let Some(associated_devices) = &self.associated_devices {
-            if data.len() < 14 + associated_devices.len() * 2 {
+        if self.num_devices > 0 {
+            if data.len() < 14 + self.len() * 2 {
                 return Err(Error::WrongNumberOfBytes);
             }
-            data[offset] = associated_devices.len() as u8;
+            data[offset] = self.num_devices;
             offset += 1;
-            data[offset] = if let Some(start_index) = self.start_index {
-                start_index
-            } else {
-                0
-            };
+            data[offset] = self.start_index;
             offset += 1;
-            for address in associated_devices {
+            for address in self.devices().iter() {
                 address.pack(&mut data[offset..offset + 2])?;
                 offset += 2;
             }
@@ -140,30 +151,26 @@ impl Pack<AddressResponse, Error> for AddressResponse {
             offset += 1;
             let start_index = data[12];
             offset += 1;
-            (num_devices as usize, Some(start_index))
+            (num_devices as usize, start_index)
         } else {
-            (0, None)
+            (0, 0)
         };
-        let associated_devices = if num_devices > 0 {
-            if data.len() < offset + num_devices * 2 {
-                return Err(Error::WrongNumberOfBytes);
-            }
-            let mut devices: Vec<NetworkAddress> = Vec::with_capacity(num_devices);
-            for _ in 0..num_devices {
-                devices.push(NetworkAddress::unpack(&data[offset..offset + 2])?);
-                offset += 2;
-            }
-            Some(devices)
-        } else {
-            None
-        };
+        let mut devices = [NetworkAddress::default(); 32];
+        if data.len() < offset + num_devices * 2 {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        for device in devices[..num_devices].iter_mut() {
+            *device = NetworkAddress::unpack(&data[offset..offset + 2])?;
+            offset += 2;
+        }
         Ok((
             Self {
                 status,
                 ieee_address,
                 network_address,
                 start_index,
-                associated_devices,
+                num_devices: num_devices as u8,
+                devices,
             },
             offset,
         ))

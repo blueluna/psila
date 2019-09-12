@@ -195,7 +195,8 @@ mod tests {
             Command::LinkStatus(ls) => {
                 assert_eq!(ls.first_frame, true);
                 assert_eq!(ls.last_frame, true);
-                assert_eq!(ls.entries.len(), 0);
+                assert_eq!(ls.len(), 0);
+                assert_eq!(ls.is_empty(), true);
             }
             _ => unreachable!(),
         }

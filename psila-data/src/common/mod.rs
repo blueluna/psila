@@ -1,9 +1,9 @@
 use core::convert::From;
-use std::fmt;
 
 pub mod address;
 pub mod key;
 pub mod profile_identifier;
+pub mod types;
 
 const CAPABILITY_PAN_COORDINATOR: u8 = 0x01;
 const CAPABILITY_FFD: u8 = 0x02;
@@ -75,8 +75,9 @@ impl From<CapabilityInformation> for u8 {
     }
 }
 
-impl fmt::Display for CapabilityInformation {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+#[cfg(feature = "std")]
+impl std::fmt::Display for CapabilityInformation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}{}{}{}{}{}",

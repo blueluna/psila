@@ -215,6 +215,7 @@ mod tests {
         assert_eq!(fc.extended_header, false);
     }
 
+    #[cfg(feature = "std")]
     fn print_frame(frame: &ApplicationServiceHeader) {
         print!(
             "APS {:?} {:?}",
@@ -246,6 +247,9 @@ mod tests {
         }
         println!(" Counter {:02x}", frame.counter);
     }
+
+    #[cfg(feature = "core")]
+    fn print_frame(_frame: &ApplicationServiceHeader) {}
 
     #[test]
     fn unpack_frame() {

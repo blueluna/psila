@@ -1,10 +1,11 @@
 use core::convert::TryFrom;
-use std::fmt;
-use std::string::String;
 
+use crate::pack::Pack;
 use crate::Error;
 
 use byteorder::{ByteOrder, LittleEndian};
+
+use crate::common::types::{CharacterString, OctetString};
 
 extended_enum!(
     /// Attribute data type
@@ -169,10 +170,12 @@ pub enum AttributeValue {
     Enumeration16(u16),
     FloatingPoint32(f32),
     FloatingPoint64(f64),
-    OctetString(Option<Vec<u8>>),
-    CharacterString(Option<String>),
-    LongOctetString(Option<Vec<u8>>),
-    LongCharacterString(Option<String>),
+    OctetString(Option<OctetString>),
+    CharacterString(Option<CharacterString>),
+    /*
+        LongOctetString(Option<Vec<u8>>),
+        LongCharacterString(Option<String>),
+    */
     TimeOfDay(u32),
     Date(u32),
     UtcTime(u32),
@@ -350,11 +353,9 @@ impl AttributeValue {
                     0xff => None,
                     v => Some(v as usize),
                 };
-                let (value, used) = if let Some(length) = length {
-                    if data.len() < length + 1 {
-                        return Err(Error::WrongNumberOfBytes);
-                    }
-                    (Some(data[1..=length].to_vec()), length + 1)
+                let (value, used) = if length.is_some() {
+                    let (value, used) = OctetString::unpack(&data)?;
+                    (Some(value), used)
                 } else {
                     (None, 1)
                 };
@@ -368,58 +369,55 @@ impl AttributeValue {
                     0xff => None,
                     v => Some(v as usize),
                 };
-                let (value, used) = if let Some(length) = length {
-                    if data.len() < length + 1 {
-                        return Err(Error::WrongNumberOfBytes);
-                    }
-                    match String::from_utf8(data[1..=length].to_vec()) {
-                        Ok(s) => (Some(s), length + 1),
-                        Err(_) => (None, length + 1),
-                    }
+                let (value, used) = if length.is_some() {
+                    let (value, used) = CharacterString::unpack(&data)?;
+                    (Some(value), used)
                 } else {
                     (None, 1)
                 };
                 Ok((AttributeValue::CharacterString(value), used))
             }
-            AttributeDataType::LongOctetString => {
-                if data.len() < 2 {
-                    return Err(Error::WrongNumberOfBytes);
-                }
-                let length = match LittleEndian::read_u16(&data[0..2]) {
-                    0xffff => None,
-                    v => Some(v as usize),
-                };
-                let (value, used) = if let Some(length) = length {
-                    if data.len() < length + 2 {
-                        return Err(Error::WrongNumberOfBytes);
-                    }
-                    (Some(data[2..length + 2].to_vec()), length + 2)
-                } else {
-                    (None, 2)
-                };
-                Ok((AttributeValue::LongOctetString(value), used))
-            }
-            AttributeDataType::LongCharacterString => {
-                if data.len() < 2 {
-                    return Err(Error::WrongNumberOfBytes);
-                }
-                let length = match LittleEndian::read_u16(&data[0..2]) {
-                    0xffff => None,
-                    v => Some(v as usize),
-                };
-                let (value, used) = if let Some(length) = length {
-                    if data.len() < length + 1 {
-                        return Err(Error::WrongNumberOfBytes);
-                    }
-                    match String::from_utf8(data[1..=length].to_vec()) {
-                        Ok(s) => (Some(s), length + 1),
-                        Err(_) => (None, length + 1),
-                    }
-                } else {
-                    (None, 1)
-                };
-                Ok((AttributeValue::CharacterString(value), used))
-            }
+            /*
+                        AttributeDataType::LongOctetString => {
+                            if data.len() < 2 {
+                                return Err(Error::WrongNumberOfBytes);
+                            }
+                            let length = match LittleEndian::read_u16(&data[0..2]) {
+                                0xffff => None,
+                                v => Some(v as usize),
+                            };
+                            let (value, used) = if let Some(length) = length {
+                                if data.len() < length + 2 {
+                                    return Err(Error::WrongNumberOfBytes);
+                                }
+                                (Some(data[2..length + 2].to_vec()), length + 2)
+                            } else {
+                                (None, 2)
+                            };
+                            Ok((AttributeValue::LongOctetString(value), used))
+                        }
+                        AttributeDataType::LongCharacterString => {
+                            if data.len() < 2 {
+                                return Err(Error::WrongNumberOfBytes);
+                            }
+                            let length = match LittleEndian::read_u16(&data[0..2]) {
+                                0xffff => None,
+                                v => Some(v as usize),
+                            };
+                            let (value, used) = if let Some(length) = length {
+                                if data.len() < length + 1 {
+                                    return Err(Error::WrongNumberOfBytes);
+                                }
+                                match String::from_utf8(data[1..=length].to_vec()) {
+                                    Ok(s) => (Some(s), length + 1),
+                                    Err(_) => (None, length + 1),
+                                }
+                            } else {
+                                (None, 1)
+                            };
+                            Ok((AttributeValue::CharacterString(value), used))
+                        }
+            */
             AttributeDataType::TimeOfDay => {
                 let value = LittleEndian::read_u32(&data[0..4]);
                 Ok((AttributeValue::TimeOfDay(value), 4))
@@ -490,8 +488,10 @@ impl AttributeValue {
             AttributeValue::FloatingPoint64(_) => AttributeDataType::FloatingPoint64,
             AttributeValue::OctetString(_) => AttributeDataType::OctetString,
             AttributeValue::CharacterString(_) => AttributeDataType::CharacterString,
-            AttributeValue::LongOctetString(_) => AttributeDataType::LongOctetString,
-            AttributeValue::LongCharacterString(_) => AttributeDataType::LongCharacterString,
+            /*
+                        AttributeValue::LongOctetString(_) => AttributeDataType::LongOctetString,
+                        AttributeValue::LongCharacterString(_) => AttributeDataType::LongCharacterString,
+            */
             AttributeValue::TimeOfDay(_) => AttributeDataType::TimeOfDay,
             AttributeValue::Date(_) => AttributeDataType::Date,
             AttributeValue::UtcTime(_) => AttributeDataType::UtcTime,
@@ -549,16 +549,20 @@ impl AttributeValue {
             AttributeValue::FloatingPoint64(v) => !v.is_normal(),
             AttributeValue::OctetString(v) => v.is_some(),
             AttributeValue::CharacterString(v) => v.is_some(),
-            AttributeValue::LongOctetString(v) => v.is_some(),
-            AttributeValue::LongCharacterString(v) => v.is_some(),
+            /*
+                        AttributeValue::LongOctetString(v) => v.is_some(),
+                        AttributeValue::LongCharacterString(v) => v.is_some(),
+            */
         }
     }
 }
 
+#[cfg(feature = "std")]
 const STRING_INVALID: &str = "Invalid";
 
-impl fmt::Display for AttributeValue {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+#[cfg(feature = "std")]
+impl std::fmt::Display for AttributeValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if !self.is_valid() {
             write!(f, "{}", STRING_INVALID)
         } else {
@@ -607,7 +611,7 @@ impl fmt::Display for AttributeValue {
                 AttributeValue::Signed64(v) => write!(f, "{}", v),
                 AttributeValue::FloatingPoint32(v) => write!(f, "{}", v),
                 AttributeValue::FloatingPoint64(v) => write!(f, "{}", v),
-                AttributeValue::OctetString(v) | AttributeValue::LongOctetString(v) => {
+                AttributeValue::OctetString(v) => {
                     if let Some(v) = v {
                         let hex: String = v.iter().map(|i| format!("{:02x}", i)).collect();
                         write!(f, "{}", hex)
@@ -615,7 +619,7 @@ impl fmt::Display for AttributeValue {
                         write!(f, "{}", STRING_INVALID)
                     }
                 }
-                AttributeValue::CharacterString(v) | AttributeValue::LongCharacterString(v) => {
+                AttributeValue::CharacterString(v) => {
                     if let Some(v) = v {
                         write!(f, "{}", v)
                     } else {
@@ -646,7 +650,7 @@ impl fmt::Display for AttributeValue {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
 

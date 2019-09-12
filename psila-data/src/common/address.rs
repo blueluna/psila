@@ -1,4 +1,4 @@
-use std::fmt;
+use core::default::Default;
 
 use crate::pack::PackFixed;
 use crate::Error;
@@ -39,12 +39,6 @@ impl PartialEq<[u8; SHORT_ADDRESS_SIZE]> for ShortAddress {
     }
 }
 
-impl fmt::Display for ShortAddress {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:04x}", self.0)
-    }
-}
-
 impl From<u16> for ShortAddress {
     fn from(value: u16) -> Self {
         ShortAddress(value)
@@ -60,6 +54,19 @@ impl From<ShortAddress> for u16 {
 impl PartialEq<u16> for ShortAddress {
     fn eq(&self, other: &u16) -> bool {
         self.0 == *other
+    }
+}
+
+impl Default for ShortAddress {
+    fn default() -> Self {
+        Self(0xffffu16)
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::fmt::Display for ShortAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:04x}", self.0)
     }
 }
 
@@ -104,23 +111,6 @@ impl PartialEq<[u8; EXTENDED_ADDRESS_SIZE]> for ExtendedAddress {
     }
 }
 
-impl fmt::Display for ExtendedAddress {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-            ((self.0 >> 56) & 0xff) as u8,
-            ((self.0 >> 48) & 0xff) as u8,
-            ((self.0 >> 40) & 0xff) as u8,
-            ((self.0 >> 32) & 0xff) as u8,
-            ((self.0 >> 24) & 0xff) as u8,
-            ((self.0 >> 16) & 0xff) as u8,
-            ((self.0 >> 8) & 0xff) as u8,
-            ((self.0) & 0xff) as u8,
-        )
-    }
-}
-
 impl From<u64> for ExtendedAddress {
     fn from(value: u64) -> Self {
         ExtendedAddress(value)
@@ -139,10 +129,34 @@ impl PartialEq<u64> for ExtendedAddress {
     }
 }
 
+impl Default for ExtendedAddress {
+    fn default() -> Self {
+        Self(0xffff_ffff_ffff_ffffu64)
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::fmt::Display for ExtendedAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+            ((self.0 >> 56) & 0xff) as u8,
+            ((self.0 >> 48) & 0xff) as u8,
+            ((self.0 >> 40) & 0xff) as u8,
+            ((self.0 >> 32) & 0xff) as u8,
+            ((self.0 >> 24) & 0xff) as u8,
+            ((self.0 >> 16) & 0xff) as u8,
+            ((self.0 >> 8) & 0xff) as u8,
+            ((self.0) & 0xff) as u8,
+        )
+    }
+}
+
 /// 64-bit extended personal area network (PAN) identifier
 pub type ExtendedPanIdentifier = ExtendedAddress;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
 

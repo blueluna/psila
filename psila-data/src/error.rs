@@ -19,4 +19,5 @@ pub enum Error {
     UnknownDiscoverRoute,
     UnknownClusterIdentifier,
     UnsupportedAttributeValue,
+    CryptoError(u32),
 }
