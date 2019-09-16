@@ -1,5 +1,7 @@
 //! # Security service
 
+use psila_crypto_trait::{BlockCipher, CryptoBackend};
+
 use crate::error::Error;
 
 #[cfg(feature = "std")]
@@ -13,20 +15,6 @@ pub use header::{KeyIdentifier, SecurityControl, SecurityHeader, SecurityLevel};
 
 #[cfg(feature = "std")]
 pub use gcrypt_backend::GCryptBackend;
-
-pub trait CryptoBackend {
-    fn aes128_ecb_set_key(&mut self, key: &[u8]) -> Result<(), Error>;
-    fn aes128_ecb_process(&mut self, input: &[u8], output: &mut [u8]) -> Result<(), Error>;
-    fn ccmstar_decrypt(
-        &mut self,
-        key: &[u8],
-        nonce: &[u8],
-        message: &[u8],
-        mic_length: usize,
-        additional_data: &[u8],
-        message_output: &mut [u8],
-    ) -> Result<usize, Error>;
-}
 
 /// L, length of the message length field in octets 2, 3, ... 8. Always 2 for Zigbee
 pub const LENGHT_FIELD_LENGTH: usize = 2;
@@ -65,9 +53,18 @@ where
     }
 
     /// Process a block for the Key-hash hash function
-    fn hash_key_process_block(&mut self, input: &[u8], mut output: &mut [u8]) -> Result<(), Error> {
-        self.backend.aes128_ecb_set_key(&output)?;
-        self.backend.aes128_ecb_process(&input, &mut output)?;
+    fn hash_key_process_block(
+        cipher: &mut dyn BlockCipher,
+        input: &[u8],
+        mut output: &mut [u8],
+        finish: bool,
+    ) -> Result<(), Error> {
+        cipher.set_key(&output)?;
+        if finish {
+            cipher.finish(&input, &mut output)?;
+        } else {
+            cipher.process_block(&input, &mut output)?;
+        }
         // XOR the input into the hash block
         for n in 0..BLOCK_SIZE {
             output[n] ^= input[n];
@@ -76,7 +73,11 @@ where
     }
 
     /// Key-hash hash function
-    fn hash_key_hash(&mut self, input: &[u8], output: &mut [u8]) -> Result<(), Error> {
+    fn hash_key_hash(
+        cipher: &mut dyn BlockCipher,
+        input: &[u8],
+        output: &mut [u8],
+    ) -> Result<(), Error> {
         assert!(input.len() < 4096);
 
         // Clear the first block of output
@@ -90,7 +91,12 @@ where
         loop {
             match blocks.next() {
                 Some(input_block) => {
-                    self.hash_key_process_block(&input_block, &mut output[..BLOCK_SIZE])?;
+                    Self::hash_key_process_block(
+                        cipher,
+                        &input_block,
+                        &mut output[..BLOCK_SIZE],
+                        false,
+                    )?;
                 }
                 None => {
                     let mut block = [0u8; BLOCK_SIZE];
@@ -106,7 +112,7 @@ where
                     // 16-bit string that is equal to the binary representation of the integer l:
                     block[BLOCK_SIZE - 2] = (input_len >> 8) as u8;
                     block[BLOCK_SIZE - 1] = (input_len & 0xff) as u8;
-                    self.hash_key_process_block(&block, &mut output[..BLOCK_SIZE])?;
+                    Self::hash_key_process_block(cipher, &block, &mut output[..BLOCK_SIZE], true)?;
                     break;
                 }
             }
@@ -125,6 +131,9 @@ where
         const HASH_OUTER_PAD: u8 = 0x5c;
         let mut hash_in = [0; BLOCK_SIZE * 2];
         let mut hash_out = [0; BLOCK_SIZE + 1];
+
+        let cipher = self.backend.aes128_ecb_encrypt()?;
+
         {
             // XOR the key with the outer padding
             for n in 0..KEY_SIZE {
@@ -137,9 +146,9 @@ where
             // Append the input byte
             hash_out[BLOCK_SIZE] = input;
             // Hash hash_out to form (Key XOR opad) || H((Key XOR ipad) || text)
-            self.hash_key_hash(&hash_out[..=BLOCK_SIZE], &mut hash_in[BLOCK_SIZE..])?;
+            Self::hash_key_hash(cipher, &hash_out[..=BLOCK_SIZE], &mut hash_in[BLOCK_SIZE..])?;
             // Hash hash_in to get the result
-            self.hash_key_hash(&hash_in, &mut hash_out)?;
+            Self::hash_key_hash(cipher, &hash_in, &mut hash_out)?;
         }
         {
             // Take the key

@@ -1,24 +1,52 @@
-use std::convert::From;
-
 use byteorder::{BigEndian, ByteOrder};
 
+use psila_crypto_trait::{BlockCipher, CryptoBackend, Error};
+
 use crate::common::key::KEY_SIZE;
-use crate::error::Error;
-use crate::security::{CryptoBackend, BLOCK_SIZE, LENGHT_FIELD_LENGTH};
+use crate::security::{BLOCK_SIZE, LENGHT_FIELD_LENGTH};
 
 use gcrypt::{
     self,
     cipher::{Algorithm, Cipher, Mode},
 };
 
-impl From<gcrypt::Error> for Error {
-    fn from(e: gcrypt::Error) -> Self {
-        Error::CryptoError(e.code())
+pub struct GCryptCipher {
+    cipher: Cipher,
+}
+
+impl BlockCipher for GCryptCipher {
+    /// Set the key
+    fn set_key(&mut self, key: &[u8]) -> Result<(), Error> {
+        assert!(key.len() == KEY_SIZE);
+        self.cipher
+            .set_key(&key)
+            .map_err(|e| Error::Other(e.code()))
+    }
+
+    /// Set the IV
+    fn set_iv(&mut self, _iv: &[u8]) -> Result<(), Error> {
+        Err(Error::NotImplemented)
+    }
+    /// Process blocks of data
+    fn process_block(&mut self, input: &[u8], mut output: &mut [u8]) -> Result<(), Error> {
+        assert!(input.len() == BLOCK_SIZE);
+        assert!(output.len() == BLOCK_SIZE);
+        self.cipher
+            .encrypt(&input, &mut output)
+            .map_err(|e| Error::Other(e.code()))
+    }
+    /// Process the last bits and bobs and finish
+    fn finish(&mut self, input: &[u8], mut output: &mut [u8]) -> Result<(), Error> {
+        assert!(input.len() == BLOCK_SIZE);
+        assert!(output.len() == BLOCK_SIZE);
+        self.cipher
+            .encrypt(&input, &mut output)
+            .map_err(|e| Error::Other(e.code()))
     }
 }
 
 pub struct GCryptBackend {
-    cipher: Cipher,
+    cipher: GCryptCipher,
 }
 
 impl GCryptBackend {
@@ -36,25 +64,15 @@ impl GCryptBackend {
 
 impl Default for GCryptBackend {
     fn default() -> Self {
-        let cipher = Cipher::new(Algorithm::Aes128, Mode::Ecb).unwrap();
-        Self { cipher }
+        Self {
+            cipher: GCryptCipher {
+                cipher: Cipher::new(Algorithm::Aes128, Mode::Ecb).unwrap(),
+            },
+        }
     }
 }
 
 impl CryptoBackend for GCryptBackend {
-    fn aes128_ecb_set_key(&mut self, key: &[u8]) -> Result<(), Error> {
-        assert!(key.len() == KEY_SIZE);
-        self.cipher.set_key(&key).map_err(|e| e.into())
-    }
-
-    fn aes128_ecb_process(&mut self, input: &[u8], mut output: &mut [u8]) -> Result<(), Error> {
-        assert!(input.len() == BLOCK_SIZE);
-        assert!(output.len() == BLOCK_SIZE);
-        self.cipher
-            .encrypt(&input, &mut output)
-            .map_err(|e| e.into())
-    }
-
     fn ccmstar_decrypt(
         &mut self,
         key: &[u8],
@@ -63,13 +81,14 @@ impl CryptoBackend for GCryptBackend {
         mic_length: usize,
         additional_data: &[u8],
         message_output: &mut [u8],
-    ) -> Result<usize, Error> {
-        assert!(message_output.len() >= (message.len() - mic_length));
+    ) -> Result<usize, psila_crypto_trait::Error> {
         // C.4.1 Decryption Transformation
 
         if message.len() < mic_length {
-            return Err(Error::WrongNumberOfBytes);
+            return Err(Error::InvalidIntegrityCodeSize);
         }
+
+        assert!(message_output.len() >= (message.len() - mic_length));
 
         let (encrypted, mic) = message.split_at(message.len() - mic_length);
 
@@ -85,8 +104,9 @@ impl CryptoBackend for GCryptBackend {
         let mic_blocks = (mic.len() / BLOCK_SIZE) + 1;
         assert_eq!(mic_blocks, 1);
 
-        let mut cipher = Cipher::new(Algorithm::Aes128, Mode::Ctr)?;
-        cipher.set_key(key)?;
+        let mut cipher =
+            Cipher::new(Algorithm::Aes128, Mode::Ctr).map_err(|e| Error::Other(e.code()))?;
+        cipher.set_key(key).map_err(|e| Error::Other(e.code()))?;
 
         let mut block = [0u8; BLOCK_SIZE];
         {
@@ -96,7 +116,7 @@ impl CryptoBackend for GCryptBackend {
             _nonce.copy_from_slice(&nonce);
         }
 
-        cipher.set_ctr(block)?;
+        cipher.set_ctr(block).map_err(|e| Error::Other(e.code()))?;
 
         let mut block = [0u8; BLOCK_SIZE];
         {
@@ -105,7 +125,9 @@ impl CryptoBackend for GCryptBackend {
         }
 
         let mut tag = [0; BLOCK_SIZE];
-        cipher.encrypt(&block, &mut tag)?;
+        cipher
+            .encrypt(&block, &mut tag)
+            .map_err(|e| Error::Other(e.code()))?;
 
         let mut output = [0u8; BLOCK_SIZE];
         for n in 0..encrypted_blocks {
@@ -120,7 +142,9 @@ impl CryptoBackend for GCryptBackend {
                 let (part, _) = block.split_at_mut(length);
                 part.copy_from_slice(&encrypted[offset..offset + length]);
             }
-            cipher.encrypt(&block, &mut output)?;
+            cipher
+                .encrypt(&block, &mut output)
+                .map_err(|e| Error::Other(e.code()))?;
             let (_, part) = message_output.split_at_mut(offset);
             let (part, _) = part.split_at_mut(length);
             part.copy_from_slice(&output[..length]);
@@ -135,10 +159,13 @@ impl CryptoBackend for GCryptBackend {
             BigEndian::write_u16(&mut length, encrypted.len() as u16);
         }
 
-        let mut cipher = Cipher::new(Algorithm::Aes128, Mode::Ecb)?;
-        cipher.set_key(key)?;
+        let mut cipher =
+            Cipher::new(Algorithm::Aes128, Mode::Ecb).map_err(|e| Error::Other(e.code()))?;
+        cipher.set_key(key).map_err(|e| Error::Other(e.code()))?;
 
-        cipher.encrypt(&block, &mut output)?;
+        cipher
+            .encrypt(&block, &mut output)
+            .map_err(|e| Error::Other(e.code()))?;
 
         // Handle additional data longer than the block size
         let mut input = [0; BLOCK_SIZE];
@@ -157,7 +184,9 @@ impl CryptoBackend for GCryptBackend {
             block[n] = output[n] ^ input[n];
         }
 
-        cipher.encrypt(&block, &mut output)?;
+        cipher
+            .encrypt(&block, &mut output)
+            .map_err(|e| Error::Other(e.code()))?;
 
         if additional_data_blocks > 1 {
             for n in 1..additional_data_blocks {
@@ -175,7 +204,9 @@ impl CryptoBackend for GCryptBackend {
                 for m in 0..BLOCK_SIZE {
                     block[m] = output[m] ^ input[m];
                 }
-                cipher.encrypt(&block, &mut output)?;
+                cipher
+                    .encrypt(&block, &mut output)
+                    .map_err(|e| Error::Other(e.code()))?;
             }
         }
 
@@ -194,7 +225,9 @@ impl CryptoBackend for GCryptBackend {
             for n in 0..BLOCK_SIZE {
                 block[n] = output[n] ^ input[n];
             }
-            cipher.encrypt(&block, &mut output)?;
+            cipher
+                .encrypt(&block, &mut output)
+                .map_err(|e| Error::Other(e.code()))?;
         }
 
         let mut valid = true;
@@ -213,6 +246,22 @@ impl CryptoBackend for GCryptBackend {
             }
             Ok(0)
         }
+    }
+
+    fn ccmstar_encrypt(
+        &mut self,
+        _key: &[u8],
+        _nonce: &[u8],
+        _message: &[u8],
+        _mic_length: usize,
+        _additional_data: &[u8],
+        _message_output: &mut [u8],
+    ) -> Result<usize, Error> {
+        Err(Error::NotImplemented)
+    }
+
+    fn aes128_ecb_encrypt(&mut self) -> Result<&mut dyn BlockCipher, Error> {
+        Ok(&mut self.cipher)
     }
 }
 
