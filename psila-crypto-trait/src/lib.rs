@@ -33,7 +33,6 @@ pub enum Error {
     Other(u32),
 }
 
-
 /// Trait for implemeting a crypto backend
 pub trait CryptoBackend {
     /// Encrypt using CCM*
@@ -75,7 +74,11 @@ pub trait CryptoBackend {
     /// Set the IV
     fn aes128_ecb_encrypt_set_iv(&mut self, iv: &[u8]) -> Result<(), Error>;
     /// Process blocks of data
-    fn aes128_ecb_encrypt_process_block(&mut self, input: &[u8], output: &mut [u8]) -> Result<(), Error>;
+    fn aes128_ecb_encrypt_process_block(
+        &mut self,
+        input: &[u8],
+        output: &mut [u8],
+    ) -> Result<(), Error>;
     /// Process the last bits and bobs and finish
     fn aes128_ecb_encrypt_finish(&mut self, input: &[u8], output: &mut [u8]) -> Result<(), Error>;
 }

@@ -236,7 +236,11 @@ impl CryptoBackend for GCryptBackend {
         Err(Error::NotImplemented)
     }
     /// Process blocks of data
-    fn aes128_ecb_encrypt_process_block(&mut self, input: &[u8], mut output: &mut [u8]) -> Result<(), Error> {
+    fn aes128_ecb_encrypt_process_block(
+        &mut self,
+        input: &[u8],
+        mut output: &mut [u8],
+    ) -> Result<(), Error> {
         assert!(input.len() == BLOCK_SIZE);
         assert!(output.len() == BLOCK_SIZE);
         self.cipher
@@ -244,7 +248,11 @@ impl CryptoBackend for GCryptBackend {
             .map_err(|e| Error::Other(e.code()))
     }
     /// Process the last bits and bobs and finish
-    fn aes128_ecb_encrypt_finish(&mut self, input: &[u8], mut output: &mut [u8]) -> Result<(), Error> {
+    fn aes128_ecb_encrypt_finish(
+        &mut self,
+        input: &[u8],
+        mut output: &mut [u8],
+    ) -> Result<(), Error> {
         assert!(input.len() == BLOCK_SIZE);
         assert!(output.len() == BLOCK_SIZE);
         self.cipher

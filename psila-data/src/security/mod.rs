@@ -61,9 +61,11 @@ where
     ) -> Result<(), Error> {
         self.backend.aes128_ecb_encrypt_set_key(&output)?;
         if finish {
-            self.backend.aes128_ecb_encrypt_finish(&input, &mut output)?;
+            self.backend
+                .aes128_ecb_encrypt_finish(&input, &mut output)?;
         } else {
-            self.backend.aes128_ecb_encrypt_process_block(&input, &mut output)?;
+            self.backend
+                .aes128_ecb_encrypt_process_block(&input, &mut output)?;
         }
         // XOR the input into the hash block
         for n in 0..BLOCK_SIZE {
@@ -73,11 +75,7 @@ where
     }
 
     /// Key-hash hash function
-    fn hash_key_hash(
-        &mut self,
-        input: &[u8],
-        output: &mut [u8],
-    ) -> Result<(), Error> {
+    fn hash_key_hash(&mut self, input: &[u8], output: &mut [u8]) -> Result<(), Error> {
         assert!(input.len() < 4096);
 
         // Clear the first block of output
@@ -91,11 +89,7 @@ where
         loop {
             match blocks.next() {
                 Some(input_block) => {
-                    self.hash_key_process_block(
-                        &input_block,
-                        &mut output[..BLOCK_SIZE],
-                        false,
-                    )?;
+                    self.hash_key_process_block(&input_block, &mut output[..BLOCK_SIZE], false)?;
                 }
                 None => {
                     let mut block = [0u8; BLOCK_SIZE];
