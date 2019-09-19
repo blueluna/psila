@@ -1,6 +1,6 @@
 //! # Security service
 
-use psila_crypto_trait::{BlockCipher, CryptoBackend};
+use psila_crypto_trait::CryptoBackend;
 
 use crate::error::Error;
 
@@ -54,16 +54,16 @@ where
 
     /// Process a block for the Key-hash hash function
     fn hash_key_process_block(
-        cipher: &mut dyn BlockCipher,
+        &mut self,
         input: &[u8],
         mut output: &mut [u8],
         finish: bool,
     ) -> Result<(), Error> {
-        cipher.set_key(&output)?;
+        self.backend.aes128_ecb_encrypt_set_key(&output)?;
         if finish {
-            cipher.finish(&input, &mut output)?;
+            self.backend.aes128_ecb_encrypt_finish(&input, &mut output)?;
         } else {
-            cipher.process_block(&input, &mut output)?;
+            self.backend.aes128_ecb_encrypt_process_block(&input, &mut output)?;
         }
         // XOR the input into the hash block
         for n in 0..BLOCK_SIZE {
@@ -74,7 +74,7 @@ where
 
     /// Key-hash hash function
     fn hash_key_hash(
-        cipher: &mut dyn BlockCipher,
+        &mut self,
         input: &[u8],
         output: &mut [u8],
     ) -> Result<(), Error> {
@@ -91,8 +91,7 @@ where
         loop {
             match blocks.next() {
                 Some(input_block) => {
-                    Self::hash_key_process_block(
-                        cipher,
+                    self.hash_key_process_block(
                         &input_block,
                         &mut output[..BLOCK_SIZE],
                         false,
@@ -112,7 +111,7 @@ where
                     // 16-bit string that is equal to the binary representation of the integer l:
                     block[BLOCK_SIZE - 2] = (input_len >> 8) as u8;
                     block[BLOCK_SIZE - 1] = (input_len & 0xff) as u8;
-                    Self::hash_key_process_block(cipher, &block, &mut output[..BLOCK_SIZE], true)?;
+                    self.hash_key_process_block(&block, &mut output[..BLOCK_SIZE], true)?;
                     break;
                 }
             }
@@ -132,8 +131,6 @@ where
         let mut hash_in = [0; BLOCK_SIZE * 2];
         let mut hash_out = [0; BLOCK_SIZE + 1];
 
-        let cipher = self.backend.aes128_ecb_encrypt()?;
-
         {
             // XOR the key with the outer padding
             for n in 0..KEY_SIZE {
@@ -146,9 +143,9 @@ where
             // Append the input byte
             hash_out[BLOCK_SIZE] = input;
             // Hash hash_out to form (Key XOR opad) || H((Key XOR ipad) || text)
-            Self::hash_key_hash(cipher, &hash_out[..=BLOCK_SIZE], &mut hash_in[BLOCK_SIZE..])?;
+            self.hash_key_hash(&hash_out[..=BLOCK_SIZE], &mut hash_in[BLOCK_SIZE..])?;
             // Hash hash_in to get the result
-            Self::hash_key_hash(cipher, &hash_in, &mut hash_out)?;
+            self.hash_key_hash(&hash_in, &mut hash_out)?;
         }
         {
             // Take the key

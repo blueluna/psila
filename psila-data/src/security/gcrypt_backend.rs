@@ -1,6 +1,6 @@
 use byteorder::{BigEndian, ByteOrder};
 
-use psila_crypto_trait::{BlockCipher, CryptoBackend, Error};
+use psila_crypto_trait::{CryptoBackend, Error};
 
 use crate::common::key::KEY_SIZE;
 use crate::security::{BLOCK_SIZE, LENGHT_FIELD_LENGTH};
@@ -10,43 +10,8 @@ use gcrypt::{
     cipher::{Algorithm, Cipher, Mode},
 };
 
-pub struct GCryptCipher {
-    cipher: Cipher,
-}
-
-impl BlockCipher for GCryptCipher {
-    /// Set the key
-    fn set_key(&mut self, key: &[u8]) -> Result<(), Error> {
-        assert!(key.len() == KEY_SIZE);
-        self.cipher
-            .set_key(&key)
-            .map_err(|e| Error::Other(e.code()))
-    }
-
-    /// Set the IV
-    fn set_iv(&mut self, _iv: &[u8]) -> Result<(), Error> {
-        Err(Error::NotImplemented)
-    }
-    /// Process blocks of data
-    fn process_block(&mut self, input: &[u8], mut output: &mut [u8]) -> Result<(), Error> {
-        assert!(input.len() == BLOCK_SIZE);
-        assert!(output.len() == BLOCK_SIZE);
-        self.cipher
-            .encrypt(&input, &mut output)
-            .map_err(|e| Error::Other(e.code()))
-    }
-    /// Process the last bits and bobs and finish
-    fn finish(&mut self, input: &[u8], mut output: &mut [u8]) -> Result<(), Error> {
-        assert!(input.len() == BLOCK_SIZE);
-        assert!(output.len() == BLOCK_SIZE);
-        self.cipher
-            .encrypt(&input, &mut output)
-            .map_err(|e| Error::Other(e.code()))
-    }
-}
-
 pub struct GCryptBackend {
-    cipher: GCryptCipher,
+    cipher: Cipher,
 }
 
 impl GCryptBackend {
@@ -65,9 +30,7 @@ impl GCryptBackend {
 impl Default for GCryptBackend {
     fn default() -> Self {
         Self {
-            cipher: GCryptCipher {
-                cipher: Cipher::new(Algorithm::Aes128, Mode::Ecb).unwrap(),
-            },
+            cipher: Cipher::new(Algorithm::Aes128, Mode::Ecb).unwrap(),
         }
     }
 }
@@ -260,8 +223,33 @@ impl CryptoBackend for GCryptBackend {
         Err(Error::NotImplemented)
     }
 
-    fn aes128_ecb_encrypt(&mut self) -> Result<&mut dyn BlockCipher, Error> {
-        Ok(&mut self.cipher)
+    /// Set the key
+    fn aes128_ecb_encrypt_set_key(&mut self, key: &[u8]) -> Result<(), Error> {
+        assert!(key.len() == KEY_SIZE);
+        self.cipher
+            .set_key(&key)
+            .map_err(|e| Error::Other(e.code()))
+    }
+
+    /// Set the IV
+    fn aes128_ecb_encrypt_set_iv(&mut self, _iv: &[u8]) -> Result<(), Error> {
+        Err(Error::NotImplemented)
+    }
+    /// Process blocks of data
+    fn aes128_ecb_encrypt_process_block(&mut self, input: &[u8], mut output: &mut [u8]) -> Result<(), Error> {
+        assert!(input.len() == BLOCK_SIZE);
+        assert!(output.len() == BLOCK_SIZE);
+        self.cipher
+            .encrypt(&input, &mut output)
+            .map_err(|e| Error::Other(e.code()))
+    }
+    /// Process the last bits and bobs and finish
+    fn aes128_ecb_encrypt_finish(&mut self, input: &[u8], mut output: &mut [u8]) -> Result<(), Error> {
+        assert!(input.len() == BLOCK_SIZE);
+        assert!(output.len() == BLOCK_SIZE);
+        self.cipher
+            .encrypt(&input, &mut output)
+            .map_err(|e| Error::Other(e.code()))
     }
 }
 
