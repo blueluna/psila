@@ -1,6 +1,6 @@
 use byteorder::{BigEndian, ByteOrder};
 
-use psila_crypto_trait::{CryptoBackend, Error};
+use psila_crypto_trait::{BlockCipher, CryptoBackend, Error};
 
 use crate::common::key::KEY_SIZE;
 use crate::security::{BLOCK_SIZE, LENGHT_FIELD_LENGTH};
@@ -9,6 +9,51 @@ use gcrypt::{
     self,
     cipher::{Algorithm, Cipher, Mode},
 };
+
+pub struct GCryptCipher {
+    cipher: Cipher,
+}
+
+impl GCryptCipher {
+    fn new(algorithm: Algorithm, mode: Mode) -> Result<Self, Error> {
+        let cipher = Cipher::new(algorithm, mode).map_err(|e| Error::Other(e.code()))?;
+        Ok(Self { cipher })
+    }
+}
+
+impl BlockCipher for GCryptCipher {
+    /// Set the key
+    fn set_key(&mut self, key: &[u8]) -> Result<(), Error> {
+        assert!(key.len() == KEY_SIZE);
+        self.cipher
+            .set_key(&key)
+            .map_err(|e| Error::Other(e.code()))
+    }
+    /// Set the IV
+    fn set_iv(&mut self, _iv: &[u8]) -> Result<(), Error> {
+        Err(Error::NotImplemented)
+    }
+    /// Get the IV
+    fn get_iv(&mut self, _iv: &mut [u8]) -> Result<(), Error> {
+        Err(Error::NotImplemented)
+    }
+    /// Process blocks of data
+    fn process_block(&mut self, input: &[u8], mut output: &mut [u8]) -> Result<(), Error> {
+        assert!(input.len() == BLOCK_SIZE);
+        assert!(output.len() == BLOCK_SIZE);
+        self.cipher
+            .encrypt(&input, &mut output)
+            .map_err(|e| Error::Other(e.code()))
+    }
+    /// Process the last bits and bobs and finish
+    fn finish(&mut self, input: &[u8], mut output: &mut [u8]) -> Result<(), Error> {
+        assert!(input.len() == BLOCK_SIZE);
+        assert!(output.len() == BLOCK_SIZE);
+        self.cipher
+            .encrypt(&input, &mut output)
+            .map_err(|e| Error::Other(e.code()))
+    }
+}
 
 pub struct GCryptBackend {
     cipher: Cipher,
@@ -235,6 +280,12 @@ impl CryptoBackend for GCryptBackend {
     fn aes128_ecb_encrypt_set_iv(&mut self, _iv: &[u8]) -> Result<(), Error> {
         Err(Error::NotImplemented)
     }
+
+    /// Set the IV
+    fn aes128_ecb_encrypt_get_iv(&mut self, _iv: &mut [u8]) -> Result<(), Error> {
+        Err(Error::NotImplemented)
+    }
+
     /// Process blocks of data
     fn aes128_ecb_encrypt_process_block(
         &mut self,

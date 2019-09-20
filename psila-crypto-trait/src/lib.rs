@@ -33,6 +33,20 @@ pub enum Error {
     Other(u32),
 }
 
+/// Trait for block cipher
+pub trait BlockCipher {
+    /// Set the key
+    fn set_key(&mut self, key: &[u8]) -> Result<(), Error>;
+    /// Set the IV
+    fn set_iv(&mut self, iv: &[u8]) -> Result<(), Error>;
+    /// Get the IV
+    fn get_iv(&mut self, iv: &mut [u8]) -> Result<(), Error>;
+    /// Process blocks of data
+    fn process_block(&mut self, input: &[u8], output: &mut [u8]) -> Result<(), Error>;
+    /// Process the last bits and bobs and finish
+    fn finish(&mut self, input: &[u8], output: &mut [u8]) -> Result<(), Error>;
+}
+
 /// Trait for implemeting a crypto backend
 pub trait CryptoBackend {
     /// Encrypt using CCM*
@@ -73,6 +87,8 @@ pub trait CryptoBackend {
     fn aes128_ecb_encrypt_set_key(&mut self, key: &[u8]) -> Result<(), Error>;
     /// Set the IV
     fn aes128_ecb_encrypt_set_iv(&mut self, iv: &[u8]) -> Result<(), Error>;
+    /// Get the IV
+    fn aes128_ecb_encrypt_get_iv(&mut self, iv: &mut [u8]) -> Result<(), Error>;
     /// Process blocks of data
     fn aes128_ecb_encrypt_process_block(
         &mut self,
