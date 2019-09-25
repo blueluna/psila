@@ -258,14 +258,88 @@ impl CryptoBackend for GCryptBackend {
 
     fn ccmstar_encrypt(
         &mut self,
-        _key: &[u8],
-        _nonce: &[u8],
-        _message: &[u8],
-        _mic_length: usize,
-        _additional_data: &[u8],
-        _message_output: &mut [u8],
+        key: &[u8],
+        nonce: &[u8],
+        message: &[u8],
+        mic_length: usize,
+        additional_data: &[u8],
+        output: &mut [u8],
     ) -> Result<usize, Error> {
-        Err(Error::NotImplemented)
+        let message_blocks = (message.len() + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
+        let additional_data_blocks =
+            (additional_data.len() + LENGHT_FIELD_LENGTH + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
+        let mut work = [0u8; BLOCK_SIZE];
+        {
+            let mut buffer = [0u8; 256];
+            let mut offset = 0;
+
+            buffer[0] = Self::make_flag(additional_data.len(), mic_length, LENGHT_FIELD_LENGTH);
+            offset += 1;
+            buffer[offset..offset + nonce.len()].copy_from_slice(nonce);
+            offset += nonce.len();
+            BigEndian::write_u16(&mut buffer[offset..offset + 2], message.len() as u16);
+            offset += std::mem::size_of::<u16>();
+            BigEndian::write_u16(
+                &mut buffer[offset..offset + 2],
+                additional_data.len() as u16,
+            );
+            offset += std::mem::size_of::<u16>();
+            buffer[offset..offset + additional_data.len()].copy_from_slice(additional_data);
+            offset += (additional_data_blocks * BLOCK_SIZE) - 2;
+            buffer[offset..offset + message.len()].copy_from_slice(message);
+            offset += message_blocks * BLOCK_SIZE;
+
+            let mut cipher =
+                Cipher::new(Algorithm::Aes128, Mode::Ecb).map_err(|e| Error::Other(e.code()))?;
+            cipher.set_key(key).map_err(|e| Error::Other(e.code()))?;
+
+            let mut block = [0u8; BLOCK_SIZE];
+            for input in buffer[..offset].chunks(BLOCK_SIZE) {
+                for n in 0..BLOCK_SIZE {
+                    block[n] = work[n] ^ input[n];
+                }
+
+                cipher
+                    .encrypt(&block, &mut work)
+                    .map_err(|e| Error::Other(e.code()))?;
+            }
+        }
+        {
+            let mut buffer = [0u8; 256];
+            let mut encrypted = [0u8; 256];
+            let mut offset = 0;
+
+            buffer[..message.len()].copy_from_slice(message);
+            offset += message_blocks * BLOCK_SIZE;
+
+            let mut block = [0u8; BLOCK_SIZE];
+            block[0] = Self::make_flag(0, 0, LENGHT_FIELD_LENGTH);
+            block[1..=nonce.len()].copy_from_slice(nonce);
+
+            let mut cipher =
+                Cipher::new(Algorithm::Aes128, Mode::Ctr).map_err(|e| Error::Other(e.code()))?;
+            cipher.set_key(key).map_err(|e| Error::Other(e.code()))?;
+            cipher.set_ctr(block).map_err(|e| Error::Other(e.code()))?;
+
+            let mut block = [0u8; BLOCK_SIZE];
+            let mut tag = [0u8; 16];
+            block[..mic_length].copy_from_slice(&work[..mic_length]);
+            cipher
+                .encrypt(&block, &mut tag)
+                .map_err(|e| Error::Other(e.code()))?;
+
+            for (o, i) in encrypted[..offset]
+                .chunks_mut(BLOCK_SIZE)
+                .zip(buffer.chunks(BLOCK_SIZE))
+            {
+                cipher.encrypt(i, o).map_err(|e| Error::Other(e.code()))?;
+            }
+
+            output[..message.len()].copy_from_slice(&encrypted[..message.len()]);
+            output[message.len()..message.len() + mic_length].copy_from_slice(&tag[..mic_length]);
+        }
+
+        Ok(message.len() + mic_length)
     }
 
     /// Set the key
@@ -343,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decryption_and_authentication_check_2() {
+    fn test_decryption_and_authentication_check_1() {
         use gcrypt;
 
         gcrypt::init_default();
@@ -381,6 +455,45 @@ mod tests {
                 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E
             ]
         );
+    }
+
+    #[test]
+    fn test_encryption_and_authentication_check_1() {
+        use gcrypt;
+
+        gcrypt::init_default();
+
+        let mut crypt = GCryptBackend::default();
+
+        let key = [
+            0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD,
+            0xCE, 0xCF,
+        ];
+        let nonce = [
+            0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0x03, 0x02, 0x01, 0x00, 0x06,
+        ];
+        let m = [
+            0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
+            0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E,
+        ];
+        let c = [
+            0x1A, 0x55, 0xA3, 0x6A, 0xBB, 0x6C, 0x61, 0x0D, 0x06, 0x6B, 0x33, 0x75, 0x64, 0x9C,
+            0xEF, 0x10, 0xD4, 0x66, 0x4E, 0xCA, 0xD8, 0x54, 0xA8, 0x0A, 0x89, 0x5C, 0xC1, 0xD8,
+            0xFF, 0x94, 0x69,
+        ];
+        let a = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
+        // M, length of the authentication field in octets 0, 4, 6, 8, 10, 12, 14, 16
+        const M: usize = 8;
+        let mut _message = vec![0; m.len() + M];
+        let mut message = _message.as_mut_slice();
+
+        let used = crypt
+            .ccmstar_encrypt(&key, &nonce, &m, M, &a, &mut message)
+            .unwrap();
+
+        assert_eq!(used, 31);
+
+        assert_eq!(message, c);
     }
 
     #[test]
