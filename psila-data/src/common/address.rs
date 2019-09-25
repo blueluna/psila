@@ -63,7 +63,7 @@ impl Default for ShortAddress {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(not(feature = "core"))]
 impl std::fmt::Display for ShortAddress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:04x}", self.0)
@@ -135,7 +135,7 @@ impl Default for ExtendedAddress {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(not(feature = "core"))]
 impl std::fmt::Display for ExtendedAddress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -156,7 +156,7 @@ impl std::fmt::Display for ExtendedAddress {
 /// 64-bit extended personal area network (PAN) identifier
 pub type ExtendedPanIdentifier = ExtendedAddress;
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(all(test, not(feature = "core")))]
 mod tests {
     use super::*;
 

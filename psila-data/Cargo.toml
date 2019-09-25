@@ -10,13 +10,11 @@ categories = ["network-programming"]
 keywords = ["zigbee", "iot", "wpan", "network"]
 
 [features]
-default = ["std"]
+default = []
 core = ["heapless"]
-std = ["gcrypt"]
 
 [dependencies]
 byteorder = { version = "1", default-features = false }
 bitflags = "1.0"
-gcrypt = { version = "0.6", optional = true }
 heapless = { version = "0.5", optional = true }
-psila-crypto-trait = { path = "../psila-crypto-trait" }
+psila-crypto = { path = "../psila-crypto" }

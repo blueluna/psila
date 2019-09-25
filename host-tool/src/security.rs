@@ -1,12 +1,13 @@
 use std::convert::From;
 
 use gcrypt;
+use psila_crypto_gcrypt::GCryptBackend;
 use psila_data::application_service::commands::transport_key::NetworkKey;
 use psila_data::{common::key::Key, pack::Pack, security};
 
 pub struct SecurityService {
     pub keys: Vec<(Key, String)>,
-    crypto_provider: security::CryptoProvider<security::GCryptBackend>,
+    crypto_provider: security::CryptoProvider<GCryptBackend>,
 }
 
 impl SecurityService {
@@ -25,7 +26,7 @@ impl SecurityService {
             Key::from(security::LIGHT_LINK_COMMISIONING_LINK_KEY),
             "Light Link Commisioning Link Key".to_string(),
         ));
-        let backend = security::GCryptBackend::default();
+        let backend = GCryptBackend::default();
         let crypto_provider = security::CryptoProvider::new(backend);
         SecurityService {
             keys,

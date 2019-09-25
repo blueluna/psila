@@ -6,7 +6,7 @@ use crate::cluster_library::{
 use crate::pack::{Pack, PackFixed};
 use crate::Error;
 
-#[cfg(feature = "std")]
+#[cfg(not(feature = "core"))]
 pub type AttributeIdentifierVec = std::vec::Vec<AttributeIdentifier>;
 
 #[cfg(feature = "core")]
@@ -104,7 +104,7 @@ impl Pack<AttributeStatus, Error> for AttributeStatus {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(not(feature = "core"))]
 pub type AttributeStatusVec = std::vec::Vec<AttributeStatus>;
 
 #[cfg(feature = "core")]
@@ -167,7 +167,7 @@ impl Pack<WriteAttributeRecord, Error> for WriteAttributeRecord {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(not(feature = "core"))]
 pub type WriteAttributeRecordVec = std::vec::Vec<WriteAttributeRecord>;
 
 #[cfg(feature = "core")]
@@ -228,7 +228,7 @@ impl Pack<WriteAttributeStatus, Error> for WriteAttributeStatus {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(not(feature = "core"))]
 pub type WriteAttributeStatusVec = std::vec::Vec<WriteAttributeStatus>;
 
 #[cfg(feature = "core")]
@@ -292,7 +292,7 @@ impl Pack<ReportAttributes, Error> for ReportAttributes {
     }
 }
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(all(test, not(feature = "core")))]
 mod tests {
     use super::*;
 

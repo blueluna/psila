@@ -1,6 +1,6 @@
 use core::convert::From;
 
-use psila_crypto_trait;
+use psila_crypto;
 
 /// Errors
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -23,11 +23,11 @@ pub enum Error {
     UnknownDiscoverRoute,
     UnknownClusterIdentifier,
     UnsupportedAttributeValue,
-    CryptoError(psila_crypto_trait::Error),
+    CryptoError(psila_crypto::Error),
 }
 
-impl From<psila_crypto_trait::Error> for Error {
-    fn from(error: psila_crypto_trait::Error) -> Self {
+impl From<psila_crypto::Error> for Error {
+    fn from(error: psila_crypto::Error) -> Self {
         Self::CryptoError(error)
     }
 }

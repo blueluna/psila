@@ -1,5 +1,7 @@
 use core::convert::TryFrom;
 
+use psila_crypto;
+
 use crate::pack::PackFixed;
 use crate::Error;
 
@@ -16,7 +18,7 @@ extended_enum!(
     );
 
 /// Key length
-pub const KEY_SIZE: usize = 16;
+pub use psila_crypto::KEY_SIZE;
 
 /// Key
 ///
@@ -61,7 +63,7 @@ impl From<Key> for [u8; KEY_SIZE] {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(not(feature = "core"))]
 impl std::fmt::Display for Key {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
@@ -72,7 +74,7 @@ impl std::fmt::Display for Key {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(not(feature = "core"))]
 impl std::str::FromStr for Key {
     type Err = Error;
 
@@ -93,7 +95,7 @@ impl std::str::FromStr for Key {
     }
 }
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(all(test, not(feature = "core")))]
 mod tests {
     use super::*;
 

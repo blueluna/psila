@@ -557,10 +557,10 @@ impl AttributeValue {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(not(feature = "core"))]
 const STRING_INVALID: &str = "Invalid";
 
-#[cfg(feature = "std")]
+#[cfg(not(feature = "core"))]
 impl std::fmt::Display for AttributeValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if !self.is_valid() {
@@ -650,7 +650,7 @@ impl std::fmt::Display for AttributeValue {
     }
 }
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(all(test, not(feature = "core")))]
 mod tests {
     use super::*;
 

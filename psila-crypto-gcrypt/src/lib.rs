@@ -1,13 +1,8 @@
 use byteorder::{BigEndian, ByteOrder};
+use gcrypt::cipher::{Algorithm, Cipher, Mode};
 
-use psila_crypto_trait::{BlockCipher, CryptoBackend, Error};
-
-use crate::common::key::KEY_SIZE;
-use crate::security::{BLOCK_SIZE, LENGHT_FIELD_LENGTH};
-
-use gcrypt::{
-    self,
-    cipher::{Algorithm, Cipher, Mode},
+use psila_crypto::{
+    BlockCipher, CryptoBackend, Error, BLOCK_SIZE, KEY_SIZE, LENGHT_FIELD_LENGTH,
 };
 
 pub struct GCryptCipher {
@@ -15,7 +10,7 @@ pub struct GCryptCipher {
 }
 
 impl GCryptCipher {
-    fn new(algorithm: Algorithm, mode: Mode) -> Result<Self, Error> {
+    pub fn new(algorithm: Algorithm, mode: Mode) -> Result<Self, Error> {
         let cipher = Cipher::new(algorithm, mode).map_err(|e| Error::Other(e.code()))?;
         Ok(Self { cipher })
     }
@@ -89,7 +84,7 @@ impl CryptoBackend for GCryptBackend {
         mic_length: usize,
         additional_data: &[u8],
         message_output: &mut [u8],
-    ) -> Result<usize, psila_crypto_trait::Error> {
+    ) -> Result<usize, Error> {
         // C.4.1 Decryption Transformation
 
         if message.len() < mic_length {
@@ -389,33 +384,6 @@ impl CryptoBackend for GCryptBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_key_hash() {
-        use crate::security::CryptoProvider;
-        use gcrypt;
-
-        gcrypt::init_default();
-
-        let crypt = GCryptBackend::default();
-        let mut provider = CryptoProvider::new(crypt);
-
-        // C.6.1 Test Vector Set 1
-        let key = [
-            0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D,
-            0x4E, 0x4F,
-        ];
-        let mut calculated = [0; BLOCK_SIZE];
-        provider.hash_key(&key, 0xc0, &mut calculated).unwrap();
-        assert_eq!(
-            calculated,
-            [
-                0x45, 0x12, 0x80, 0x7B, 0xF9, 0x4C, 0xB3, 0x40, 0x0F, 0x0E, 0x2C, 0x25, 0xFB, 0x76,
-                0xE9, 0x99
-            ]
-        );
-    }
-
     #[test]
     fn test_decryption_and_authentication_check_1() {
         use gcrypt;
@@ -494,186 +462,5 @@ mod tests {
         assert_eq!(used, 31);
 
         assert_eq!(message, c);
-    }
-
-    #[test]
-    fn test_handle_secure_payload_1() {
-        use crate::security::{CryptoProvider, SecurityLevel, DEFAULT_LINK_KEY};
-        use gcrypt;
-
-        gcrypt::init_default();
-
-        let crypt = GCryptBackend::default();
-        let mut provider = CryptoProvider::new(crypt);
-
-        let input = [
-            0x21, 0x45, 0x30, 0x02, 0x00, 0x00, 0x00, 0x38, 0x2e, 0x03, 0xff, 0xff, 0x2e, 0x21,
-            0x00, 0xae, 0x5e, 0x9f, 0x46, 0xa6, 0x40, 0xcd, 0xe7, 0x90, 0x2f, 0xd6, 0x0e, 0x43,
-            0x23, 0x17, 0x48, 0x4b, 0x4c, 0x5a, 0x9b, 0x4c, 0xde, 0x1c, 0xe7, 0x07, 0x07, 0xb6,
-            0xfb, 0x1a, 0x0b, 0xe9, 0x99, 0x7e, 0x0a, 0xf8, 0x0f, 0xdf, 0x5d, 0xcf,
-        ];
-
-        let mut _output = vec![0; input.len()];
-        let mut output = _output.as_mut_slice();
-
-        let decrypted_size = provider
-            .decrypt_payload(
-                &DEFAULT_LINK_KEY,
-                SecurityLevel::EncryptedIntegrity32,
-                &input,
-                2,
-                &mut output,
-            )
-            .unwrap();
-
-        assert_eq!(decrypted_size, 35);
-
-        let correct_output = [
-            0x05, 0x01, 0x00, 0x2c, 0x6c, 0x08, 0xd0, 0xf4, 0xf4, 0x2c, 0xd8, 0x40, 0xd8, 0x48,
-            0x00, 0x40, 0x64, 0x08, 0x00, 0x85, 0xae, 0x21, 0xfe, 0xff, 0x6f, 0x0d, 0x00, 0x38,
-            0x2e, 0x03, 0xff, 0xff, 0x2e, 0x21, 0x00,
-        ];
-
-        assert_eq!(output[..16], correct_output[..16]);
-        assert_eq!(output[16..decrypted_size], correct_output[16..]);
-    }
-
-    #[test]
-    fn test_handle_secure_payload_2() {
-        use crate::network;
-        use crate::pack::Pack;
-        use crate::security::{CryptoProvider, SecurityLevel};
-        use gcrypt;
-
-        gcrypt::init_default();
-
-        let crypt = GCryptBackend::default();
-        let mut provider = CryptoProvider::new(crypt);
-
-        let key = [
-            0x4e, 0x48, 0x3c, 0x5d, 0x6f, 0x68, 0x26, 0x56, 0x70, 0x4e, 0x24, 0x4b, 0x5c, 0x53,
-            0x51, 0x44,
-        ];
-        let input = [
-            0x08, 0x02, 0xfd, 0xff, 0x6a, 0x6a, 0x0a, 0x64, 0x28, 0x00, 0x00, 0x00, 0x00, 0xc1,
-            0xe9, 0x1f, 0x00, 0x00, 0xff, 0x0f, 0x00, 0x00, 0xea, 0x15, 0x13, 0xe1, 0x36, 0x12,
-            0xcc, 0x44, 0x75, 0x64, 0xb0, 0x1d, 0x79, 0x2d, 0xfe, 0xdf, 0xc5, 0x61, 0x74, 0x84,
-            0xc3, 0x3a, 0x81, 0x28,
-        ];
-
-        let (_nwk, used) = network::NetworkHeader::unpack(&input[..]).unwrap();
-
-        let mut _output = vec![0; input.len()];
-        let mut output = _output.as_mut_slice();
-
-        let decrypted_size = provider
-            .decrypt_payload(
-                &key,
-                SecurityLevel::EncryptedIntegrity32,
-                &input,
-                used,
-                &mut output,
-            )
-            .unwrap();
-
-        assert_eq!(decrypted_size, 20);
-
-        let correct_output = [
-            0x08, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x81, 0x6a, 0x6a, 0xc1, 0xe9, 0x1f,
-            0x00, 0x00, 0xff, 0x0f, 0x00, 0x8e,
-        ];
-
-        assert_eq!(output[..16], correct_output[..16]);
-        assert_eq!(
-            output[16..decrypted_size],
-            correct_output[16..decrypted_size]
-        );
-    }
-
-    #[test]
-    fn test_handle_secure_payload_3() {
-        use crate::network;
-        use crate::pack::Pack;
-        use crate::security::{CryptoProvider, SecurityLevel};
-        use gcrypt;
-
-        gcrypt::init_default();
-
-        let crypt = GCryptBackend::default();
-        let mut provider = CryptoProvider::new(crypt);
-
-        let key = [
-            0x00, 0x2c, 0x6c, 0x08, 0xd0, 0xf4, 0xf4, 0x2c, 0xd8, 0x40, 0xd8, 0x48, 0x00, 0x40,
-            0x64, 0x08,
-        ];
-        let input = [
-            0x08, 0x12, 0xfd, 0xff, 0x7b, 0xc0, 0x1e, 0x04, 0x85, 0xae, 0x21, 0xfe, 0xff, 0x6f,
-            0x0d, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x85, 0xae, 0x21, 0xfe, 0xff, 0x6f, 0x0d,
-            0x00, 0x00, 0xad, 0x41, 0xd3, 0x7e, 0xf7, 0x5d, 0x6a, 0x67, 0x01, 0x7b, 0x14, 0x62,
-            0xee, 0xfa, 0x6a, 0xe1, 0xd1, 0x31, 0x59, 0xb4, 0x7d, 0xd4, 0xf2, 0xb9,
-        ];
-
-        let (_nwk, used) = network::NetworkHeader::unpack(&input[..]).unwrap();
-
-        let mut _output = vec![0; input.len()];
-        let mut output = _output.as_mut_slice();
-
-        let decrypted_size = provider
-            .decrypt_payload(
-                &key,
-                SecurityLevel::EncryptedIntegrity32,
-                &input,
-                used,
-                &mut output,
-            )
-            .unwrap();
-
-        assert_eq!(decrypted_size, 20);
-
-        let correct_output = [
-            0x08, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00, 0x06, 0x81, 0x7b, 0xc0, 0x85, 0xae, 0x21,
-            0xfe, 0xff, 0x6f, 0x0d, 0x00, 0x80,
-        ];
-
-        assert_eq!(output[..16], correct_output[..16]);
-        assert_eq!(output[16..decrypted_size], correct_output[16..]);
-    }
-
-    #[test]
-    fn test_handle_secure_payload_4() {
-        use crate::application_service;
-        use crate::pack::Pack;
-        use crate::security::{CryptoProvider, SecurityLevel, DEFAULT_LINK_KEY};
-        use gcrypt;
-
-        gcrypt::init_default();
-
-        let crypt = GCryptBackend::default();
-        let mut provider = CryptoProvider::new(crypt);
-
-        let input = [
-            0x21, 0xf2, 0x30, 0x05, 0x00, 0x00, 0x00, 0xb5, 0xb4, 0x03, 0xff, 0xff, 0x2e, 0x21,
-            0x00, 0x63, 0xe2, 0x62, 0xd6, 0xb3, 0x67, 0x4d, 0x0e, 0x34, 0x9f, 0xaa, 0x04, 0x81,
-            0xf9, 0x1d, 0xf6, 0xa4, 0x72, 0x7f, 0x36, 0xde, 0x4d, 0xf5, 0xeb, 0xd8, 0xea, 0xc5,
-            0x4e, 0x78, 0x1c, 0xd9, 0x36, 0x07, 0xb4, 0x62, 0xc9, 0xf8, 0xb7, 0x77,
-        ];
-
-        let (_aps, used) =
-            application_service::ApplicationServiceHeader::unpack(&input[..]).unwrap();
-
-        let mut _output = vec![0; input.len()];
-        let mut output = _output.as_mut_slice();
-
-        let decrypted_size = provider
-            .decrypt_payload(
-                &DEFAULT_LINK_KEY,
-                SecurityLevel::EncryptedIntegrity32,
-                &input,
-                used,
-                &mut output,
-            )
-            .unwrap();
-
-        assert_eq!(decrypted_size, 35);
     }
 }

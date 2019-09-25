@@ -428,7 +428,7 @@ impl Pack<NetworkHeader, Error> for NetworkHeader {
     }
 }
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(all(test, not(feature = "core")))]
 mod tests {
     use super::*;
 

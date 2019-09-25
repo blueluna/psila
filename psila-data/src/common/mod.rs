@@ -75,7 +75,7 @@ impl From<CapabilityInformation> for u8 {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(not(feature = "core"))]
 impl std::fmt::Display for CapabilityInformation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

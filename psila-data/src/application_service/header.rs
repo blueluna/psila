@@ -215,7 +215,7 @@ mod tests {
         assert_eq!(fc.extended_header, false);
     }
 
-    #[cfg(feature = "std")]
+    #[cfg(not(feature = "core"))]
     fn print_frame(frame: &ApplicationServiceHeader) {
         print!(
             "APS {:?} {:?}",

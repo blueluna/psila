@@ -1,6 +1,6 @@
 //! # Psila - A Zigbee crate
 
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(feature = "core", no_std)]
 
 #[macro_use]
 mod utils;

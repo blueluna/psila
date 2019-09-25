@@ -1,5 +1,12 @@
 #![no_std]
 
+/// L, length of the message length field in octets 2, 3, ... 8. Always 2 for Zigbee
+pub const LENGHT_FIELD_LENGTH: usize = 2;
+/// Cipher block length
+pub const BLOCK_SIZE: usize = 16;
+/// Key length
+pub const KEY_SIZE: usize = 16;
+
 /// Crypto backend error codes
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Error {

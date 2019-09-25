@@ -1,11 +1,9 @@
 //! # Security service
 
-use psila_crypto_trait::CryptoBackend;
+use psila_crypto::{self, CryptoBackend};
 
 use crate::error::Error;
 
-#[cfg(feature = "std")]
-mod gcrypt_backend;
 mod header;
 
 use crate::common::key::KEY_SIZE;
@@ -13,13 +11,8 @@ use crate::pack::{Pack, PackFixed};
 
 pub use header::{KeyIdentifier, SecurityControl, SecurityHeader, SecurityLevel};
 
-#[cfg(feature = "std")]
-pub use gcrypt_backend::GCryptBackend;
-
-/// L, length of the message length field in octets 2, 3, ... 8. Always 2 for Zigbee
-pub const LENGHT_FIELD_LENGTH: usize = 2;
-/// Cipher block length
-pub const BLOCK_SIZE: usize = 16;
+pub use psila_crypto::LENGHT_FIELD_LENGTH;
+pub use psila_crypto::BLOCK_SIZE;
 
 /// Default link key, "ZigBeeAlliance09"
 pub const DEFAULT_LINK_KEY: [u8; KEY_SIZE] = [
