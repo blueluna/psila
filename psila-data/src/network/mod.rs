@@ -1,5 +1,4 @@
-//! # Network sub-system
-//!
+//! # Network (NWK)
 
 pub mod beacon;
 pub mod commands;

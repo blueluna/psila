@@ -6,7 +6,10 @@ use crate::common::address::ExtendedAddress;
 use crate::error::Error;
 use crate::pack::{Pack, PackFixed};
 
-/// Security Level, 4.5.1.1.1
+/// Security Level
+///
+/// Describes the length of the message integrity check (MIC) and if encryption
+/// of message is used.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SecurityLevel {
     /// No encryption or message integrity check
@@ -29,7 +32,7 @@ pub enum SecurityLevel {
 
 impl TryFrom<u8> for SecurityLevel {
     type Error = Error;
-
+    /// Get the security level from a octet
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value & 0b0000_0111 {
             0b000 => Ok(SecurityLevel::None),
@@ -57,7 +60,7 @@ impl SecurityLevel {
     }
 }
 
-/// Key Identifier, 4.5.1.1.2
+/// Key Identifier
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum KeyIdentifier {
     /// Data key
@@ -72,7 +75,7 @@ pub enum KeyIdentifier {
 
 impl TryFrom<u8> for KeyIdentifier {
     type Error = Error;
-
+    // Get the key identifier from a octet
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value & 0b0000_0011 {
             0b00 => Ok(KeyIdentifier::Data),
@@ -86,13 +89,16 @@ impl TryFrom<u8> for KeyIdentifier {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SecurityControl {
+    /// Security level
     pub level: SecurityLevel,
+    /// Key identifier
     pub identifier: KeyIdentifier,
     /// The auxilliary header has sender address
     has_source_address: bool,
 }
 
 impl SecurityControl {
+    // Change the security level to the provided security level
     pub fn set_level(&mut self, level: SecurityLevel) {
         self.level = level;
     }
@@ -126,19 +132,23 @@ impl PackFixed<SecurityControl, Error> for SecurityControl {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SecurityHeader {
+    /// Security header flags
     pub control: SecurityControl,
     /// Securit header frame counter
     pub counter: u32,
-    ///
+    /// Source address as extended address
     pub source: Option<ExtendedAddress>,
-    ///
+    /// Sequence number for network keys
     pub sequence: Option<u8>,
 }
 
 impl SecurityHeader {
+    /// Generate nonce from the header
     pub fn get_nonce(&self, buf: &mut [u8]) {
         if let Some(source) = self.source {
             source.pack(&mut buf[0..8]).unwrap();
+        } else {
+            panic!("No source address found");
         }
         LittleEndian::write_u32(&mut buf[8..12], self.counter);
         self.control.pack(&mut buf[12..13]).unwrap();

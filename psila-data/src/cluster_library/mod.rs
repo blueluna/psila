@@ -1,3 +1,5 @@
+//! Cluster Library (ZCL)
+
 use core::convert::TryFrom;
 
 use crate::common::address::ShortAddress;

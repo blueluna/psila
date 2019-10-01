@@ -44,24 +44,24 @@ impl TryFrom<u8> for DiscoverRoute {
     }
 }
 
-/// 3.3.1.1 Frame Control Field
+/// Frame Control Field
 #[derive(Copy, Clone, Debug)]
 pub struct FrameControl {
-    // 3.3.1.1.1 Frame Type Sub-Field
+    /// Frame Type Sub-Field
     pub frame_type: FrameType,
-    // 3.3.1.1.2 Protocol Version Sub-Field
+    /// Protocol Version Sub-Field
     pub protocol_version: u8,
-    // 3.3.1.1.3 Discover Route Sub-Field
+    /// Discover Route Sub-Field
     pub discover_route: DiscoverRoute,
-    // 3.3.1.1.4 Multicast Flag Sub-Field
+    /// Multicast Flag Sub-Field
     multicast: bool,
-    // 3.3.1.1.5 Security Sub-Field
+    /// Security Sub-Field
     pub security: bool,
-    // 3.3.1.1.6 Source Route Sub-Field
+    /// Source Route Sub-Field
     contains_source_route_frame: bool,
-    // 3.3.1.1.7    Destination IEEE Address Sub-Field
+    /// Destination IEEE Address Sub-Field
     contains_destination_ieee_address: bool,
-    // 3.3.1.1.8    Source IEEE Address Sub-Field
+    /// Source IEEE Address Sub-Field
     contains_source_ieee_address: bool,
 }
 
@@ -725,5 +725,4 @@ mod tests {
         assert_eq!(nwk.multicast_control, None);
         assert!(nwk.source_route_frame.is_some());
     }
-
 }

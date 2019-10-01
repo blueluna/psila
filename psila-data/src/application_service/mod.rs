@@ -1,3 +1,5 @@
+//! Application services (APS)
+
 use core::convert::TryFrom;
 
 pub mod commands;

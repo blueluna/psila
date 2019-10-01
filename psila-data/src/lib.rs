@@ -1,4 +1,8 @@
-//! # Psila - A Zigbee crate
+//! # Psila - A Z**bee crate
+//!
+//! This crate contains multiple sub-systems of the Z**bee standard.
+//!
+//!
 
 #![cfg_attr(feature = "core", no_std)]
 
