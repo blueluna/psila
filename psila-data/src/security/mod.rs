@@ -189,13 +189,15 @@ where
 
         let aad = &self.buffer[..payload_start];
         // Payload == a with length l(a), 0 < l(a) < 2^64
-        let payload = &self.buffer[payload_start..payload.len()];
+        let mic_offset = payload.len() - mic_bytes;
+        let payload = &self.buffer[payload_start..mic_offset];
+        let mic = &self.buffer[mic_offset..payload.len()];
 
         let used = self.backend.ccmstar_decrypt(
             &updated_key,
             &nonce,
             &payload,
-            mic_bytes,
+            &mic,
             &aad,
             &mut output_payload,
         )?;

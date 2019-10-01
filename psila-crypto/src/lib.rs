@@ -66,7 +66,7 @@ pub trait CryptoBackend {
         // Clear test message
         message: &[u8],
         // Length of the message integrity code (MIC)
-        mic_length: usize,
+        mic: &mut [u8],
         // Additional data
         additional_data: &[u8],
         // Encrypted message
@@ -83,7 +83,7 @@ pub trait CryptoBackend {
         // Encrypted message with message integrity code (MIC)
         message: &[u8],
         // Length of the message integrity code (MIC)
-        mic_length: usize,
+        mic: &[u8],
         // Additional data
         additional_data: &[u8],
         // Clear text message

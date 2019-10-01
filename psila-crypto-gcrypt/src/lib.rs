@@ -80,20 +80,12 @@ impl CryptoBackend for GCryptBackend {
         &mut self,
         key: &[u8],
         nonce: &[u8],
-        message: &[u8],
-        mic_length: usize,
+        encrypted: &[u8],
+        mic: &[u8],
         additional_data: &[u8],
         message_output: &mut [u8],
     ) -> Result<usize, Error> {
-        // C.4.1 Decryption Transformation
-
-        if message.len() < mic_length {
-            return Err(Error::InvalidIntegrityCodeSize);
-        }
-
-        assert!(message_output.len() >= (message.len() - mic_length));
-
-        let (encrypted, mic) = message.split_at(message.len() - mic_length);
+        assert!(message_output.len() >= encrypted.len());
 
         let encrypted_blocks = (encrypted.len() + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
         let encrypted_padding = (encrypted_blocks * BLOCK_SIZE) - encrypted.len();
@@ -157,7 +149,7 @@ impl CryptoBackend for GCryptBackend {
         {
             let (f, other) = block.split_at_mut(1);
             let (_nonce, mut length) = other.split_at_mut(nonce.len());
-            f[0] = Self::make_flag(additional_data.len(), mic_length, LENGHT_FIELD_LENGTH);
+            f[0] = Self::make_flag(additional_data.len(), mic.len(), LENGHT_FIELD_LENGTH);
             _nonce.copy_from_slice(&nonce);
             BigEndian::write_u16(&mut length, encrypted.len() as u16);
         }
@@ -234,7 +226,7 @@ impl CryptoBackend for GCryptBackend {
         }
 
         let mut valid = true;
-        for (a, b) in tag[..mic_length].iter().zip(output[..mic_length].iter()) {
+        for (a, b) in tag[..mic.len()].iter().zip(output[..mic.len()].iter()) {
             if a != b {
                 valid = false;
                 break;
@@ -256,7 +248,7 @@ impl CryptoBackend for GCryptBackend {
         key: &[u8],
         nonce: &[u8],
         message: &[u8],
-        mic_length: usize,
+        mic: &mut [u8],
         additional_data: &[u8],
         output: &mut [u8],
     ) -> Result<usize, Error> {
@@ -268,7 +260,7 @@ impl CryptoBackend for GCryptBackend {
             let mut buffer = [0u8; 256];
             let mut offset = 0;
 
-            buffer[0] = Self::make_flag(additional_data.len(), mic_length, LENGHT_FIELD_LENGTH);
+            buffer[0] = Self::make_flag(additional_data.len(), mic.len(), LENGHT_FIELD_LENGTH);
             offset += 1;
             buffer[offset..offset + nonce.len()].copy_from_slice(nonce);
             offset += nonce.len();
@@ -318,7 +310,7 @@ impl CryptoBackend for GCryptBackend {
 
             let mut block = [0u8; BLOCK_SIZE];
             let mut tag = [0u8; 16];
-            block[..mic_length].copy_from_slice(&work[..mic_length]);
+            block[..mic.len()].copy_from_slice(&work[..mic.len()]);
             cipher
                 .encrypt(&block, &mut tag)
                 .map_err(|e| Error::Other(e.code()))?;
@@ -331,10 +323,10 @@ impl CryptoBackend for GCryptBackend {
             }
 
             output[..message.len()].copy_from_slice(&encrypted[..message.len()]);
-            output[message.len()..message.len() + mic_length].copy_from_slice(&tag[..mic_length]);
+            mic.copy_from_slice(&tag[..mic.len()]);
         }
 
-        Ok(message.len() + mic_length)
+        Ok(message.len())
     }
 
     /// Set the key
@@ -410,8 +402,11 @@ mod tests {
         let mut _message = vec![0; c.len() - M];
         let mut message = _message.as_mut_slice();
 
+        let encrypted = &c[..c.len() - M];
+        let mic = &c[c.len() - M..];
+
         let used = crypt
-            .ccmstar_decrypt(&key, &nonce, &c, M, &a, &mut message)
+            .ccmstar_decrypt(&key, &nonce, encrypted, mic, &a, &mut message)
             .unwrap();
 
         assert_eq!(used, 23);
@@ -440,27 +435,30 @@ mod tests {
         let nonce = [
             0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0x03, 0x02, 0x01, 0x00, 0x06,
         ];
-        let m = [
+        let message = [
             0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
             0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E,
         ];
-        let c = [
+        let encrypted = [
             0x1A, 0x55, 0xA3, 0x6A, 0xBB, 0x6C, 0x61, 0x0D, 0x06, 0x6B, 0x33, 0x75, 0x64, 0x9C,
-            0xEF, 0x10, 0xD4, 0x66, 0x4E, 0xCA, 0xD8, 0x54, 0xA8, 0x0A, 0x89, 0x5C, 0xC1, 0xD8,
-            0xFF, 0x94, 0x69,
+            0xEF, 0x10, 0xD4, 0x66, 0x4E, 0xCA, 0xD8, 0x54, 0xA8
         ];
+        let mic = [0x0A, 0x89, 0x5C, 0xC1, 0xD8, 0xFF, 0x94, 0x69];
         let a = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
         // M, length of the authentication field in octets 0, 4, 6, 8, 10, 12, 14, 16
         const M: usize = 8;
-        let mut _message = vec![0; m.len() + M];
-        let mut message = _message.as_mut_slice();
+        let mut _output = vec![0; message.len()];
+        let mut output = _output.as_mut_slice();
+
+        let mut mic_out = [0u8; M];
 
         let used = crypt
-            .ccmstar_encrypt(&key, &nonce, &m, M, &a, &mut message)
+            .ccmstar_encrypt(&key, &nonce, &message, &mut mic_out, &a, &mut output)
             .unwrap();
 
-        assert_eq!(used, 31);
+        assert_eq!(used, 23);
 
-        assert_eq!(message, c);
+        assert_eq!(output, encrypted);
+        assert_eq!(mic, mic_out);
     }
 }
