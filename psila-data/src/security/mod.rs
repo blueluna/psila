@@ -12,7 +12,7 @@ use crate::pack::{Pack, PackFixed};
 pub use header::{KeyIdentifier, SecurityControl, SecurityHeader, SecurityLevel};
 
 pub use psila_crypto::BLOCK_SIZE;
-pub use psila_crypto::LENGHT_FIELD_LENGTH;
+pub use psila_crypto::LENGTH_FIELD_LENGTH;
 
 /// Default link key, "ZigBeeAlliance09"
 pub const DEFAULT_LINK_KEY: [u8; KEY_SIZE] = [

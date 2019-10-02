@@ -1,7 +1,7 @@
 use byteorder::{BigEndian, ByteOrder};
 use gcrypt::cipher::{Algorithm, Cipher, Mode};
 
-use psila_crypto::{BlockCipher, CryptoBackend, Error, BLOCK_SIZE, KEY_SIZE, LENGHT_FIELD_LENGTH};
+use psila_crypto::{BlockCipher, CryptoBackend, Error, BLOCK_SIZE, KEY_SIZE, LENGTH_FIELD_LENGTH};
 
 pub struct GCryptCipher {
     cipher: Cipher,
@@ -90,9 +90,9 @@ impl CryptoBackend for GCryptBackend {
         let decrypted_size = encrypted.len();
 
         let additional_data_blocks =
-            (additional_data.len() + LENGHT_FIELD_LENGTH + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
+            (additional_data.len() + LENGTH_FIELD_LENGTH + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
         let additional_data_padding =
-            (additional_data_blocks * BLOCK_SIZE) - (additional_data.len() + LENGHT_FIELD_LENGTH);
+            (additional_data_blocks * BLOCK_SIZE) - (additional_data.len() + LENGTH_FIELD_LENGTH);
 
         let mic_blocks = (mic.len() / BLOCK_SIZE) + 1;
         assert_eq!(mic_blocks, 1);
@@ -105,7 +105,7 @@ impl CryptoBackend for GCryptBackend {
         {
             let (flag, other) = block.split_at_mut(1);
             let (_nonce, _counter) = other.split_at_mut(nonce.len());
-            flag[0] = Self::make_flag(0, 0, LENGHT_FIELD_LENGTH);
+            flag[0] = Self::make_flag(0, 0, LENGTH_FIELD_LENGTH);
             _nonce.copy_from_slice(&nonce);
         }
 
@@ -147,7 +147,7 @@ impl CryptoBackend for GCryptBackend {
         {
             let (f, other) = block.split_at_mut(1);
             let (_nonce, mut length) = other.split_at_mut(nonce.len());
-            f[0] = Self::make_flag(additional_data.len(), mic.len(), LENGHT_FIELD_LENGTH);
+            f[0] = Self::make_flag(additional_data.len(), mic.len(), LENGTH_FIELD_LENGTH);
             _nonce.copy_from_slice(&nonce);
             BigEndian::write_u16(&mut length, encrypted.len() as u16);
         }
@@ -164,11 +164,11 @@ impl CryptoBackend for GCryptBackend {
         let mut input = [0; BLOCK_SIZE];
         {
             let length = if additional_data_blocks > 1 {
-                BLOCK_SIZE - LENGHT_FIELD_LENGTH
+                BLOCK_SIZE - LENGTH_FIELD_LENGTH
             } else {
                 additional_data.len()
             };
-            let (mut _l, other) = input.split_at_mut(LENGHT_FIELD_LENGTH);
+            let (mut _l, other) = input.split_at_mut(LENGTH_FIELD_LENGTH);
             let (_a, _padding) = other.split_at_mut(length);
             BigEndian::write_u16(&mut _l, additional_data.len() as u16);
             _a.copy_from_slice(&additional_data[..length]);
@@ -184,7 +184,7 @@ impl CryptoBackend for GCryptBackend {
         if additional_data_blocks > 1 {
             for n in 1..additional_data_blocks {
                 let mut input = [0u8; BLOCK_SIZE];
-                let offset = (n * BLOCK_SIZE) - LENGHT_FIELD_LENGTH;
+                let offset = (n * BLOCK_SIZE) - LENGTH_FIELD_LENGTH;
                 let length = if n == additional_data_blocks - 1 {
                     BLOCK_SIZE - additional_data_padding
                 } else {
@@ -252,13 +252,13 @@ impl CryptoBackend for GCryptBackend {
     ) -> Result<usize, Error> {
         let message_blocks = (message.len() + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
         let additional_data_blocks =
-            (additional_data.len() + LENGHT_FIELD_LENGTH + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
+            (additional_data.len() + LENGTH_FIELD_LENGTH + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
         let mut work = [0u8; BLOCK_SIZE];
         {
             let mut buffer = [0u8; 256];
             let mut offset = 0;
 
-            buffer[0] = Self::make_flag(additional_data.len(), mic.len(), LENGHT_FIELD_LENGTH);
+            buffer[0] = Self::make_flag(additional_data.len(), mic.len(), LENGTH_FIELD_LENGTH);
             offset += 1;
             buffer[offset..offset + nonce.len()].copy_from_slice(nonce);
             offset += nonce.len();
@@ -298,7 +298,7 @@ impl CryptoBackend for GCryptBackend {
             offset += message_blocks * BLOCK_SIZE;
 
             let mut block = [0u8; BLOCK_SIZE];
-            block[0] = Self::make_flag(0, 0, LENGHT_FIELD_LENGTH);
+            block[0] = Self::make_flag(0, 0, LENGTH_FIELD_LENGTH);
             block[1..=nonce.len()].copy_from_slice(nonce);
 
             let mut cipher =
