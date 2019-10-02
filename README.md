@@ -5,8 +5,10 @@
 
 This is a work in progress implementation of handing Zigbee packages.
 
-Currently this crate requires `std`, but the aim is to be able to use this
-crate on embedded with no_std.
+## Goal
+
+The goal is to be able to decode and encode packets using the Nordic nRF52840
+SoC.
 
 ## License
 

@@ -25,3 +25,5 @@ pub use common::address::{
 };
 pub use common::key::Key;
 pub use error::Error;
+
+pub use utils::clear;

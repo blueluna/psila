@@ -106,7 +106,9 @@ where
         Ok(())
     }
 
-    /// FIPS Pub 198 HMAC
+    /// Keyed hash function for message authentication (HMAC)
+    ///
+    /// Appearently as specified in FIPS Pub 198
     pub fn hash_key(
         &mut self,
         key: &[u8; KEY_SIZE],

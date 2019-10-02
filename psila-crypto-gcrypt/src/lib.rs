@@ -3,6 +3,11 @@ use gcrypt::cipher::{Algorithm, Cipher, Mode};
 
 use psila_crypto::{BlockCipher, CryptoBackend, Error, BLOCK_SIZE, KEY_SIZE, LENGTH_FIELD_LENGTH};
 
+fn clear(slice: &mut [u8])
+{
+    for v in slice.iter_mut() { *v = 0; }
+}
+
 pub struct GCryptCipher {
     cipher: Cipher,
 }
@@ -254,8 +259,8 @@ impl CryptoBackend for GCryptBackend {
         let additional_data_blocks =
             (additional_data.len() + LENGTH_FIELD_LENGTH + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
         let mut work = [0u8; BLOCK_SIZE];
+        let mut buffer = [0u8; 256];
         {
-            let mut buffer = [0u8; 256];
             let mut offset = 0;
 
             buffer[0] = Self::make_flag(additional_data.len(), mic.len(), LENGTH_FIELD_LENGTH);
@@ -290,7 +295,7 @@ impl CryptoBackend for GCryptBackend {
             }
         }
         {
-            let mut buffer = [0u8; 256];
+            clear(&mut buffer);
             let mut encrypted = [0u8; 256];
             let mut offset = 0;
 
