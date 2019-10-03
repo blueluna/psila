@@ -77,6 +77,12 @@ impl PartialEq<u16> for ShortAddress {
     }
 }
 
+impl PartialEq<ieee802154::mac::frame::ShortAddress> for ShortAddress {
+    fn eq(&self, other: &ieee802154::mac::frame::ShortAddress) -> bool {
+        self.0 == other.0
+    }
+}
+
 impl Default for ShortAddress {
     fn default() -> Self {
         Self(0xffffu16)
@@ -106,6 +112,12 @@ impl From<ieee802154::mac::frame::PanId> for PanIdentifier {
 impl Into<ieee802154::mac::frame::PanId> for PanIdentifier {
     fn into(self) -> ieee802154::mac::frame::PanId {
        ieee802154::mac::frame::PanId(self.0)
+    }
+}
+
+impl PartialEq<ieee802154::mac::frame::PanId> for PanIdentifier {
+    fn eq(&self, other: &ieee802154::mac::frame::PanId) -> bool {
+        self.0 == other.0
     }
 }
 
@@ -170,6 +182,12 @@ impl Into<ieee802154::mac::frame::ExtendedAddress> for ExtendedAddress {
 impl PartialEq<u64> for ExtendedAddress {
     fn eq(&self, other: &u64) -> bool {
         self.0 == *other
+    }
+}
+
+impl PartialEq<ieee802154::mac::frame::ExtendedAddress> for ExtendedAddress {
+    fn eq(&self, other: &ieee802154::mac::frame::ExtendedAddress) -> bool {
+        self.0 == other.0
     }
 }
 
