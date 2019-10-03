@@ -1,0 +1,14 @@
+[package]
+name = "psila-service"
+version = "0.0.1"
+authors = ["Erik Svensson <erik.public@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+ieee802154 = "0.3"
+psila-crypto = { path = "../psila-crypto" }
+psila-data = { path = "../psila-data" }
+
+[features]
+default = []
+core = ["psila-data/core"]
