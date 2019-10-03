@@ -184,16 +184,20 @@ where
 
         let payload_start = secure_header_offset + used;
 
-        // L -> Message length field, 2
-        // Nonce N, 15-L octets
         let mut nonce = [0; 13];
-        header.get_nonce(&mut nonce);
+        header.get_nonce(&mut nonce)?;
 
         let aad = &self.buffer[..payload_start];
         // Payload == a with length l(a), 0 < l(a) < 2^64
         let mic_offset = payload.len() - mic_bytes;
+        let payload_length = payload.len();
+
+        if mic_offset <= payload_start {
+            return Err(Error::WrongNumberOfBytes);
+        }
+
         let payload = &self.buffer[payload_start..mic_offset];
-        let mic = &self.buffer[mic_offset..payload.len()];
+        let mic = &self.buffer[mic_offset..payload_length];
 
         let used = self.backend.ccmstar_decrypt(
             &updated_key,

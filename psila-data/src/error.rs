@@ -13,6 +13,8 @@ pub enum Error {
     InvalidValue,
     /// The code path has not been implemented
     NotImplemented,
+    NoShortAddress,
+    NoExtendedAddress,
     UnknownFrameType,
     BrokenRelayList,
     UnknownNetworkCommand,

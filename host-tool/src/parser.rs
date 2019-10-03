@@ -843,7 +843,54 @@ impl Parser {
                         self.parse_network_frame(frame.payload);
                     }
                     mac::FrameContent::Command(command) => {
-                        println!(" Command {:?}", command);
+                        print!(" Command ");
+                        match command {
+                            mac::command::Command::AssociationRequest(cmd) => {
+                                print!("Association request ");
+                                if cmd.full_function_device {
+                                    print!("FFD ");
+                                }
+                                else {
+                                    print!("RFD ");
+                                }
+                                if cmd.mains_power {
+                                    print!("Mains power ");
+                                }
+                                if cmd.idle_receive {
+                                    print!("Idle Rx ");
+                                }
+                                if cmd.frame_protection {
+                                    print!("Secure ");
+                                }
+                                if cmd.allocate_address {
+                                    print!("Allocate address ");
+                                }
+                            }
+                            mac::command::Command::AssociationResponse(address, status) => {
+                                print!("Association response {:04x} {:?}", address.0, status);
+                            }
+                            mac::command::Command::DisassociationNotification(cmd) => {
+                                print!("Disassociation ");
+                                match cmd {
+                                    mac::command::DisassociationReason::CoordinatorLeave => {
+                                        print!("requested to leave");
+                                    }
+                                    mac::command::DisassociationReason::DeviceLeave => {
+                                        print!("leave");
+                                    }
+                                }
+                            }
+                            mac::command::Command::BeaconRequest => {
+                                print!("Beacon request");
+                            }
+                            mac::command::Command::DataRequest => {
+                                print!("Data request");
+                            }
+                            _ => {
+                                print!("{:?}", command);
+                            }
+                        }
+                        println!();
                     }
                 }
             }

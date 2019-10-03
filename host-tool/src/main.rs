@@ -145,6 +145,9 @@ fn main() {
                                         esercom::error::Error::InvalidLength(l) => {
                                             buffer.truncate_front(buffer.len() - l);
                                         }
+                                        esercom::error::Error::NotEnoughBytes => {
+                                            println!("Bad {:?} {}", e, buffer.len());
+                                        }
                                         _ => {
                                             println!("Bad {:?}", e);
                                         }

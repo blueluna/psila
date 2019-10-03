@@ -4,7 +4,7 @@ use crate::common::address::{EXTENDED_ADDRESS_SIZE, SHORT_ADDRESS_SIZE};
 use crate::pack::{Pack, PackFixed};
 use crate::{Error, ExtendedAddress, NetworkAddress};
 
-/// 3.3.1.1.1 Frame Type Sub-Field
+/// Frame Type Sub-Field
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum FrameType {
     Data = 0b0000_0000,
@@ -25,7 +25,7 @@ impl TryFrom<u8> for FrameType {
     }
 }
 
-/// 3.3.1.1.3 Discover Route Sub-Field
+/// Discover Route Sub-Field
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DiscoverRoute {
     SurpressDiscovery = 0b0000_0000,

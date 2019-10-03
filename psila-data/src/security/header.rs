@@ -144,14 +144,15 @@ pub struct SecurityHeader {
 
 impl SecurityHeader {
     /// Generate nonce from the header
-    pub fn get_nonce(&self, buf: &mut [u8]) {
+    pub fn get_nonce(&self, buf: &mut [u8]) -> Result<(), Error> {
         if let Some(source) = self.source {
             source.pack(&mut buf[0..8]).unwrap();
         } else {
-            panic!("No source address found");
+            return Err(Error::NoExtendedAddress);
         }
         LittleEndian::write_u32(&mut buf[8..12], self.counter);
         self.control.pack(&mut buf[12..13]).unwrap();
+        Ok(())
     }
 }
 

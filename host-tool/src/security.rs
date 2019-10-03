@@ -51,7 +51,10 @@ impl SecurityService {
     pub fn decrypt(&mut self, payload: &[u8], offset: usize, mut output: &mut [u8]) -> usize {
         print!("SEC ");
         match security::SecurityHeader::unpack(&payload[offset..]) {
-            Ok((header, _used)) => Self::print_header(&header),
+            Ok((header, used)) => {
+                Self::print_header(&header);
+                print!(" {} bytes ", payload.len() - offset - used);
+            }
             Err(e) => {
                 println!(" Failed to parse security header, {:?}", e);
                 return 0;

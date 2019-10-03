@@ -3,6 +3,8 @@ use core::default::Default;
 use crate::pack::PackFixed;
 use crate::Error;
 
+use ieee802154;
+
 use byteorder::{ByteOrder, LittleEndian};
 
 /// Network address size
@@ -11,6 +13,12 @@ pub const SHORT_ADDRESS_SIZE: usize = 2;
 /// 16-bit short address
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct ShortAddress(u16);
+
+impl ShortAddress {
+    pub fn new(value: u16) -> Self {
+        Self(value)
+    }
+}
 
 impl PackFixed<ShortAddress, Error> for ShortAddress {
     fn pack(&self, mut data: &mut [u8]) -> Result<(), Error> {
@@ -51,6 +59,18 @@ impl From<ShortAddress> for u16 {
     }
 }
 
+impl From<ieee802154::mac::frame::ShortAddress> for ShortAddress {
+    fn from(value: ieee802154::mac::frame::ShortAddress) -> Self {
+        ShortAddress(value.0)
+    }
+}
+
+impl Into<ieee802154::mac::frame::ShortAddress> for ShortAddress {
+    fn into(self) -> ieee802154::mac::frame::ShortAddress {
+       ieee802154::mac::frame::ShortAddress(self.0)
+    }
+}
+
 impl PartialEq<u16> for ShortAddress {
     fn eq(&self, other: &u16) -> bool {
         self.0 == *other
@@ -76,6 +96,18 @@ pub type NetworkAddress = ShortAddress;
 pub type PanIdentifier = ShortAddress;
 /// 16-bit group identifier
 pub type GroupIdentifier = ShortAddress;
+
+impl From<ieee802154::mac::frame::PanId> for PanIdentifier {
+    fn from(value: ieee802154::mac::frame::PanId) -> Self {
+        PanIdentifier::new(value.0)
+    }
+}
+
+impl Into<ieee802154::mac::frame::PanId> for PanIdentifier {
+    fn into(self) -> ieee802154::mac::frame::PanId {
+       ieee802154::mac::frame::PanId(self.0)
+    }
+}
 
 /// Extended IEEE address size
 pub const EXTENDED_ADDRESS_SIZE: usize = 8;
@@ -123,6 +155,18 @@ impl From<ExtendedAddress> for u64 {
     }
 }
 
+impl From<ieee802154::mac::frame::ExtendedAddress> for ExtendedAddress {
+    fn from(value: ieee802154::mac::frame::ExtendedAddress) -> Self {
+        ExtendedAddress(value.0)
+    }
+}
+
+impl Into<ieee802154::mac::frame::ExtendedAddress> for ExtendedAddress {
+    fn into(self) -> ieee802154::mac::frame::ExtendedAddress {
+       ieee802154::mac::frame::ExtendedAddress(self.0)
+    }
+}
+
 impl PartialEq<u64> for ExtendedAddress {
     fn eq(&self, other: &u64) -> bool {
         self.0 == *other
@@ -159,6 +203,7 @@ pub type ExtendedPanIdentifier = ExtendedAddress;
 #[cfg(all(test, not(feature = "core")))]
 mod tests {
     use super::*;
+    use ieee802154;
 
     #[test]
     fn short_address() {
@@ -176,7 +221,27 @@ mod tests {
         assert_eq!(a, 0x4581);
         let mut buf = [0; 2];
         a.pack(&mut buf).unwrap();
-        assert_eq!(buf, [0x81, 0x45]);
+        assert_eq!(buf, [0x81, 0x45]);	
+    }
+
+    #[test]
+    fn ieee802154_short_address_interop() {
+       let mac_address = ieee802154::mac::frame::ShortAddress(0x3456);
+       let address = ShortAddress::from(mac_address);
+       assert_eq!(address, ShortAddress(0x3456));
+       let address = ShortAddress(0xabcd);
+       let mac_address: ieee802154::mac::frame::ShortAddress = address.into();
+       assert_eq!(mac_address, ieee802154::mac::frame::ShortAddress(0xabcd));
+    }
+
+    #[test]
+    fn ieee802154_pan_identifier_interop() {
+       let mac_pan_id = ieee802154::mac::frame::PanId(0xa8d5);
+       let pan_id = PanIdentifier::from(mac_pan_id);
+       assert_eq!(pan_id, PanIdentifier::new(0xa8d5));
+       let pan_id = PanIdentifier::new(0x92d7);
+       let mac_pan_id: ieee802154::mac::frame::PanId = pan_id.into();
+       assert_eq!(mac_pan_id, ieee802154::mac::frame::PanId(0x92d7));
     }
 
     #[test]
@@ -192,4 +257,15 @@ mod tests {
         a.pack(&mut buf).unwrap();
         assert_eq!(buf, [0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99]);
     }
+
+    #[test]
+    fn ieee802154_extended_address_interop() {
+       let mac_address = ieee802154::mac::frame::ExtendedAddress(0x2233_4455_6677_8899);
+       let address = ExtendedAddress::from(mac_address);
+       assert_eq!(address, ExtendedAddress(0x2233_4455_6677_8899));
+       let address = ExtendedAddress(0x8899_aabb_ccdd_eeff);
+       let mac_address: ieee802154::mac::frame::ExtendedAddress = address.into();
+       assert_eq!(mac_address, ieee802154::mac::frame::ExtendedAddress(0x8899_aabb_ccdd_eeff));
+    }
+
 }
