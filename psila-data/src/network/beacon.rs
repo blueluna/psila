@@ -2,7 +2,7 @@ use core::convert::TryFrom;
 
 use byteorder::{ByteOrder, LittleEndian};
 
-use crate::common::address::ExtendedAddress;
+use crate::common::address::ExtendedPanIdentifier;
 use crate::error::Error;
 use crate::pack::{Pack, PackFixed};
 
@@ -75,8 +75,8 @@ pub struct BeaconInformation {
     pub device_depth: u8,
     /// Node capable of accepting joins from other end devices
     pub end_device_capacity: bool,
-    /// Extended address of the node
-    pub extended_pan_address: ExtendedAddress,
+    /// 64-bit Extended PAN identifier
+    pub extended_pan_address: ExtendedPanIdentifier,
     /// `0x00ffffff` for beacon-less networks. Number of symbols between device
     /// beacon and parent beacon.
     pub tx_offset: u32,
@@ -99,7 +99,7 @@ impl Pack<BeaconInformation, Error> for BeaconInformation {
         let router_capacity = (data[2] & 0b0000_0100) == 0b0000_0100;
         let device_depth = (data[2] & 0b0111_1000) >> 3;
         let end_device_capacity = (data[2] & 0b1000_0000) == 0b1000_0000;
-        let extended_pan_address = ExtendedAddress::unpack(&data[3..=10])?;
+        let extended_pan_address = ExtendedPanIdentifier::unpack(&data[3..=10])?;
         let tx_offset = LittleEndian::read_u32(&data[11..=14]) & 0x00ff_ffff;
         let network_update_identifier = data[14];
 

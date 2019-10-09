@@ -23,6 +23,7 @@ pub use common::address::{
     ExtendedAddress, ExtendedPanIdentifier, GroupIdentifier, NetworkAddress, PanIdentifier,
     ShortAddress,
 };
+pub use common::capability_information::CapabilityInformation;
 pub use common::key::Key;
 pub use error::Error;
 

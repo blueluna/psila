@@ -244,8 +244,8 @@ mod tests {
                     da.ieee_address,
                     [0xc1, 0xe9, 0x1f, 0x00, 0x00, 0xff, 0x0f, 0x00]
                 );
-                assert_eq!(da.capability.pan_coordinator, false);
-                assert_eq!(da.capability.full_function_device, true);
+                assert_eq!(da.capability.alternate_pan_coordinator, false);
+                assert_eq!(da.capability.router_capable, true);
                 assert_eq!(da.capability.mains_power, true);
                 assert_eq!(da.capability.idle_receive, true);
                 assert_eq!(da.capability.frame_protection, false);

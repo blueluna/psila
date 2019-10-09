@@ -1,7 +1,6 @@
-use crate::common::address::{ExtendedAddress, NetworkAddress};
-use crate::common::CapabilityInformation;
 use crate::pack::{Pack, PackFixed};
 use crate::Error;
+use crate::{CapabilityInformation, ExtendedAddress, NetworkAddress};
 
 // 2.4.3.1.11 Device_annce
 /// Device Announce
@@ -63,8 +62,8 @@ mod tests {
             da.ieee_address,
             [0x85, 0xae, 0x21, 0xfe, 0xff, 0x6f, 0x0d, 0x00]
         );
-        assert_eq!(da.capability.pan_coordinator, false);
-        assert_eq!(da.capability.full_function_device, false);
+        assert_eq!(da.capability.alternate_pan_coordinator, false);
+        assert_eq!(da.capability.router_capable, false);
         assert_eq!(da.capability.mains_power, false);
         assert_eq!(da.capability.idle_receive, false);
         assert_eq!(da.capability.frame_protection, false);
@@ -80,8 +79,8 @@ mod tests {
             da.ieee_address,
             [0xc1, 0xe9, 0x1f, 0x00, 0x00, 0xff, 0x0f, 0x00]
         );
-        assert_eq!(da.capability.pan_coordinator, false);
-        assert_eq!(da.capability.full_function_device, true);
+        assert_eq!(da.capability.alternate_pan_coordinator, false);
+        assert_eq!(da.capability.router_capable, true);
         assert_eq!(da.capability.mains_power, true);
         assert_eq!(da.capability.idle_receive, true);
         assert_eq!(da.capability.frame_protection, false);

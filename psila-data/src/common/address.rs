@@ -7,8 +7,14 @@ use ieee802154;
 
 use byteorder::{ByteOrder, LittleEndian};
 
-/// Network address size
+/// Short address size
 pub const SHORT_ADDRESS_SIZE: usize = 2;
+/// Short address, broadcast address
+pub const SHORT_ADDRESS_BROADCAST: u16 = 0xffff;
+/// Short address, unassigned address
+/// The device has associated to a network but has not been assigned a address.
+/// The extended address should be used.
+pub const SHORT_ADDRESS_UNASSIGNED: u16 = 0xfffe;
 
 /// 16-bit short address
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -17,6 +23,22 @@ pub struct ShortAddress(u16);
 impl ShortAddress {
     pub fn new(value: u16) -> Self {
         Self(value)
+    }
+
+    pub fn broadcast() -> Self {
+        Self(SHORT_ADDRESS_BROADCAST)
+    }
+
+    pub fn is_broadcast(self) -> bool {
+        self.0 == SHORT_ADDRESS_BROADCAST
+    }
+
+    pub fn is_unassigned(self) -> bool {
+        self.0 == SHORT_ADDRESS_UNASSIGNED
+    }
+
+    pub fn is_assigned(self) -> bool {
+        self.0 < SHORT_ADDRESS_UNASSIGNED
     }
 }
 
@@ -123,10 +145,26 @@ impl PartialEq<ieee802154::mac::frame::PanId> for PanIdentifier {
 
 /// Extended IEEE address size
 pub const EXTENDED_ADDRESS_SIZE: usize = 8;
+/// Extended IEEE address, broadcast address
+pub const EXTENDED_ADDRESS_BROADCAST: u64 = 0xffff_ffff_ffff_ffffu64;
 
 /// 64-bit extended IEEE address
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct ExtendedAddress(u64);
+
+impl ExtendedAddress {
+    pub fn new(address: u64) -> Self {
+        Self(address)
+    }
+
+    pub fn broadcast() -> Self {
+        Self(EXTENDED_ADDRESS_BROADCAST)
+    }
+
+    pub fn is_broadcast(self) -> bool {
+        self.0 == EXTENDED_ADDRESS_BROADCAST
+    }
+}
 
 impl PackFixed<ExtendedAddress, Error> for ExtendedAddress {
     fn pack(&self, mut data: &mut [u8]) -> Result<(), Error> {

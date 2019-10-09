@@ -1,11 +1,9 @@
 use core::convert::TryFrom;
 
-use crate::common::{
-    address::{NetworkAddress, SHORT_ADDRESS_SIZE},
-    CapabilityInformation,
-};
+use crate::common::address::{NetworkAddress, SHORT_ADDRESS_SIZE};
 use crate::error::Error;
 use crate::pack::{Pack, PackFixed};
+use crate::CapabilityInformation;
 
 extended_enum!(
     /// Association Status
