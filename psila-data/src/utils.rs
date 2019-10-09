@@ -42,7 +42,8 @@ macro_rules! extended_enum {
     );
 }
 
-pub fn clear(slice: &mut [u8])
-{
-    for v in slice.iter_mut() { *v = 0; }
+pub fn clear(slice: &mut [u8]) {
+    for v in slice.iter_mut() {
+        *v = 0;
+    }
 }

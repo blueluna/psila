@@ -849,8 +849,7 @@ impl Parser {
                                 print!("Association request ");
                                 if cmd.full_function_device {
                                     print!("FFD ");
-                                }
-                                else {
+                                } else {
                                     print!("RFD ");
                                 }
                                 if cmd.mains_power {

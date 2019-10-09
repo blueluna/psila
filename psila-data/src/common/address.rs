@@ -67,7 +67,7 @@ impl From<ieee802154::mac::frame::ShortAddress> for ShortAddress {
 
 impl Into<ieee802154::mac::frame::ShortAddress> for ShortAddress {
     fn into(self) -> ieee802154::mac::frame::ShortAddress {
-       ieee802154::mac::frame::ShortAddress(self.0)
+        ieee802154::mac::frame::ShortAddress(self.0)
     }
 }
 
@@ -111,7 +111,7 @@ impl From<ieee802154::mac::frame::PanId> for PanIdentifier {
 
 impl Into<ieee802154::mac::frame::PanId> for PanIdentifier {
     fn into(self) -> ieee802154::mac::frame::PanId {
-       ieee802154::mac::frame::PanId(self.0)
+        ieee802154::mac::frame::PanId(self.0)
     }
 }
 
@@ -175,7 +175,7 @@ impl From<ieee802154::mac::frame::ExtendedAddress> for ExtendedAddress {
 
 impl Into<ieee802154::mac::frame::ExtendedAddress> for ExtendedAddress {
     fn into(self) -> ieee802154::mac::frame::ExtendedAddress {
-       ieee802154::mac::frame::ExtendedAddress(self.0)
+        ieee802154::mac::frame::ExtendedAddress(self.0)
     }
 }
 
@@ -239,27 +239,27 @@ mod tests {
         assert_eq!(a, 0x4581);
         let mut buf = [0; 2];
         a.pack(&mut buf).unwrap();
-        assert_eq!(buf, [0x81, 0x45]);	
+        assert_eq!(buf, [0x81, 0x45]);
     }
 
     #[test]
     fn ieee802154_short_address_interop() {
-       let mac_address = ieee802154::mac::frame::ShortAddress(0x3456);
-       let address = ShortAddress::from(mac_address);
-       assert_eq!(address, ShortAddress(0x3456));
-       let address = ShortAddress(0xabcd);
-       let mac_address: ieee802154::mac::frame::ShortAddress = address.into();
-       assert_eq!(mac_address, ieee802154::mac::frame::ShortAddress(0xabcd));
+        let mac_address = ieee802154::mac::frame::ShortAddress(0x3456);
+        let address = ShortAddress::from(mac_address);
+        assert_eq!(address, ShortAddress(0x3456));
+        let address = ShortAddress(0xabcd);
+        let mac_address: ieee802154::mac::frame::ShortAddress = address.into();
+        assert_eq!(mac_address, ieee802154::mac::frame::ShortAddress(0xabcd));
     }
 
     #[test]
     fn ieee802154_pan_identifier_interop() {
-       let mac_pan_id = ieee802154::mac::frame::PanId(0xa8d5);
-       let pan_id = PanIdentifier::from(mac_pan_id);
-       assert_eq!(pan_id, PanIdentifier::new(0xa8d5));
-       let pan_id = PanIdentifier::new(0x92d7);
-       let mac_pan_id: ieee802154::mac::frame::PanId = pan_id.into();
-       assert_eq!(mac_pan_id, ieee802154::mac::frame::PanId(0x92d7));
+        let mac_pan_id = ieee802154::mac::frame::PanId(0xa8d5);
+        let pan_id = PanIdentifier::from(mac_pan_id);
+        assert_eq!(pan_id, PanIdentifier::new(0xa8d5));
+        let pan_id = PanIdentifier::new(0x92d7);
+        let mac_pan_id: ieee802154::mac::frame::PanId = pan_id.into();
+        assert_eq!(mac_pan_id, ieee802154::mac::frame::PanId(0x92d7));
     }
 
     #[test]
@@ -278,12 +278,14 @@ mod tests {
 
     #[test]
     fn ieee802154_extended_address_interop() {
-       let mac_address = ieee802154::mac::frame::ExtendedAddress(0x2233_4455_6677_8899);
-       let address = ExtendedAddress::from(mac_address);
-       assert_eq!(address, ExtendedAddress(0x2233_4455_6677_8899));
-       let address = ExtendedAddress(0x8899_aabb_ccdd_eeff);
-       let mac_address: ieee802154::mac::frame::ExtendedAddress = address.into();
-       assert_eq!(mac_address, ieee802154::mac::frame::ExtendedAddress(0x8899_aabb_ccdd_eeff));
+        let mac_address = ieee802154::mac::frame::ExtendedAddress(0x2233_4455_6677_8899);
+        let address = ExtendedAddress::from(mac_address);
+        assert_eq!(address, ExtendedAddress(0x2233_4455_6677_8899));
+        let address = ExtendedAddress(0x8899_aabb_ccdd_eeff);
+        let mac_address: ieee802154::mac::frame::ExtendedAddress = address.into();
+        assert_eq!(
+            mac_address,
+            ieee802154::mac::frame::ExtendedAddress(0x8899_aabb_ccdd_eeff)
+        );
     }
-
 }
