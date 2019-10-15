@@ -1,3 +1,5 @@
+use core::cell::Cell;
+
 pub use ieee802154::mac::{
     command::{AssociationStatus, CapabilityInformation, Command},
     Address, AddressMode, ExtendedAddress, Frame, FrameContent, FrameType, FrameVersion, Header,
@@ -22,7 +24,7 @@ pub enum State {
 pub struct MacService {
     state: State,
     version: FrameVersion,
-    sequence: u8,
+    sequence: Cell<u8>,
     pan_identifier: PanIdentifier,
     identity: Identity,
     capabilities: CapabilityInformation,
@@ -47,7 +49,7 @@ impl MacService {
         MacService {
             state: State::Orphan,
             version: FrameVersion::Ieee802154_2003,
-            sequence: 0,
+            sequence: Cell::new(0),
             pan_identifier: PanIdentifier::broadcast(),
             identity: Identity::from_extended(address),
             capabilities,
@@ -72,14 +74,16 @@ impl MacService {
     }
 
     /// Get the next sequence number
-    fn sequence_next(&mut self) -> u8 {
-        (*self).sequence = (*self).sequence.wrapping_add(1);
-        (*self).sequence
+    fn sequence_next(&self) -> u8 {
+        let sequence = (*self).sequence.get();
+        let sequence = sequence.wrapping_add(1);
+        (*self).sequence.set(sequence);
+        sequence
     }
 
     /// Create a header using the provided arguments
     fn create_header(
-        &mut self,
+        &self,
         frame_type: FrameType,
         pending: bool,
         acknowledge: bool,
@@ -127,7 +131,7 @@ impl MacService {
     ///
     /// No payload
     ///
-    pub fn build_acknowledge(&mut self, sequence: u8, pending: bool, mut data: &mut [u8]) -> usize {
+    pub fn build_acknowledge(&self, sequence: u8, pending: bool, mut data: &mut [u8]) -> usize {
         let mut header = self.create_header(
             FrameType::Acknowledgement,
             pending,
@@ -167,7 +171,7 @@ impl MacService {
     ///
     /// No payload
     ///
-    pub fn build_beacon_request(&mut self, data: &mut [u8]) -> Result<(usize, u32), Error> {
+    pub fn build_beacon_request(&self, data: &mut [u8]) -> Result<(usize, u32), Error> {
         let header = self.create_header(
             FrameType::MacCommand,
             false,
@@ -185,7 +189,7 @@ impl MacService {
     }
 
     pub fn build_association_request(
-        &mut self,
+        &self,
         pan_id: PanIdentifier,
         destination: psila_data::ShortAddress,
         data: &mut [u8],
@@ -206,7 +210,7 @@ impl MacService {
     }
 
     pub fn build_data_request(
-        &mut self,
+        &self,
         destination: psila_data::ShortAddress,
         data: &mut [u8],
     ) -> Result<(usize, u32), Error> {
@@ -308,7 +312,7 @@ impl MacService {
         frame: &Frame,
         buffer: &mut [u8],
     ) -> Result<(usize, u32), Error> {
-        if frame.header.seq == self.sequence {
+        if frame.header.seq == self.sequence.get() {
             if let State::Associate = self.state {
                 self.state = State::QueryAssociationStatus;
                 return self.build_data_request(self.coordinator.short, buffer);
