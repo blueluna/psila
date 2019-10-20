@@ -8,7 +8,7 @@ edition = "2018"
 clap = "2.32"
 byteorder = { version = "1", default-features = false }
 slice-deque = "0.1.16"
-ieee802154 = { git = "https://github.com/blueluna/ieee-802.15.4", branch = "master" }
+ieee802154 = { git = "https://github.com/braun-embedded/rust-ieee802.15.4.git", branch = "master" }
 esercom = { git = "https://blueluna@bitbucket.org/blueluna/esercom.git", branch = "master" }
 psila-data = { path = "../psila-data" }
 psila-crypto-gcrypt = { path = "../psila-crypto-gcrypt" }
