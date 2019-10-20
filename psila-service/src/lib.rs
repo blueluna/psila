@@ -49,7 +49,7 @@ where
     /// Push a packet onto the queue
     fn queue_packet(&mut self, data: &[u8]) -> Result<(), Error> {
         assert!(data.len() < (u8::max_value() as usize));
-        let length = data.len() + 1;
+        let length = data.len();
         match self.tx_queue.grant(length) {
             Ok(mut grant) => {
                 grant[0] = length as u8;
