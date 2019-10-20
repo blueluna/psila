@@ -54,7 +54,7 @@ where
             Ok(mut grant) => {
                 grant[0] = data.len() as u8;
                 grant[1..].copy_from_slice(&data);
-                self.tx_queue.commit(data.len(), grant);
+                self.tx_queue.commit(length, grant);
                 Ok(())
             }
             Err(_) => Err(Error::NotEnoughSpace),
@@ -98,5 +98,38 @@ where
             self.queue_packet(&buffer[..packet_length])?;
         }
         Ok(timeout)
+    }
+}
+
+#[cfg(all(test, not(feature = "core")))]
+mod tests {
+    use super::*;
+    use bbqueue::{self, bbq, BBQueue};
+    use psila_crypto_gcrypt::GCryptBackend;
+
+    #[test]
+    fn build_beacon_request() {
+        use gcrypt;
+        gcrypt::init_default();
+
+        let crypto_backend = GCryptBackend::default();
+        let address = psila_data::ExtendedAddress::new(0x8899_aabb_ccdd_eeff);
+        let tx_queue = bbq![256 * 2].unwrap();
+        let (tx_producer, mut tx_consumer) = tx_queue.split();
+
+        let mut service = PsilaService::new(crypto_backend, tx_producer, address);
+
+        let timeout = service.timeout().unwrap();
+
+        assert_eq!(timeout, 30_000_000);
+
+        let grant = tx_consumer.read().unwrap();
+        let packet_length = grant[0] as usize;
+        let packet = &grant[1..=packet_length];
+
+        assert_eq!(packet_length, 8);
+
+        assert_eq!(packet, [0x03, 0x08, 0x01, 0xff, 0xff, 0xff, 0xff, 0x07]);
+        tx_consumer.release(packet_length, grant);
     }
 }

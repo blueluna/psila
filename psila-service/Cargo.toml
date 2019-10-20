@@ -10,6 +10,10 @@ bbqueue = { git = "https://github.com/jamesmunns/bbqueue" }
 psila-crypto = { path = "../psila-crypto" }
 psila-data = { path = "../psila-data" }
 
+[dev-dependencies]
+psila-crypto-gcrypt = { path = "../psila-crypto-gcrypt" }
+gcrypt = { version = "0.6" }
+
 [features]
 default = []
 core = ["psila-data/core"]
