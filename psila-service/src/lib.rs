@@ -49,10 +49,10 @@ where
     /// Push a packet onto the queue
     fn queue_packet(&mut self, data: &[u8]) -> Result<(), Error> {
         assert!(data.len() < (u8::max_value() as usize));
-        let length = data.len();
+        let length = data.len() + 1;
         match self.tx_queue.grant(length) {
             Ok(mut grant) => {
-                grant[0] = length as u8;
+                grant[0] = data.len() as u8;
                 grant[1..].copy_from_slice(&data);
                 self.tx_queue.commit(data.len(), grant);
                 Ok(())
