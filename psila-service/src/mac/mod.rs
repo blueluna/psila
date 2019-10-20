@@ -184,7 +184,7 @@ impl MacService {
             payload: &[],
             footer: [0u8; 2],
         };
-        Ok((frame.encode(data, WriteFooter::No), 30_000_000))
+        Ok((frame.encode(data, WriteFooter::No), 2_000_000))
     }
 
     pub fn build_association_request(
@@ -341,7 +341,7 @@ impl MacService {
             }
             State::Scan | State::Associate | State::QueryAssociationStatus => {
                 self.state = State::Orphan;
-                Ok((0, 0))
+                Ok((0, 27_000_000))
             }
             State::Associated => Ok((0, 0)),
         }
@@ -389,7 +389,7 @@ mod tests {
         let (size, timeout) = service.build_beacon_request(&mut data).unwrap();
 
         assert_eq!(size, 8);
-        assert_eq!(timeout, 30_000_000);
+        assert_eq!(timeout, 2_000_000);
         assert_eq!(
             data[..size],
             [0x03, 0x08, 0x01, 0xff, 0xff, 0xff, 0xff, 0x07]
