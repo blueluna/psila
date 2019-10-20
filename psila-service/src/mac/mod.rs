@@ -95,12 +95,11 @@ impl MacService {
         } else {
             self.sequence_next()
         };
-        let compression =
-            if let (Some(dst), Some(src)) = (destination.pan_id(), destination.pan_id()) {
-                dst == src
-            } else {
-                false
-            };
+        let compression = if let (Some(dst), Some(src)) = (destination.pan_id(), source.pan_id()) {
+            dst == src
+        } else {
+            false
+        };
         Header {
             seq: sequence,
             frame_type,
@@ -346,5 +345,115 @@ impl MacService {
             }
             State::Associated => Ok((0, 0)),
         }
+    }
+}
+
+#[cfg(all(test, not(feature = "core")))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_acknowledge() {
+        let address = psila_data::ExtendedAddress::new(0x8899_aabb_ccdd_eeff);
+        let capabilities = psila_data::CapabilityInformation {
+            alternate_pan_coordinator: false,
+            router_capable: false,
+            mains_power: true,
+            idle_receive: true,
+            frame_protection: false,
+            allocate_address: true,
+        };
+        let service = MacService::new(address, capabilities);
+
+        let mut data = [0u8; 256];
+        let size = service.build_acknowledge(0xaa, false, &mut data);
+
+        assert_eq!(size, 3);
+        assert_eq!(data[..size], [0x02, 0x00, 0xaa]);
+    }
+
+    #[test]
+    fn build_beacon_request() {
+        let address = psila_data::ExtendedAddress::new(0x8899_aabb_ccdd_eeff);
+        let capabilities = psila_data::CapabilityInformation {
+            alternate_pan_coordinator: false,
+            router_capable: false,
+            mains_power: true,
+            idle_receive: true,
+            frame_protection: false,
+            allocate_address: true,
+        };
+        let service = MacService::new(address, capabilities);
+
+        let mut data = [0u8; 256];
+        let (size, timeout) = service.build_beacon_request(&mut data).unwrap();
+
+        assert_eq!(size, 8);
+        assert_eq!(timeout, 30_000_000);
+        assert_eq!(
+            data[..size],
+            [0x03, 0x08, 0x01, 0xff, 0xff, 0xff, 0xff, 0x07]
+        );
+    }
+
+    #[test]
+    fn build_association_request() {
+        let address = psila_data::ExtendedAddress::new(0x8899_aabb_ccdd_eeff);
+        let capabilities = psila_data::CapabilityInformation {
+            alternate_pan_coordinator: false,
+            router_capable: false,
+            mains_power: true,
+            idle_receive: true,
+            frame_protection: false,
+            allocate_address: true,
+        };
+        let service = MacService::new(address, capabilities);
+        let network_id = psila_data::PanIdentifier::new(0x6745);
+        let coordinator_address = psila_data::ShortAddress::new(0xa987);
+
+        let mut data = [0u8; 256];
+        let (size, timeout) = service
+            .build_association_request(network_id, coordinator_address, &mut data)
+            .unwrap();
+
+        assert_eq!(size, 19);
+        assert_eq!(timeout, 0);
+        assert_eq!(
+            data[..size],
+            [
+                0x23, 0xc8, 0x01, 0x45, 0x67, 0x87, 0xa9, 0xff, 0xff, 0xff, 0xee, 0xdd, 0xcc, 0xbb,
+                0xaa, 0x99, 0x88, 0x01, 0x8c
+            ]
+        );
+    }
+
+    #[test]
+    fn build_data_request() {
+        let address = psila_data::ExtendedAddress::new(0x8899_aabb_ccdd_eeff);
+        let capabilities = psila_data::CapabilityInformation {
+            alternate_pan_coordinator: false,
+            router_capable: false,
+            mains_power: true,
+            idle_receive: true,
+            frame_protection: false,
+            allocate_address: true,
+        };
+        let mut service = MacService::new(address, capabilities);
+        let destination = psila_data::ShortAddress::new(0xa987);
+        let network_id = psila_data::PanIdentifier::new(0x6745);
+        service.pan_identifier = network_id;
+
+        let mut data = [0u8; 256];
+        let (size, timeout) = service.build_data_request(destination, &mut data).unwrap();
+
+        assert_eq!(size, 16);
+        assert_eq!(timeout, 0);
+        assert_eq!(
+            data[..size],
+            [
+                0x63, 0xc8, 0x01, 0x45, 0x67, 0x87, 0xa9, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99,
+                0x88, 0x04
+            ]
+        );
     }
 }
