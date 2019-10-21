@@ -184,7 +184,7 @@ impl MacService {
             payload: &[],
             footer: [0u8; 2],
         };
-        Ok((frame.encode(data, WriteFooter::No), 2_000_000))
+        Ok((frame.encode(data, WriteFooter::No), 1_000_000))
     }
 
     pub fn build_association_request(
@@ -205,7 +205,7 @@ impl MacService {
             payload: &[],
             footer: [0u8; 2],
         };
-        Ok((frame.encode(data, WriteFooter::No), 0))
+        Ok((frame.encode(data, WriteFooter::No), 1_000_000))
     }
 
     pub fn build_data_request(
@@ -242,7 +242,7 @@ impl MacService {
         }
     }
 
-    fn handle_beacon(&mut self, frame: &Frame, buffer: &mut [u8]) -> Result<(usize, u32), Error> {
+    fn handle_beacon(&mut self, frame: &Frame) -> Result<(usize, u32), Error> {
         let (src_id, src_short) = if let Address::Short(id, short) = frame.header.source {
             (id.into(), short.into())
         } else {
@@ -254,8 +254,6 @@ impl MacService {
                     self.pan_identifier = src_id;
                     self.coordinator.short = src_short;
                     self.state = State::Associate;
-                    // Send a association request
-                    return self.build_association_request(src_id, src_short, buffer);
                 }
             }
         }
@@ -267,7 +265,6 @@ impl MacService {
         header: &Header,
         address: ShortAddress,
         status: AssociationStatus,
-        _buffer: &mut [u8],
     ) -> Result<(usize, u32), Error> {
         let pan_id = if let Some(pan_id) = header.source.pan_id() {
             pan_id.into()
@@ -293,11 +290,11 @@ impl MacService {
         Ok((0, 0))
     }
 
-    fn handle_command(&mut self, frame: &Frame, buffer: &mut [u8]) -> Result<(usize, u32), Error> {
+    fn handle_command(&mut self, frame: &Frame) -> Result<(usize, u32), Error> {
         if let FrameContent::Command(command) = &frame.content {
             match command {
                 Command::AssociationResponse(address, status) => {
-                    self.handle_association_response(&frame.header, *address, *status, buffer)
+                    self.handle_association_response(&frame.header, *address, *status)
                 }
                 _ => Ok((0, 0)),
             }
@@ -327,9 +324,9 @@ impl MacService {
     ) -> Result<(usize, u32), Error> {
         match frame.header.frame_type {
             FrameType::Acknowledgement => self.handle_acknowledge(&frame, buffer),
-            FrameType::Beacon => self.handle_beacon(&frame, buffer),
+            FrameType::Beacon => self.handle_beacon(&frame),
             FrameType::Data => Ok((0, 0)),
-            FrameType::MacCommand => self.handle_command(&frame, buffer),
+            FrameType::MacCommand => self.handle_command(&frame),
         }
     }
 
@@ -339,9 +336,13 @@ impl MacService {
                 self.state = State::Scan;
                 self.build_beacon_request(buffer)
             }
-            State::Scan | State::Associate | State::QueryAssociationStatus => {
+            State::Scan | State::QueryAssociationStatus => {
                 self.state = State::Orphan;
-                Ok((0, 27_000_000))
+                Ok((0, 28_000_000))
+            }
+            State::Associate => {
+                // Send a association request
+                self.build_association_request(self.pan_identifier, self.coordinator.short, buffer)
             }
             State::Associated => Ok((0, 0)),
         }
@@ -389,7 +390,7 @@ mod tests {
         let (size, timeout) = service.build_beacon_request(&mut data).unwrap();
 
         assert_eq!(size, 8);
-        assert_eq!(timeout, 2_000_000);
+        assert_eq!(timeout, 1_000_000);
         assert_eq!(
             data[..size],
             [0x03, 0x08, 0x01, 0xff, 0xff, 0xff, 0xff, 0x07]
@@ -417,7 +418,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(size, 19);
-        assert_eq!(timeout, 0);
+        assert_eq!(timeout, 1_000_000);
         assert_eq!(
             data[..size],
             [

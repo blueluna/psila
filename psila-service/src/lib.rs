@@ -10,9 +10,11 @@ use psila_crypto::CryptoBackend;
 
 mod error;
 mod indentity;
-mod mac;
+pub mod mac;
 
 pub use error::Error;
+pub use indentity::Identity;
+
 use mac::MacService;
 
 /// Short address size
@@ -121,7 +123,7 @@ mod tests {
 
         let timeout = service.timeout().unwrap();
 
-        assert_eq!(timeout, 2_000_000);
+        assert_eq!(timeout, 1_000_000);
 
         let grant = tx_consumer.read().unwrap();
         let packet_length = grant[0] as usize;
