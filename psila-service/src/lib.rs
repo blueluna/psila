@@ -77,6 +77,9 @@ where
         let mut buffer = [0u8; PACKET_BUFFER_MAX];
         match mac::Frame::decode(data, false) {
             Ok(frame) => {
+                if !self.mac.destination_me_or_broadcast(&frame) {
+                    return Ok(0);
+                }
                 if self.mac.requests_acknowledge(&frame) {
                     // If the frame is a data request frame, send an acknowledge with pending set
                     // Use the frame sequence number from the received frame in the acknowledge
@@ -89,9 +92,7 @@ where
                 if packet_length > 0 {
                     self.queue_packet(&buffer[..packet_length])?;
                 }
-                if self.mac.state() == mac::State::Associated
-                    && self.mac.destination_me_or_broadcast(&frame)
-                {
+                if self.mac.state() == mac::State::Associated {
                     self.handle_mac_frame(&frame)?;
                 }
                 Ok(timeout)
