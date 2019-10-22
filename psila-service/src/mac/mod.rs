@@ -395,7 +395,7 @@ impl MacService {
 
     fn broadcast_destination(&self, frame: &Frame) -> bool {
         match frame.header.destination {
-            Address::None => false,
+            Address::None => true,
             Address::Short(pan_id, address) => {
                 if address == ieee802154::mac::ShortAddress::broadcast() {
                     self.match_associated_pan_or_broadcast(pan_id)
