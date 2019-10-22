@@ -4,13 +4,14 @@
 
 use bbqueue;
 
-use psila_data::{CapabilityInformation, ExtendedAddress};
+use psila_data::{pack::Pack, CapabilityInformation, ExtendedAddress, Key};
 
 use psila_crypto::CryptoBackend;
 
 mod error;
 mod indentity;
 pub mod mac;
+mod security;
 
 pub use error::Error;
 pub use indentity::Identity;
@@ -21,8 +22,8 @@ use mac::MacService;
 pub const PACKET_BUFFER_MAX: usize = 128;
 
 pub struct PsilaService<CB> {
-    crypto: CB,
     mac: MacService,
+    security_manager: security::SecurityManager<CB>,
     capability: CapabilityInformation,
     tx_queue: bbqueue::Producer,
 }
@@ -31,7 +32,12 @@ impl<CB> PsilaService<CB>
 where
     CB: CryptoBackend,
 {
-    pub fn new(crypto: CB, tx_queue: bbqueue::Producer, address: ExtendedAddress) -> Self {
+    pub fn new(
+        crypto: CB,
+        tx_queue: bbqueue::Producer,
+        address: ExtendedAddress,
+        default_link_key: Key,
+    ) -> Self {
         let capability = CapabilityInformation {
             alternate_pan_coordinator: false,
             router_capable: false,
@@ -41,8 +47,8 @@ where
             allocate_address: true,
         };
         Self {
-            crypto,
             mac: MacService::new(address, capability),
+            security_manager: security::SecurityManager::new(crypto, default_link_key),
             capability,
             tx_queue,
         }
@@ -83,6 +89,11 @@ where
                 if packet_length > 0 {
                     self.queue_packet(&buffer[..packet_length])?;
                 }
+                if self.mac.state() == mac::State::Associated
+                    && self.mac.destination_me_or_broadcast(&frame)
+                {
+                    self.handle_mac_frame(&frame)?;
+                }
                 Ok(timeout)
             }
             Err(_) => Err(Error::MalformedPacket),
@@ -101,6 +112,96 @@ where
         }
         Ok(timeout)
     }
+
+    fn handle_mac_frame(&mut self, frame: &mac::Frame) -> Result<(), Error> {
+        use psila_data::network::{BeaconInformation, NetworkHeader};
+
+        match frame.header.frame_type {
+            mac::FrameType::Data => {
+                let (header, used) = NetworkHeader::unpack(frame.payload)?;
+                let mut payload = [0u8; PACKET_BUFFER_MAX];
+                let payload_size = if header.control.security {
+                    self.security_manager
+                        .decrypt_payload(frame.payload, used, &mut payload)?
+                } else {
+                    let payload_size = frame.payload.len() - used;
+                    payload[..payload_size].copy_from_slice(&frame.payload[used..]);
+                    payload_size
+                };
+                // TODO: Look up source extended address
+                self.handle_network_frame(&header, &payload[..payload_size])?;
+            }
+            mac::FrameType::Beacon => {
+                let _ = BeaconInformation::unpack(frame.payload)?;
+            }
+            _ => (),
+        }
+        Ok(())
+    }
+
+    fn handle_network_frame(
+        &mut self,
+        header: &psila_data::network::NetworkHeader,
+        nwk_payload: &[u8],
+    ) -> Result<(), Error> {
+        use psila_data::application_service::ApplicationServiceHeader;
+        use psila_data::network::{commands::Command, header::FrameType};
+        match header.control.frame_type {
+            FrameType::Data => {
+                let mut aps_payload = [0u8; PACKET_BUFFER_MAX];
+                let (header, used) = ApplicationServiceHeader::unpack(nwk_payload)?;
+                let aps_payload_length = if header.control.security {
+                    self.security_manager
+                        .decrypt_payload(nwk_payload, used, &mut aps_payload)?
+                } else {
+                    let payload_length = nwk_payload.len() - used;
+                    aps_payload[..payload_length].copy_from_slice(&nwk_payload[used..]);
+                    payload_length
+                };
+                self.handle_application_service_frame(&header, &aps_payload[..aps_payload_length])?;
+            }
+            FrameType::Command => {
+                let _command = Command::unpack(nwk_payload)?;
+                // handle command
+            }
+            FrameType::InterPan => {
+                // Not supported yet
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_application_service_frame(
+        &mut self,
+        header: &psila_data::application_service::ApplicationServiceHeader,
+        aps_payload: &[u8],
+    ) -> Result<(), Error> {
+        use psila_data::application_service::{
+            commands::{Command, TransportKey},
+            header::FrameType,
+        };
+        match header.control.frame_type {
+            FrameType::Data => {
+                // ...
+            }
+            FrameType::Command => {
+                // handle command
+                let (command, _used) = Command::unpack(aps_payload)?;
+                if let Command::TransportKey(cmd) = command {
+                    if let TransportKey::StandardNetworkKey(key) = cmd {
+                        self.security_manager.set_network_key(key.key);
+                    }
+                }
+            }
+            FrameType::InterPan => {
+                // Not supported yet
+            }
+            FrameType::Acknowledgement => {
+                // ...
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg(all(test, not(feature = "core")))]
@@ -114,12 +215,21 @@ mod tests {
         use gcrypt;
         gcrypt::init_default();
 
+        const DEFAULT_LINK_KEY: [u8; 16] = [
+            0x5a, 0x69, 0x67, 0x42, 0x65, 0x65, 0x41, 0x6c, 0x6c, 0x69, 0x61, 0x6e, 0x63, 0x65,
+            0x30, 0x39,
+        ];
         let crypto_backend = GCryptBackend::default();
         let address = psila_data::ExtendedAddress::new(0x8899_aabb_ccdd_eeff);
         let tx_queue = bbq![256 * 2].unwrap();
         let (tx_producer, mut tx_consumer) = tx_queue.split();
 
-        let mut service = PsilaService::new(crypto_backend, tx_producer, address);
+        let mut service = PsilaService::new(
+            crypto_backend,
+            tx_producer,
+            address,
+            DEFAULT_LINK_KEY.into(),
+        );
 
         let timeout = service.timeout().unwrap();
 

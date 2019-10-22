@@ -347,6 +347,75 @@ impl MacService {
             State::Associated => Ok((0, 0)),
         }
     }
+
+    fn match_short_address<T: Into<ShortAddress>>(&self, address: T) -> bool {
+        if self.identity.short.is_assigned() {
+            self.identity.short == address.into()
+        } else {
+            false
+        }
+    }
+
+    fn match_extended_address<T: Into<ExtendedAddress>>(&self, address: T) -> bool {
+        if !self.identity.extended.is_broadcast() {
+            self.identity.extended == address.into()
+        } else {
+            false
+        }
+    }
+
+    fn match_associated_pan<T: Into<PanIdentifier>>(&self, pan_identifier: T) -> bool {
+        if self.pan_identifier.is_assigned() {
+            self.pan_identifier == pan_identifier.into()
+        } else {
+            false
+        }
+    }
+
+    fn match_associated_pan_or_broadcast<T: Into<PanIdentifier>>(&self, pan_identifier: T) -> bool {
+        if self.pan_identifier.is_assigned() {
+            let pan_id = pan_identifier.into();
+            self.pan_identifier == pan_id || pan_id.is_broadcast()
+        } else {
+            false
+        }
+    }
+
+    fn destination_me(&self, frame: &Frame) -> bool {
+        match frame.header.destination {
+            Address::None => false,
+            Address::Short(pan_id, address) => {
+                self.match_associated_pan(pan_id) && self.match_short_address(address)
+            }
+            Address::Extended(pan_id, address) => {
+                self.match_associated_pan(pan_id) && self.match_extended_address(address)
+            }
+        }
+    }
+
+    fn broadcast_destination(&self, frame: &Frame) -> bool {
+        match frame.header.destination {
+            Address::None => false,
+            Address::Short(pan_id, address) => {
+                if address == ieee802154::mac::ShortAddress::broadcast() {
+                    self.match_associated_pan_or_broadcast(pan_id)
+                } else {
+                    false
+                }
+            }
+            Address::Extended(pan_id, address) => {
+                if address == ieee802154::mac::ExtendedAddress::broadcast() {
+                    self.match_associated_pan_or_broadcast(pan_id)
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    pub fn destination_me_or_broadcast(&self, frame: &Frame) -> bool {
+        self.destination_me(frame) || self.broadcast_destination(frame)
+    }
 }
 
 #[cfg(all(test, not(feature = "core")))]
