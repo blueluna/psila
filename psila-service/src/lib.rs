@@ -2,6 +2,8 @@
 
 #![no_std]
 
+use log;
+
 use bbqueue;
 
 use psila_data::{pack::Pack, CapabilityInformation, ExtendedAddress, Key};
@@ -119,9 +121,11 @@ where
 
         match frame.header.frame_type {
             mac::FrameType::Data => {
+                log::info!("Handle network data");
                 let (header, used) = NetworkHeader::unpack(frame.payload)?;
                 let mut payload = [0u8; PACKET_BUFFER_MAX];
                 let payload_size = if header.control.security {
+                    log::info!("Decrypt network data");
                     self.security_manager
                         .decrypt_payload(frame.payload, used, &mut payload)?
                 } else {
@@ -133,6 +137,7 @@ where
                 self.handle_network_frame(&header, &payload[..payload_size])?;
             }
             mac::FrameType::Beacon => {
+                log::info!("Handle network beacon");
                 let _ = BeaconInformation::unpack(frame.payload)?;
             }
             _ => (),
@@ -147,11 +152,14 @@ where
     ) -> Result<(), Error> {
         use psila_data::application_service::ApplicationServiceHeader;
         use psila_data::network::{commands::Command, header::FrameType};
+
         match header.control.frame_type {
             FrameType::Data => {
+                log::info!("Handle network data");
                 let mut aps_payload = [0u8; PACKET_BUFFER_MAX];
                 let (header, used) = ApplicationServiceHeader::unpack(nwk_payload)?;
                 let aps_payload_length = if header.control.security {
+                    log::info!("Decrypt application service data");
                     self.security_manager
                         .decrypt_payload(nwk_payload, used, &mut aps_payload)?
                 } else {
@@ -162,10 +170,12 @@ where
                 self.handle_application_service_frame(&header, &aps_payload[..aps_payload_length])?;
             }
             FrameType::Command => {
+                log::info!("Handle network command");
                 let _command = Command::unpack(nwk_payload)?;
                 // handle command
             }
             FrameType::InterPan => {
+                log::info!("Handle inter-PAN");
                 // Not supported yet
             }
         }
@@ -183,9 +193,11 @@ where
         };
         match header.control.frame_type {
             FrameType::Data => {
+                log::info!("Handle application service data");
                 // ...
             }
             FrameType::Command => {
+                log::info!("Handle application service command");
                 // handle command
                 let (command, _used) = Command::unpack(aps_payload)?;
                 if let Command::TransportKey(cmd) = command {
@@ -195,9 +207,11 @@ where
                 }
             }
             FrameType::InterPan => {
+                log::info!("Handle application service inter-PAN");
                 // Not supported yet
             }
             FrameType::Acknowledgement => {
+                log::info!("Handle application service acknowledge");
                 // ...
             }
         }

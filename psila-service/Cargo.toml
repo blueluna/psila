@@ -5,8 +5,9 @@ authors = ["Erik Svensson <erik.public@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+log = "0.4.8"
 ieee802154 = { git = "https://github.com/braun-embedded/rust-ieee802.15.4.git", branch = "master" }
-bbqueue = { git = "https://github.com/jamesmunns/bbqueue" }
+bbqueue = { git = "https://github.com/jonas-schievink/bbqueue.git", branch = "rubble" }
 psila-crypto = { path = "../psila-crypto" }
 psila-data = { path = "../psila-data" }
 
