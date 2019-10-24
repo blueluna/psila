@@ -1,6 +1,6 @@
 use core::convert::TryFrom;
 
-use crate::common::address::{ExtendedAddress, GroupIdentifier, NetworkAddress};
+use crate::common::address::{ExtendedAddress, GroupIdentifier, NetworkAddress, EXTENDED_ADDRESS_SIZE};
 use crate::error::Error;
 use crate::pack::{Pack, PackFixed};
 
@@ -62,8 +62,31 @@ pub struct RouteRequest {
 }
 
 impl Pack<RouteRequest, Error> for RouteRequest {
-    fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
-        unimplemented!();
+    fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
+        assert_eq!(self.destination_ieee_address.is_some(), self.options.destination_ieee_address);
+        let length = 5 + if self.destination_ieee_address.is_some() { EXTENDED_ADDRESS_SIZE } else { 0 };
+        if data.len() < length {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        self.options.pack(&mut data[0..=0])?;
+        data[1] = self.identifier;
+        match self.destination_address {
+            AddressType::Singlecast(address) => {
+                assert!(!self.options.multicast);
+                address.pack(&mut data[2..4])?;
+            }
+            AddressType::Multicast(address) => {
+                assert!(self.options.multicast);
+                address.pack(&mut data[2..4])?;
+            }
+        }
+        data[4] = self.identifier;
+        let mut offset = 5;
+        if let Some(address) = self.destination_ieee_address {
+            address.pack(&mut data[offset..offset + EXTENDED_ADDRESS_SIZE])?;
+            offset += EXTENDED_ADDRESS_SIZE;
+        }
+        Ok(offset)
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {

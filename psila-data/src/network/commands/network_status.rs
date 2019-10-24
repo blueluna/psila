@@ -34,8 +34,13 @@ pub struct NetworkStatus {
 }
 
 impl Pack<NetworkStatus, Error> for NetworkStatus {
-    fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
-        unimplemented!();
+    fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
+        if data.len() < 3 {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        data[0] = u8::from(self.status);
+        self.destination.pack(&mut data[1..3])?;
+        Ok(3)
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {

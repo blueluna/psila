@@ -48,8 +48,30 @@ pub struct RouteReply {
 }
 
 impl Pack<RouteReply, Error> for RouteReply {
-    fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
-        unimplemented!();
+    fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
+        assert_eq!(self.orginator_ieee_address.is_some(), self.options.orginator_ieee_address);
+        assert_eq!(self.responder_ieee_address.is_some(), self.options.responder_ieee_address);
+        let length = 7;
+        let length = length + if self.orginator_ieee_address.is_some() { EXTENDED_ADDRESS_SIZE } else { 0 };
+        let length = length + if self.responder_ieee_address.is_some() { EXTENDED_ADDRESS_SIZE } else { 0 };
+        if data.len() < length {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        self.options.pack(&mut data[0..=0])?;
+        data[1] = self.identifier;
+        self.orginator_address.pack(&mut data[2..4])?;
+        self.responder_address.pack(&mut data[4..6])?;
+        data[6] = self.path_cost;
+        let mut offset = 7;
+        if let Some(orginator) = self.orginator_ieee_address {
+            orginator.pack(&mut data[offset..offset + EXTENDED_ADDRESS_SIZE])?;
+            offset += EXTENDED_ADDRESS_SIZE;
+        }
+        if let Some(responder) = self.responder_ieee_address {
+            responder.pack(&mut data[offset..offset + EXTENDED_ADDRESS_SIZE])?;
+            offset += EXTENDED_ADDRESS_SIZE;
+        }
+        Ok(offset)
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
@@ -64,8 +86,8 @@ impl Pack<RouteReply, Error> for RouteReply {
             if data.len() < (offset + EXTENDED_ADDRESS_SIZE) {
                 return Err(Error::WrongNumberOfBytes);
             }
-            let address = ExtendedAddress::unpack(&data[offset..offset + 8])?;
-            offset += 8;
+            let address = ExtendedAddress::unpack(&data[offset..offset + EXTENDED_ADDRESS_SIZE])?;
+            offset += EXTENDED_ADDRESS_SIZE;
             Some(address)
         } else {
             None
@@ -74,8 +96,8 @@ impl Pack<RouteReply, Error> for RouteReply {
             if data.len() < (offset + EXTENDED_ADDRESS_SIZE) {
                 return Err(Error::WrongNumberOfBytes);
             }
-            let address = ExtendedAddress::unpack(&data[offset..offset + 8])?;
-            offset += 8;
+            let address = ExtendedAddress::unpack(&data[offset..offset + EXTENDED_ADDRESS_SIZE])?;
+            offset += EXTENDED_ADDRESS_SIZE;
             Some(address)
         } else {
             None

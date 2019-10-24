@@ -1,4 +1,4 @@
-//! # Network command
+//! # Network commands
 //!
 
 mod end_device;
@@ -28,7 +28,6 @@ pub use route_request::{AddressType, ManyToOne, RouteRequest};
 
 /// Network Commands
 ///
-/// No `pack` support yet
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     /// Route request

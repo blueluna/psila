@@ -26,8 +26,12 @@ pub struct RejoinRequest {
 }
 
 impl Pack<RejoinRequest, Error> for RejoinRequest {
-    fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
-        unimplemented!();
+    fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
+        if data.is_empty() {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        data[0] = u8::from(self.capability);
+        Ok(1)
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
@@ -46,8 +50,13 @@ pub struct RejoinResponse {
 }
 
 impl Pack<RejoinResponse, Error> for RejoinResponse {
-    fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
-        unimplemented!();
+    fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
+        if data.len() < (SHORT_ADDRESS_SIZE + 1) {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        self.address.pack(&mut data[0..SHORT_ADDRESS_SIZE])?;
+        data[SHORT_ADDRESS_SIZE] = u8::from(self.status);
+        Ok(SHORT_ADDRESS_SIZE + 1)
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {

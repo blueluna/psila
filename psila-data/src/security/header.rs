@@ -2,7 +2,7 @@ use core::convert::TryFrom;
 
 use byteorder::{ByteOrder, LittleEndian};
 
-use crate::common::address::ExtendedAddress;
+use crate::common::address::{ExtendedAddress, EXTENDED_ADDRESS_SIZE};
 use crate::error::Error;
 use crate::pack::{Pack, PackFixed};
 
@@ -158,10 +158,24 @@ impl SecurityHeader {
 
 impl Pack<SecurityHeader, Error> for SecurityHeader {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
-        if data.len() < 5 {
+        let length = 5
+            + if self.source.is_some() { EXTENDED_ADDRESS_SIZE } else { 0 }
+            + if self.sequence.is_some() { 1 } else { 0 };
+        if data.len() < length {
             return Err(Error::NotEnoughSpace);
         }
-        unimplemented!();
+        self.control.pack(&mut data[0..=0])?;
+        LittleEndian::write_u32(&mut data[1..5], self.counter);
+        let mut offset = 5;
+        if let Some(source) = self.source {
+            source.pack(&mut data[offset..offset + EXTENDED_ADDRESS_SIZE])?;
+            offset += EXTENDED_ADDRESS_SIZE;
+        }
+        if let Some(sequence) = self.sequence {
+            data[offset] = sequence;
+            offset += 1;
+        }
+        Ok(offset)
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
