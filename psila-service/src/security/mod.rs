@@ -1,4 +1,5 @@
 use crate::Error;
+use log;
 use psila_crypto::CryptoBackend;
 use psila_data::{
     pack::Pack,
@@ -28,10 +29,22 @@ where
 
     fn get_key(&self, header: &SecurityHeader) -> Option<Key> {
         match header.control.identifier {
-            KeyIdentifier::Data => None,
-            KeyIdentifier::Network => self.network_key,
-            KeyIdentifier::KeyTransport => Some(self.default_link_key),
-            KeyIdentifier::KeyLoad => Some(self.default_link_key),
+            KeyIdentifier::Data => {
+                log::info!("Data key");
+                None
+            }
+            KeyIdentifier::Network => {
+                log::info!("Network key");
+                self.network_key
+            }
+            KeyIdentifier::KeyTransport => {
+                log::info!("Key-transport key");
+                Some(self.default_link_key)
+            }
+            KeyIdentifier::KeyLoad => {
+                log::info!("Key-load key");
+                Some(self.default_link_key)
+            }
         }
     }
 
@@ -55,8 +68,10 @@ where
                 output_payload,
             )?
         } else {
+            log::warn!("No key found");
             0
         };
+        log::info!("Decrypt result size {}", size);
         Ok(size)
     }
 }

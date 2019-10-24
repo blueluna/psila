@@ -1,4 +1,5 @@
 use core::cell::Cell;
+use log;
 
 pub use ieee802154::mac::{
     command::{AssociationStatus, CapabilityInformation, Command},
@@ -249,8 +250,14 @@ impl MacService {
             return Err(Error::InvalidAddress);
         };
         if let FrameContent::Beacon(beacon) = &frame.content {
+            log::info!("mac: Beacon");
             if beacon.superframe_spec.pan_coordinator && beacon.superframe_spec.association_permit {
                 if let State::Scan = self.state {
+                    log::info!(
+                        "mac: Beacon {:04x}:{:04x}",
+                        u16::from(src_id),
+                        u16::from(src_short)
+                    );
                     self.pan_identifier = src_id;
                     self.coordinator.short = src_short;
                     self.state = State::Associate;
@@ -276,11 +283,17 @@ impl MacService {
         }
         match (self.state, status) {
             (State::QueryAssociationStatus, AssociationStatus::Successful) => {
+                log::info!(
+                    "mac: Association Response, Success, {:04x}:{:04x}",
+                    u16::from(pan_id),
+                    address.0
+                );
                 self.pan_identifier = pan_id;
                 self.identity.short = address.into();
                 self.state = State::Associated;
             }
             (State::QueryAssociationStatus, _) => {
+                log::info!("mac: Association Response");
                 self.pan_identifier = PanIdentifier::broadcast();
                 self.identity.short = psila_data::ShortAddress::broadcast();
                 self.state = State::Orphan;
@@ -309,8 +322,10 @@ impl MacService {
         buffer: &mut [u8],
     ) -> Result<(usize, u32), Error> {
         if frame.header.seq == self.sequence.get() {
+            log::info!("mac: Acknowledge");
             if let State::Associate = self.state {
                 self.state = State::QueryAssociationStatus;
+                log::info!("mac: Send data request");
                 return self.build_data_request(self.coordinator.short, buffer);
             }
         }
@@ -334,6 +349,7 @@ impl MacService {
         match self.state {
             State::Orphan => {
                 self.state = State::Scan;
+                log::info!("mac: Send beacon request");
                 self.build_beacon_request(buffer)
             }
             State::Scan | State::QueryAssociationStatus => {
@@ -342,6 +358,7 @@ impl MacService {
             }
             State::Associate => {
                 // Send a association request
+                log::info!("mac: Send association request");
                 self.build_association_request(self.pan_identifier, self.coordinator.short, buffer)
             }
             State::Associated => Ok((0, 0)),

@@ -73,14 +73,13 @@ where
 
     /// Receive, call this method when new data has been received by the radio
     /// ### Return
-    /// A new timeout value that the timer shall be configured with, a timeout
-    /// value of zero (0) shall be ignored
-    pub fn receive(&mut self, data: &[u8]) -> Result<u32, Error> {
+    /// true if the message was adressed to this device
+    pub fn handle_acknowledge(&mut self, data: &[u8]) -> Result<bool, Error> {
         let mut buffer = [0u8; PACKET_BUFFER_MAX];
         match mac::Frame::decode(data, false) {
             Ok(frame) => {
                 if !self.mac.destination_me_or_broadcast(&frame) {
-                    return Ok(0);
+                    return Ok(false);
                 }
                 if self.mac.requests_acknowledge(&frame) {
                     // If the frame is a data request frame, send an acknowledge with pending set
@@ -89,6 +88,23 @@ where
                         self.mac
                             .build_acknowledge(frame.header.seq, false, &mut buffer);
                     self.queue_packet(&buffer[..packet_length])?;
+                }
+                Ok(true)
+            }
+            Err(_) => Err(Error::MalformedPacket),
+        }
+    }
+
+    /// Receive, call this method when new data has been received by the radio
+    /// ### Return
+    /// A new timeout value that the timer shall be configured with, a timeout
+    /// value of zero (0) shall be ignored
+    pub fn receive(&mut self, data: &[u8]) -> Result<u32, Error> {
+        let mut buffer = [0u8; PACKET_BUFFER_MAX];
+        match mac::Frame::decode(data, false) {
+            Ok(frame) => {
+                if !self.mac.destination_me_or_broadcast(&frame) {
+                    return Ok(0);
                 }
                 let (packet_length, timeout) = self.mac.handle_frame(&frame, &mut buffer)?;
                 if packet_length > 0 {
@@ -121,7 +137,6 @@ where
 
         match frame.header.frame_type {
             mac::FrameType::Data => {
-                log::info!("Handle network data");
                 let (header, used) = NetworkHeader::unpack(frame.payload)?;
                 let mut payload = [0u8; PACKET_BUFFER_MAX];
                 let payload_size = if header.control.security {
@@ -134,7 +149,9 @@ where
                     payload_size
                 };
                 // TODO: Look up source extended address
-                self.handle_network_frame(&header, &payload[..payload_size])?;
+                if payload_size > 0 {
+                    self.handle_network_frame(&header, &payload[..payload_size])?;
+                }
             }
             mac::FrameType::Beacon => {
                 log::info!("Handle network beacon");
@@ -151,13 +168,14 @@ where
         nwk_payload: &[u8],
     ) -> Result<(), Error> {
         use psila_data::application_service::ApplicationServiceHeader;
-        use psila_data::network::{commands::Command, header::FrameType};
+        use psila_data::network::header::FrameType;
 
         match header.control.frame_type {
             FrameType::Data => {
-                log::info!("Handle network data");
                 let mut aps_payload = [0u8; PACKET_BUFFER_MAX];
+                log::info!("Unpack application service header");
                 let (header, used) = ApplicationServiceHeader::unpack(nwk_payload)?;
+                log::info!("...done");
                 let aps_payload_length = if header.control.security {
                     log::info!("Decrypt application service data");
                     self.security_manager
@@ -167,16 +185,69 @@ where
                     aps_payload[..payload_length].copy_from_slice(&nwk_payload[used..]);
                     payload_length
                 };
-                self.handle_application_service_frame(&header, &aps_payload[..aps_payload_length])?;
+                if aps_payload_length > 0 {
+                    self.handle_application_service_frame(
+                        &header,
+                        &aps_payload[..aps_payload_length],
+                    )?;
+                }
             }
             FrameType::Command => {
-                log::info!("Handle network command");
-                let _command = Command::unpack(nwk_payload)?;
+                self.handle_network_command(nwk_payload)?;
                 // handle command
             }
             FrameType::InterPan => {
                 log::info!("Handle inter-PAN");
                 // Not supported yet
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_network_command(&self, payload: &[u8]) -> Result<(), Error> {
+        use psila_data::network::commands::Command;
+        log::info!("Unpack network command");
+        match Command::unpack(payload) {
+            Ok((cmd, _used)) => match cmd {
+                Command::RouteRequest(_) => {
+                    log::info!("Route request");
+                }
+                Command::RouteReply(_) => {
+                    log::info!("Route reply");
+                }
+                Command::NetworkStatus(_) => {
+                    log::info!("Network status");
+                }
+                Command::Leave(_) => {
+                    log::info!("Leave");
+                }
+                Command::RouteRecord(_) => {
+                    log::info!("Route record");
+                }
+                Command::RejoinRequest(_) => {
+                    log::info!("Rejoin request");
+                }
+                Command::RejoinResponse(_) => {
+                    log::info!("Rejoin response");
+                }
+                Command::LinkStatus(_) => {
+                    log::info!("Link Status");
+                }
+                Command::NetworkReport(_) => {
+                    log::info!("Network report");
+                }
+                Command::NetworkUpdate(_) => {
+                    log::info!("Network update");
+                }
+                Command::EndDeviceTimeoutRequest(_) => {
+                    log::info!("End-device timeout request");
+                }
+                Command::EndDeviceTimeoutResponse(_) => {
+                    log::info!("End-device timeout response");
+                }
+            },
+            Err(_) => {
+                log::warn!("Failed to decode network command");
             }
         }
         Ok(())
@@ -199,9 +270,12 @@ where
             FrameType::Command => {
                 log::info!("Handle application service command");
                 // handle command
+                log::info!("Unpack application service command");
                 let (command, _used) = Command::unpack(aps_payload)?;
+                log::info!("...done");
                 if let Command::TransportKey(cmd) = command {
                     if let TransportKey::StandardNetworkKey(key) = cmd {
+                        log::info!("Set network key");
                         self.security_manager.set_network_key(key.key);
                     }
                 }

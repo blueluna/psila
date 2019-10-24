@@ -1,3 +1,9 @@
 
 [workspace]
-members = ["host-tool", "psila-data", "psila-crypto", "psila-crypto-gcrypt", "psila-service"]
+members = [
+    "host-tool",
+    "psila-data",
+    "psila-crypto",
+    "psila-crypto-gcrypt",
+    "psila-service",
+]
