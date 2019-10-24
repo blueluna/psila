@@ -11,10 +11,10 @@ use crate::pack::{Pack, PackFixed};
 extended_enum!(
     /// Protocol identifier
     ProtocolIdentifier, u8,
-    /// Zigbee protocol
-    Zigbee => 0x00,
-    /// Reserved by the zigbee alliance
-    ZigbeeReserved => 0xff,
+    /// Z**bee protocol
+    Zbee => 0x00,
+    /// Reserved by the z**bee alliance
+    ZbeeReserved => 0xff,
 );
 
 /// Stack proifile
@@ -22,10 +22,10 @@ extended_enum!(
 pub enum StackProfile {
     /// Network specific stack profile
     NetworkSpecific = 0x00,
-    /// Zigbee home stack profile
-    ZigbeeHome = 0x01,
-    /// Zigbee pro stack profile
-    ZigbeePro = 0x02,
+    /// Z**bee home stack profile
+    ZbeeHome = 0x01,
+    /// Z**bee pro stack profile
+    ZbeePro = 0x02,
 }
 
 impl TryFrom<u8> for StackProfile {
@@ -34,8 +34,8 @@ impl TryFrom<u8> for StackProfile {
     fn try_from(v: u8) -> Result<Self, Error> {
         match v & 0b0000_1111 {
             0x00 => Ok(StackProfile::NetworkSpecific),
-            0x01 => Ok(StackProfile::ZigbeeHome),
-            0x02 => Ok(StackProfile::ZigbeePro),
+            0x01 => Ok(StackProfile::ZbeeHome),
+            0x02 => Ok(StackProfile::ZbeePro),
             _ => Err(Error::InvalidValue),
         }
     }
@@ -45,8 +45,8 @@ impl From<StackProfile> for u8 {
     fn from(v: StackProfile) -> Self {
         match v {
             StackProfile::NetworkSpecific => 0x00,
-            StackProfile::ZigbeeHome => 0x01,
-            StackProfile::ZigbeePro => 0x02,
+            StackProfile::ZbeeHome => 0x01,
+            StackProfile::ZbeePro => 0x02,
         }
     }
 }
@@ -55,8 +55,8 @@ impl PartialEq<StackProfile> for u8 {
     fn eq(&self, other: &StackProfile) -> bool {
         match *other {
             StackProfile::NetworkSpecific => *self == 0x00,
-            StackProfile::ZigbeeHome => *self == 0x01,
-            StackProfile::ZigbeePro => *self == 0x02,
+            StackProfile::ZbeeHome => *self == 0x01,
+            StackProfile::ZbeePro => *self == 0x02,
         }
     }
 }
@@ -143,8 +143,8 @@ mod tests {
         ];
         let (bi, used) = BeaconInformation::unpack(&data).unwrap();
         assert_eq!(used, 15);
-        assert_eq!(bi.protocol_indentifier, ProtocolIdentifier::Zigbee);
-        assert_eq!(bi.stack_profile, StackProfile::ZigbeePro);
+        assert_eq!(bi.protocol_indentifier, ProtocolIdentifier::Zbee);
+        assert_eq!(bi.stack_profile, StackProfile::ZbeePro);
         assert_eq!(bi.network_protocol_version, 2);
         assert_eq!(bi.router_capacity, true);
         assert_eq!(bi.device_depth, 0);

@@ -1,6 +1,6 @@
 #![no_std]
 
-/// Length of the message length field (L) in octets. Always 2 for Zigbee
+/// Length of the message length field (L) in octets. Always 2 for Z
 pub const LENGTH_FIELD_LENGTH: usize = 2;
 /// Cipher block length
 pub const BLOCK_SIZE: usize = 16;
