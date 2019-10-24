@@ -1,3 +1,5 @@
+//! # Addresses used in the network
+
 use core::default::Default;
 
 use crate::pack::PackFixed;

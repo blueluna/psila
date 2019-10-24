@@ -1,3 +1,5 @@
+//! # Error handling
+
 use core::convert::From;
 
 use psila_crypto;
@@ -13,18 +15,31 @@ pub enum Error {
     InvalidValue,
     /// The code path has not been implemented
     NotImplemented,
+    /// There is no short address
     NoShortAddress,
+    /// There is no extended address
     NoExtendedAddress,
+    /// The frame type is unknown
     UnknownFrameType,
+    /// The relay list is broken
     BrokenRelayList,
+    /// The network command is unknown
     UnknownNetworkCommand,
+    /// The delivery mode is unknown
     UnknownDeliveryMode,
+    /// The security level is unknown
     UnknownSecurityLevel,
+    /// The Key indetifier is unknown
     UnknownKeyIdentifier,
+    /// The application command identifier is unknown
     UnknownApplicationCommandIdentifier,
+    /// The discovery route identifier is unknown
     UnknownDiscoverRoute,
+    /// The cluster identifier is unknown
     UnknownClusterIdentifier,
+    /// The attribute value is unsupported
     UnsupportedAttributeValue,
+    /// A crypto error has occurd
     CryptoError(psila_crypto::Error),
 }
 

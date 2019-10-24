@@ -1,4 +1,4 @@
-//! Cluster Library (ZCL)
+//! # Cluster Library (ZCL)
 
 use core::convert::TryFrom;
 

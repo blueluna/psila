@@ -1,3 +1,5 @@
+//! # Device capability information
+
 use core::convert::From;
 
 const CAPABILITY_ALTERNATE_PAN_COORDINATOR: u8 = 0x01;

@@ -1,3 +1,5 @@
+//! # Security key data
+
 use core::convert::TryFrom;
 
 use psila_crypto;

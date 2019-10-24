@@ -1,4 +1,4 @@
-//! Application services (APS)
+//! # Application Services Layer (APS)
 
 use core::convert::TryFrom;
 

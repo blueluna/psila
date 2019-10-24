@@ -1,3 +1,8 @@
+//! # Traits for handling packing and unpacking
+//!
+//! These traits handles packing and unpacking of data into byte slices
+
+/// Packing of data of fixed size
 pub trait PackFixed<T, E> {
     /// Serialize into buffer, returning if there was an error
     fn pack(&self, data: &mut [u8]) -> Result<(), E>;
@@ -5,6 +10,7 @@ pub trait PackFixed<T, E> {
     fn unpack(data: &[u8]) -> Result<T, E>;
 }
 
+/// Packing of data with variable size
 pub trait Pack<T, E> {
     /// Serialize into buffer, returning number of bytes written or error
     fn pack(&self, data: &mut [u8]) -> Result<usize, E>;

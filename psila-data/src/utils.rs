@@ -42,6 +42,7 @@ macro_rules! extended_enum {
     );
 }
 
+/// Zero out all values in the slice
 pub fn clear(slice: &mut [u8]) {
     for v in slice.iter_mut() {
         *v = 0;

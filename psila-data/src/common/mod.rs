@@ -1,6 +1,6 @@
-//! Common structs and functions like addresses, security keys
-//! , capability information
+//! # Common structs and functions
 //!
+//! Common things like addresses, security key data, ...
 
 pub mod address;
 pub mod capability_information;

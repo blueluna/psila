@@ -1,4 +1,4 @@
-//! # Security services
+//! # Security Provider
 
 use psila_crypto::{self, CryptoBackend};
 

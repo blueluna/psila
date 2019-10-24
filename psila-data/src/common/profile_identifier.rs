@@ -1,3 +1,5 @@
+//! Common profile identifiers
+
 use crate::Error;
 use core::convert::TryFrom;
 

@@ -1,4 +1,6 @@
-//! # Network (NWK)
+//! # Network Layer (NWK)
+//!
+//! Handling of network layer headers, commands, ...
 
 pub mod beacon;
 pub mod commands;

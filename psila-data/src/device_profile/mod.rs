@@ -1,3 +1,5 @@
+//! # Device Profile (ZDP)
+
 mod device_announce;
 pub mod link_quality;
 mod match_descriptor;
