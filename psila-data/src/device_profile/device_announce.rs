@@ -17,7 +17,7 @@ pub struct DeviceAnnounce {
 
 impl Pack<DeviceAnnounce, Error> for DeviceAnnounce {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
-        if data.len() != 11 {
+        if data.len() < 11 {
             Err(Error::WrongNumberOfBytes)
         } else {
             self.network_address.pack(&mut data[0..2])?;

@@ -273,4 +273,55 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn pack_device_announce() {
+        use crate::{CapabilityInformation, ExtendedAddress, NetworkAddress};
+
+        let device_announce = DeviceAnnounce {
+            network_address: NetworkAddress::new(0x3289),
+            ieee_address: ExtendedAddress::new(0x0123_4567_89ab_cdef),
+            capability: CapabilityInformation {
+                alternate_pan_coordinator: false,
+                router_capable: false,
+                mains_power: true,
+                idle_receive: true,
+                frame_protection: false,
+                allocate_address: true,
+            },
+        };
+        let message = DeviceProfileMessage::DeviceAnnounce(device_announce);
+        let frame = DeviceProfileFrame {
+            transaction_sequence: 0x52,
+            message,
+        };
+
+        let mut buffer = [0u8; 128];
+        let size = frame.pack(&mut buffer).unwrap();
+
+        assert_eq!(size, 12);
+        assert_eq!(buffer[0], 0x52);
+        assert_eq!(buffer[1..=2], [0x89, 0x32]);
+        assert_eq!(
+            buffer[3..=10],
+            [0xef, 0xcd, 0xab, 0x89, 0x67, 0x45, 0x23, 0x01]
+        );
+        assert_eq!(buffer[11], 0x8c);
+    }
+
+    #[test]
+    fn pack_link_quality_indicator_request() {
+        let message = DeviceProfileMessage::ManagementLinkQualityIndicatorRequest(0x07);
+        let frame = DeviceProfileFrame {
+            transaction_sequence: 0xcc,
+            message,
+        };
+
+        let mut buffer = [0u8; 128];
+        let size = frame.pack(&mut buffer).unwrap();
+
+        assert_eq!(size, 2);
+        assert_eq!(buffer[0], 0xcc); // transaction sequence
+        assert_eq!(buffer[1], 0x07); // index
+    }
 }

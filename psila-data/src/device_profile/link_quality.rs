@@ -5,52 +5,74 @@ use crate::device_profile::Status;
 use crate::pack::{Pack, PackFixed};
 use crate::Error;
 
+/// Node device type
 extended_enum!(
-	DeviceType, u8,
-	Coordinator => 0x00,
-	Router => 0x01,
+    DeviceType, u8,
+    /// The node is a network coordinator
+    Coordinator => 0x00,
+    /// The node is a router
+    Router => 0x01,
+    /// The node is a end-device
     EndDevice => 0x02,
+    /// The node is of unknown type
     Unknown => 0x03,
 );
 
 impl Default for DeviceType {
+    /// Initialize the device type as `DeviceType::Unknown`
     fn default() -> Self {
         DeviceType::Unknown
     }
 }
 
+/// Wether the node receives when idle or not
 extended_enum!(
     RxOnWhenIdle, u8,
+    /// Receiver is disabled when idle
     Off => 0x00,
+    /// Receiver is enabled when idle
     On => 0x01,
+    /// The status of the reciver is unknown when idle
     Unknown => 0x02,
 );
 
 impl Default for RxOnWhenIdle {
+    /// Initialize the receive on when idle as `RxOnWhenIdle::Unknown`
     fn default() -> Self {
         RxOnWhenIdle::Unknown
     }
 }
 
+/// Relationship between nodes in the network
 extended_enum!(
     Relationship, u8,
+    /// The node is parent of the current node
     Parent => 0x00,
+    /// The node is a child of the current node
     Child => 0x01,
+    /// The node is a sibling of the current node
     Sibling => 0x02,
+    /// The node is "none of above"
     NoneOfAbove => 0x03,
+    /// The node was once a child of this node, but has left
     PreviousChild => 0x04,
 );
 
 impl Default for Relationship {
+    /// Initialize the relationship as `Relationship::NoneOfAbove`
     fn default() -> Self {
         Relationship::NoneOfAbove
     }
 }
 
+/// Permit join status
 extended_enum!(
     PermitJoining, u8,
+    /// Permits joins
     Yes => 0x00,
+    /// Rejects joins
     No => 0x01,
+    /// Unknown if the node permits joins
     Unknown => 0x02,
 );
 
@@ -60,9 +82,18 @@ impl Default for PermitJoining {
     }
 }
 
-// 2.4.3.1.1 NWK_addr_req
-/// Network address request
-/// Requests the network address for a remote device
+/// Neighbor information used in link quality indicator response
+///
+/// Holds various metrics for a node in the network
+/// * The extended PAN identifier
+/// * The extended address for the node
+/// * The network address of the node
+/// * The node device type
+/// * If the node receives when in idle
+/// * The relationship with this node
+/// * If the node permits joins
+/// * Network depth for the node, how many hops away the node is
+/// * The link quanlity indication of the node
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Neighbor {
     pub pan_identifier: ExtendedAddress,
@@ -78,6 +109,7 @@ pub struct Neighbor {
 
 impl Pack<Neighbor, Error> for Neighbor {
     fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
+        // TODO: Implement pack for Neighbor
         unimplemented!();
     }
 
@@ -125,8 +157,9 @@ impl Default for Neighbor {
     }
 }
 
-/// Network and IEEE address response
+/// Link quality indicator response
 ///
+/// Reports link quality and other useful metrics about the node
 #[derive(Clone, Debug, PartialEq)]
 pub struct ManagementLinkQualityIndicatorResponse {
     pub status: Status,
@@ -154,6 +187,7 @@ impl Pack<ManagementLinkQualityIndicatorResponse, Error>
     for ManagementLinkQualityIndicatorResponse
 {
     fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
+        // TODO: Implement pack for ManagementLinkQualityIndicatorResponse
         unimplemented!();
     }
 
