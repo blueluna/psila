@@ -70,7 +70,7 @@ impl PackFixed<FrameControl, Error> for FrameControl {
         let frame_type = self.frame_type as u8;
         let delivery_mode = self.delivery_mode as u8;
         data[0] = frame_type
-            | delivery_mode << 2
+            | delivery_mode
             | (self.acknowledge_format as u8) << 4
             | (self.security as u8) << 5
             | (self.acknowledge_request as u8) << 6
@@ -111,39 +111,114 @@ pub struct ApplicationServiceHeader {
     pub counter: u8,
 }
 
+impl ApplicationServiceHeader {
+    pub fn new_data_header(
+        destination: u8,
+        cluster: u16,
+        profile: u16,
+        source: u8,
+        counter: u8,
+        acknowledge_request: bool,
+        secure: bool,
+    ) -> Self {
+        ApplicationServiceHeader {
+            control: FrameControl {
+                frame_type: FrameType::Data,
+                delivery_mode: DeliveryMode::Unicast,
+                acknowledge_format: false,
+                security: secure,
+                acknowledge_request,
+                extended_header: false,
+            },
+            destination: Some(destination),
+            group: None,
+            cluster: Some(cluster),
+            profile: Some(profile),
+            source: Some(source),
+            counter,
+        }
+    }
+
+    fn which_fields(control: FrameControl) -> (bool, bool, bool, bool, usize) {
+        let (has_destination, has_group, has_cluster_profile, has_source) = match control.frame_type
+        {
+            FrameType::Data => {
+                let (has_destination, has_group) = match control.delivery_mode {
+                    DeliveryMode::Unicast | DeliveryMode::Broadcast => (true, false),
+                    DeliveryMode::GroupAdressing => (false, true),
+                    DeliveryMode::Indirect => (false, false),
+                };
+                (has_destination, has_group, true, true)
+            }
+            FrameType::Command => (false, false, false, false),
+            FrameType::Acknowledgement => {
+                let has_address = !control.acknowledge_format;
+                (has_address, false, has_address, has_address)
+            }
+            FrameType::InterPan => (false, false, true, false),
+        };
+        let length = 2; // control and counter
+        let length = length + if has_destination { 1 } else { 0 };
+        let length = length + if has_group { 2 } else { 0 };
+        let length = length + if has_cluster_profile { 4 } else { 0 };
+        let length = length + if has_source { 1 } else { 0 };
+        (
+            has_destination,
+            has_group,
+            has_cluster_profile,
+            has_source,
+            length,
+        )
+    }
+}
+
 impl Pack<ApplicationServiceHeader, Error> for ApplicationServiceHeader {
-    fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
-        unimplemented!();
+    fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
+        let (has_destination, has_group, has_cluster_profile, has_source, length) =
+            Self::which_fields(self.control);
+        assert_eq!(self.destination.is_some(), has_destination);
+        assert_eq!(self.group.is_some(), has_group);
+        assert_eq!(self.cluster.is_some(), has_cluster_profile);
+        assert_eq!(self.profile.is_some(), has_cluster_profile);
+        assert_eq!(self.source.is_some(), has_source);
+        if data.len() < length {
+            return Err(Error::NotEnoughSpace);
+        }
+        self.control.pack(&mut data[..1])?;
+        let mut offset = 1;
+        if let Some(destination) = self.destination {
+            data[offset] = destination;
+            offset += 1;
+        }
+        if let Some(group) = self.group {
+            LittleEndian::write_u16(&mut data[offset..offset + 2], group);
+            offset += 2;
+        }
+        if let Some(cluster) = self.cluster {
+            LittleEndian::write_u16(&mut data[offset..offset + 2], cluster);
+            offset += 2;
+        }
+        if let Some(profile) = self.profile {
+            LittleEndian::write_u16(&mut data[offset..offset + 2], profile);
+            offset += 2;
+        }
+        if let Some(source) = self.source {
+            data[offset] = source;
+            offset += 1;
+        }
+        data[offset] = self.counter;
+        offset += 1;
+        Ok(offset)
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
         let control = FrameControl::unpack(&data[..1])?;
         let mut offset = 1;
-        let has_destination = match control.frame_type {
-            FrameType::Data => match control.delivery_mode {
-                DeliveryMode::Unicast | DeliveryMode::Broadcast => true,
-                _ => false,
-            },
-            FrameType::Acknowledgement => !control.acknowledge_format,
-            _ => false,
-        };
-        let has_group = match control.frame_type {
-            FrameType::Data => match control.delivery_mode {
-                DeliveryMode::GroupAdressing => true,
-                _ => false,
-            },
-            _ => false,
-        };
-        let has_cluster_profile = match control.frame_type {
-            FrameType::Data | FrameType::InterPan => true,
-            FrameType::Acknowledgement => !control.acknowledge_format,
-            _ => false,
-        };
-        let has_source = match control.frame_type {
-            FrameType::Data => true,
-            FrameType::Acknowledgement => !control.acknowledge_format,
-            _ => false,
-        };
+        let (has_destination, has_group, has_cluster_profile, has_source, length) =
+            Self::which_fields(control);
+        if data.len() < length {
+            return Err(Error::NotEnoughSpace);
+        }
         let destination = if has_destination {
             offset += 1;
             Some(data[offset - 1])
@@ -213,6 +288,88 @@ mod tests {
         assert_eq!(fc.security, true);
         assert_eq!(fc.acknowledge_request, false);
         assert_eq!(fc.extended_header, false);
+    }
+
+    #[test]
+    fn pack_frame_control() {
+        let mut data = [0xff];
+
+        let control = FrameControl {
+            frame_type: FrameType::Data,
+            delivery_mode: DeliveryMode::Unicast,
+            acknowledge_format: false,
+            security: false,
+            acknowledge_request: false,
+            extended_header: false,
+        };
+        let _ = control.pack(&mut data);
+        assert_eq!(data[0], 0x00);
+
+        let control = FrameControl {
+            frame_type: FrameType::Command,
+            delivery_mode: DeliveryMode::Unicast,
+            acknowledge_format: false,
+            security: false,
+            acknowledge_request: false,
+            extended_header: false,
+        };
+        let _ = control.pack(&mut data);
+        assert_eq!(data[0], 0x01);
+
+        let control = FrameControl {
+            frame_type: FrameType::Acknowledgement,
+            delivery_mode: DeliveryMode::Unicast,
+            acknowledge_format: false,
+            security: false,
+            acknowledge_request: false,
+            extended_header: false,
+        };
+        let _ = control.pack(&mut data);
+        assert_eq!(data[0], 0x02);
+
+        let control = FrameControl {
+            frame_type: FrameType::InterPan,
+            delivery_mode: DeliveryMode::Unicast,
+            acknowledge_format: false,
+            security: false,
+            acknowledge_request: false,
+            extended_header: true,
+        };
+        let _ = control.pack(&mut data);
+        assert_eq!(data[0], 0x83);
+
+        let control = FrameControl {
+            frame_type: FrameType::Acknowledgement,
+            delivery_mode: DeliveryMode::Broadcast,
+            acknowledge_format: false,
+            security: false,
+            acknowledge_request: true,
+            extended_header: false,
+        };
+        let _ = control.pack(&mut data);
+        assert_eq!(data[0], 0x4a);
+
+        let control = FrameControl {
+            frame_type: FrameType::Command,
+            delivery_mode: DeliveryMode::GroupAdressing,
+            acknowledge_format: false,
+            security: true,
+            acknowledge_request: false,
+            extended_header: false,
+        };
+        let _ = control.pack(&mut data);
+        assert_eq!(data[0], 0x2d);
+
+        let control = FrameControl {
+            frame_type: FrameType::Acknowledgement,
+            delivery_mode: DeliveryMode::Unicast,
+            acknowledge_format: true,
+            security: false,
+            acknowledge_request: false,
+            extended_header: false,
+        };
+        let _ = control.pack(&mut data);
+        assert_eq!(data[0], 0x12);
     }
 
     #[cfg(not(feature = "core"))]
@@ -335,5 +492,21 @@ mod tests {
         print_frame(&aps);
 
         assert_eq!(used, 5);
+    }
+
+    #[test]
+    fn pack_frame() {
+        let header = ApplicationServiceHeader::new_data_header(
+            0x01, 0x7654, 0x1234, 0x00, 0xaa, false, true,
+        );
+        let mut buffer = [0u8; 32];
+        let size = header.pack(&mut buffer).unwrap();
+        assert_eq!(size, 8);
+        assert_eq!(buffer[0], 0x20);
+        assert_eq!(buffer[1], 0x01);
+        assert_eq!(buffer[2..=3], [0x54, 0x76]);
+        assert_eq!(buffer[4..=5], [0x34, 0x12]);
+        assert_eq!(buffer[6], 0x00);
+        assert_eq!(buffer[7], 0xaa);
     }
 }

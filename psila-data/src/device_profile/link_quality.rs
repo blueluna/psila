@@ -1,12 +1,12 @@
 use core::convert::TryFrom;
 
-use crate::common::address::{ExtendedAddress, NetworkAddress};
+use crate::common::address::{ExtendedAddress, ExtendedPanIdentifier, NetworkAddress};
 use crate::device_profile::Status;
 use crate::pack::{Pack, PackFixed};
 use crate::Error;
 
-/// Node device type
 extended_enum!(
+    /// Node device type
     DeviceType, u8,
     /// The node is a network coordinator
     Coordinator => 0x00,
@@ -25,8 +25,8 @@ impl Default for DeviceType {
     }
 }
 
-/// Wether the node receives when idle or not
 extended_enum!(
+    /// Wether the node receives when idle or not
     RxOnWhenIdle, u8,
     /// Receiver is disabled when idle
     Off => 0x00,
@@ -43,8 +43,8 @@ impl Default for RxOnWhenIdle {
     }
 }
 
-/// Relationship between nodes in the network
 extended_enum!(
+    /// Relationship between nodes in the network
     Relationship, u8,
     /// The node is parent of the current node
     Parent => 0x00,
@@ -65,8 +65,8 @@ impl Default for Relationship {
     }
 }
 
-/// Permit join status
 extended_enum!(
+    /// Permit join status
     PermitJoining, u8,
     /// Permits joins
     Yes => 0x00,
@@ -82,6 +82,9 @@ impl Default for PermitJoining {
     }
 }
 
+/// Maximum number of neighbor nodes in `ManagementLinkQualityIndicatorResponse`
+const NEIGHBOR_NODE_SIZE: usize = 22;
+
 /// Neighbor information used in link quality indicator response
 ///
 /// Holds various metrics for a node in the network
@@ -96,25 +99,46 @@ impl Default for PermitJoining {
 /// * The link quanlity indication of the node
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Neighbor {
-    pub pan_identifier: ExtendedAddress,
+    /// Extended PAN identifier for which the node
+    pub pan_identifier: ExtendedPanIdentifier,
+    /// Extended address for the node
     pub extended_address: ExtendedAddress,
+    /// Network address for the node
     pub network_address: NetworkAddress,
+    /// Node device type
     pub device_type: DeviceType,
+    /// Receive when idle configuration
     pub rx_idle: RxOnWhenIdle,
+    /// Node relationship
     pub relationship: Relationship,
+    /// Permit join configuration for node
     pub permit_joining: PermitJoining,
+    /// Network depth for node
     pub depth: u8,
+    /// Link quality for node
     pub link_quality: u8,
 }
 
 impl Pack<Neighbor, Error> for Neighbor {
-    fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
-        // TODO: Implement pack for Neighbor
-        unimplemented!();
+    fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
+        if data.len() < NEIGHBOR_NODE_SIZE {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        self.pan_identifier.pack(&mut data[0..8])?;
+        self.extended_address.pack(&mut data[8..16])?;
+        self.network_address.pack(&mut data[16..18])?;
+        data[18] =
+            self.device_type as u8 | (self.rx_idle as u8) << 2 | (self.relationship as u8) << 4;
+        // The order of permit_joining and depth might be different in older
+        // versions of the standard
+        data[19] = self.permit_joining as u8;
+        data[20] = self.depth;
+        data[21] = self.link_quality;
+        Ok(NEIGHBOR_NODE_SIZE)
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
-        if data.len() < 22 {
+        if data.len() < NEIGHBOR_NODE_SIZE {
             return Err(Error::WrongNumberOfBytes);
         }
         let pan_identifier = ExtendedAddress::unpack(&data[0..8])?;
@@ -123,7 +147,9 @@ impl Pack<Neighbor, Error> for Neighbor {
         let device_type = DeviceType::try_from(data[18] & 0b0000_0011)?;
         let rx_idle = RxOnWhenIdle::try_from((data[18] & 0b0000_1100) >> 2)?;
         let relationship = Relationship::try_from((data[18] & 0b0111_0000) >> 4)?;
-        let permit_joining = PermitJoining::try_from((data[19] & 0b1100_0000) >> 6)?;
+        // The order of permit_joining and depth might be different in older
+        // versions of the standard
+        let permit_joining = PermitJoining::try_from(data[19] & 0b0000_0011)?;
         Ok((
             Self {
                 pan_identifier,
@@ -136,7 +162,7 @@ impl Pack<Neighbor, Error> for Neighbor {
                 depth: data[20],
                 link_quality: data[21],
             },
-            22,
+            NEIGHBOR_NODE_SIZE,
         ))
     }
 }
@@ -157,27 +183,35 @@ impl Default for Neighbor {
     }
 }
 
+/// Maximum number of neighbor nodes in `ManagementLinkQualityIndicatorResponse`
+const NEIGHBOR_MAX_COUNT: usize = 32;
+const MGMTLQIRSP_HEADER_SIZE: usize = 4;
+
 /// Link quality indicator response
 ///
-/// Reports link quality and other useful metrics about the node
+/// Reports status and a neighbor table. The neighbor table is a list of
+/// `Neighbor` entries.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ManagementLinkQualityIndicatorResponse {
     pub status: Status,
     pub neighbors_total: u8,
     pub index: u8,
     num_neighbors: u8,
-    neighbors: [Neighbor; 16],
+    neighbors: [Neighbor; NEIGHBOR_MAX_COUNT],
 }
 
 impl ManagementLinkQualityIndicatorResponse {
+    /// Indicates that there are no entries in the neighbor table
     pub fn is_empty(&self) -> bool {
         self.num_neighbors == 0
     }
 
+    /// Number of entries in the neighbor table
     pub fn len(&self) -> usize {
         self.num_neighbors as usize
     }
 
+    /// The neighbor table
     pub fn neighbors(&self) -> &[Neighbor] {
         &self.neighbors[..self.num_neighbors as usize]
     }
@@ -186,9 +220,21 @@ impl ManagementLinkQualityIndicatorResponse {
 impl Pack<ManagementLinkQualityIndicatorResponse, Error>
     for ManagementLinkQualityIndicatorResponse
 {
-    fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
-        // TODO: Implement pack for ManagementLinkQualityIndicatorResponse
-        unimplemented!();
+    fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
+        let size = (self.num_neighbors as usize) * NEIGHBOR_NODE_SIZE + MGMTLQIRSP_HEADER_SIZE;
+        if data.len() < size {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        data[0] = u8::from(self.status);
+        data[1] = self.neighbors_total;
+        data[2] = self.index;
+        data[3] = self.num_neighbors;
+        let mut offset = MGMTLQIRSP_HEADER_SIZE;
+        for neighbor in self.neighbors.iter() {
+            let used = neighbor.pack(&mut data[offset..])?;
+            offset += used;
+        }
+        Ok(offset)
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
@@ -199,11 +245,11 @@ impl Pack<ManagementLinkQualityIndicatorResponse, Error>
         let neighbors_total = data[1];
         let index = data[2];
         let num_entries = data[3] as usize;
-        if data.len() < 4 + (num_entries * 22) {
+        if data.len() < MGMTLQIRSP_HEADER_SIZE + (num_entries * NEIGHBOR_NODE_SIZE) {
             return Err(Error::WrongNumberOfBytes);
         }
-        let mut offset = 4;
-        let mut neighbors = [Neighbor::default(); 16];
+        let mut offset = MGMTLQIRSP_HEADER_SIZE;
+        let mut neighbors = [Neighbor::default(); NEIGHBOR_MAX_COUNT];
         for neighbor in neighbors[..num_entries].iter_mut() {
             let (n, used) = Neighbor::unpack(&data[offset..])?;
             *neighbor = n;
@@ -237,5 +283,37 @@ mod tests {
         let (rsp, used) = ManagementLinkQualityIndicatorResponse::unpack(&data[..]).unwrap();
         assert_eq!(used, 48);
         assert_eq!(rsp.status, Status::Success);
+        assert_eq!(rsp.neighbors_total, 2);
+        assert_eq!(rsp.index, 0);
+        assert_eq!(rsp.len(), 2);
+        assert_eq!(rsp.is_empty(), false);
+        assert_eq!(
+            rsp.neighbors()[0],
+            Neighbor {
+                pan_identifier: ExtendedPanIdentifier::new(0x0021_2eff_ff03_2e38),
+                extended_address: ExtendedAddress::new(0x0021_2eff_ff03_2e38),
+                network_address: NetworkAddress::new(0x0000),
+                device_type: DeviceType::Coordinator,
+                rx_idle: RxOnWhenIdle::On,
+                relationship: Relationship::Parent,
+                permit_joining: PermitJoining::Unknown,
+                depth: 0,
+                link_quality: 0x93,
+            }
+        );
+        assert_eq!(
+            rsp.neighbors()[1],
+            Neighbor {
+                pan_identifier: ExtendedPanIdentifier::new(0x0021_2eff_ff03_2e38),
+                extended_address: ExtendedAddress::new(0x000d_6fff_fe21_ae85),
+                network_address: NetworkAddress::new(0xc07b),
+                device_type: DeviceType::EndDevice,
+                rx_idle: RxOnWhenIdle::Off,
+                relationship: Relationship::Child,
+                permit_joining: PermitJoining::Unknown,
+                depth: 2,
+                link_quality: 0x81,
+            }
+        );
     }
 }

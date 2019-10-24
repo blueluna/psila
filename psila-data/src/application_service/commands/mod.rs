@@ -102,9 +102,64 @@ pub enum Command {
     ConfirmKey(ConfirmKey),
 }
 
+impl Command {
+    pub fn identifier(&self) -> CommandIdentifier {
+        use Command::*;
+        match *self {
+            SymmetricKeyKeyEstablishment1(_) => CommandIdentifier::SymmetricKeyKeyEstablishment1,
+            SymmetricKeyKeyEstablishment2(_) => CommandIdentifier::SymmetricKeyKeyEstablishment2,
+            SymmetricKeyKeyEstablishment3(_) => CommandIdentifier::SymmetricKeyKeyEstablishment3,
+            SymmetricKeyKeyEstablishment4(_) => CommandIdentifier::SymmetricKeyKeyEstablishment4,
+            TransportKey(_) => CommandIdentifier::TransportKey,
+            UpdateDevice(_) => CommandIdentifier::UpdateDevice,
+            RemoveDevice(_) => CommandIdentifier::RemoveDevice,
+            RequestKey(_) => CommandIdentifier::RequestKey,
+            SwitchKey(_) => CommandIdentifier::SwitchKey,
+            EntityAuthenticationInitiatorChallange => {
+                CommandIdentifier::EntityAuthenticationInitiatorChallange
+            }
+            EntityAuthenticationResponderChallange => {
+                CommandIdentifier::EntityAuthenticationResponderChallange
+            }
+            EntityAuthenticationInitiatorMacAndData => {
+                CommandIdentifier::EntityAuthenticationInitiatorMacAndData
+            }
+            EntityAuthenticationResponderMacAndData => {
+                CommandIdentifier::EntityAuthenticationResponderMacAndData
+            }
+            Tunnel(_) => CommandIdentifier::Tunnel,
+            VerifyKey(_) => CommandIdentifier::VerifyKey,
+            ConfirmKey(_) => CommandIdentifier::ConfirmKey,
+        }
+    }
+}
+
 impl Pack<Command, Error> for Command {
-    fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
-        unimplemented!();
+    fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
+        if data.is_empty() {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        data[0] = u8::from(self.identifier());
+
+        let used = match self {
+            Command::SymmetricKeyKeyEstablishment1(cmd)
+            | Command::SymmetricKeyKeyEstablishment2(cmd)
+            | Command::SymmetricKeyKeyEstablishment3(cmd)
+            | Command::SymmetricKeyKeyEstablishment4(cmd) => cmd.pack(&mut data[1..])?,
+            Command::TransportKey(cmd) => cmd.pack(&mut data[1..])?,
+            Command::UpdateDevice(cmd) => cmd.pack(&mut data[1..])?,
+            Command::RemoveDevice(cmd) => cmd.pack(&mut data[1..])?,
+            Command::RequestKey(cmd) => cmd.pack(&mut data[1..])?,
+            Command::SwitchKey(cmd) => cmd.pack(&mut data[1..])?,
+            Command::EntityAuthenticationInitiatorChallange
+            | Command::EntityAuthenticationResponderChallange
+            | Command::EntityAuthenticationInitiatorMacAndData
+            | Command::EntityAuthenticationResponderMacAndData => 0,
+            Command::Tunnel(cmd) => cmd.pack(&mut data[1..])?,
+            Command::VerifyKey(cmd) => cmd.pack(&mut data[1..])?,
+            Command::ConfirmKey(cmd) => cmd.pack(&mut data[1..])?,
+        };
+        Ok(used + 1)
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {

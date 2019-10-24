@@ -85,8 +85,19 @@ pub struct BeaconInformation {
 }
 
 impl Pack<BeaconInformation, Error> for BeaconInformation {
-    fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
-        unimplemented!();
+    fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
+        if data.len() != 15 {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        data[0] = u8::from(self.protocol_indentifier);
+        data[1] = u8::from(self.stack_profile) | (self.network_protocol_version & 0x0f) << 4;
+        data[2] = (self.router_capacity as u8) << 2
+            | (self.device_depth & 0x0f) << 3
+            | (self.end_device_capacity as u8) << 7;
+        self.extended_pan_address.pack(&mut data[3..=10])?;
+        LittleEndian::write_u32(&mut data[11..=14], self.tx_offset & 0x00ff_ffff);
+        data[14] = self.network_update_identifier;
+        Ok(15)
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {

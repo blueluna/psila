@@ -68,8 +68,87 @@ pub enum Command {
 }
 
 impl Command {
-    pub fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
-        unimplemented!();
+    pub fn pack(&self, data: &mut [u8]) -> Result<(usize, GeneralCommandIdentifier), Error> {
+        match self {
+            Command::ReadAttributes(cmd) => {
+                let used = cmd.pack(data)?;
+                Ok((used, GeneralCommandIdentifier::ReadAttributes))
+            }
+            Command::ReadAttributesResponse(cmd) => {
+                let used = cmd.pack(data)?;
+                Ok((used, GeneralCommandIdentifier::ReadAttributesResponse))
+            }
+            Command::WriteAttributes(cmd) => {
+                let used = cmd.pack(data)?;
+                Ok((used, GeneralCommandIdentifier::WriteAttributes))
+            }
+            Command::WriteAttributesUndivided(cmd) => {
+                let used = cmd.pack(data)?;
+                Ok((used, GeneralCommandIdentifier::WriteAttributesUndivided))
+            }
+            Command::WriteAttributesResponse(cmd) => {
+                let used = cmd.pack(data)?;
+                Ok((used, GeneralCommandIdentifier::WriteAttributesResponse))
+            }
+            Command::WriteAttributesNoResponse(cmd) => {
+                let used = cmd.pack(data)?;
+                Ok((used, GeneralCommandIdentifier::WriteAttributesNoResponse))
+            }
+            Command::ConfigureReporting => Ok((0, GeneralCommandIdentifier::ConfigureReporting)),
+            Command::ConfigureReportingResponse => {
+                Ok((0, GeneralCommandIdentifier::ConfigureReportingResponse))
+            }
+            Command::ReadReportingConfiguration => {
+                Ok((0, GeneralCommandIdentifier::ReadReportingConfiguration))
+            }
+            Command::ReadReportingConfigurationResponse => Ok((
+                0,
+                GeneralCommandIdentifier::ReadReportingConfigurationResponse,
+            )),
+            Command::ReportAttributes(cmd) => {
+                let used = cmd.pack(data)?;
+                Ok((used, GeneralCommandIdentifier::ReportAttributes))
+            }
+            Command::DefaultResponse(cmd) => {
+                let used = cmd.pack(data)?;
+                Ok((used, GeneralCommandIdentifier::DefaultResponse))
+            }
+            Command::DiscoverAttributes => Ok((0, GeneralCommandIdentifier::DiscoverAttributes)),
+            Command::DiscoverAttributesResponse => {
+                Ok((0, GeneralCommandIdentifier::DiscoverAttributesResponse))
+            }
+            Command::ReadAttributesStructured => {
+                Ok((0, GeneralCommandIdentifier::ReadAttributesStructured))
+            }
+            Command::WriteAttributesStructured => {
+                Ok((0, GeneralCommandIdentifier::WriteAttributesStructured))
+            }
+            Command::WriteAttributesStructuredResponse => Ok((
+                0,
+                GeneralCommandIdentifier::WriteAttributesStructuredResponse,
+            )),
+            Command::DiscoverCommandsReceived => {
+                Ok((0, GeneralCommandIdentifier::DiscoverCommandsReceived))
+            }
+            Command::DiscoverCommandsReceivedResponse => Ok((
+                0,
+                GeneralCommandIdentifier::DiscoverCommandsReceivedResponse,
+            )),
+            Command::DiscoverCommandsGenerated => {
+                Ok((0, GeneralCommandIdentifier::DiscoverCommandsGenerated))
+            }
+            Command::DiscoverCommandsGeneratedResponse => Ok((
+                0,
+                GeneralCommandIdentifier::DiscoverCommandsGeneratedResponse,
+            )),
+            Command::DiscoverAttributesExtended => {
+                Ok((0, GeneralCommandIdentifier::DiscoverAttributesExtended))
+            }
+            Command::DiscoverAttributesExtendedResponse => Ok((
+                0,
+                GeneralCommandIdentifier::DiscoverAttributesExtendedResponse,
+            )),
+        }
     }
 
     pub fn unpack(data: &[u8], command: GeneralCommandIdentifier) -> Result<(Self, usize), Error> {

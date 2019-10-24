@@ -1,5 +1,5 @@
 mod device_announce;
-mod link_quality;
+pub mod link_quality;
 mod match_descriptor;
 mod network_address;
 mod node_descriptor;
