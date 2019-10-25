@@ -5,6 +5,9 @@
 
 This is a work in progress implementation of handing Z**bee packages.
 
+**This project has not undergone any cerification or extensive testing,
+it is simply a hobby project**
+
 ## Goal
 
 The goal is to be able to use a Nordic nRF52840 SoC as a device endpoint.
