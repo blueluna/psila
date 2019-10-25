@@ -10,61 +10,117 @@ use crate::common::types::{CharacterString, OctetString};
 extended_enum!(
     /// Attribute data type
     AttributeDataType, u8,
+    /// No data
     None => 0x00,
+    /// 8-bit data
     Data8 => 0x08,
+    /// 16-bit data
     Data16 => 0x09,
+    /// 24-bit data
     Data24 => 0x0a,
+    /// 43-bit data
     Data32 => 0x0b,
+    /// 40-bit data
     Data40 => 0x0c,
+    /// 48-bit data
     Data48 => 0x0d,
+    /// 56-bit data
     Data56 => 0x0e,
+    /// 64-bit data
     Data64 => 0x0f,
+    /// Boolean
     Boolean => 0x10,
+    /// 8-bit bitmap
     Bitmap8 => 0x18,
+    /// 16-bit bitmap
     Bitmap16 => 0x19,
+    /// 24-bit bitmap
     Bitmap24 => 0x1a,
+    /// 32-bit bitmap
     Bitmap32 => 0x1b,
+    /// 40-bit bitmap
     Bitmap40 => 0x1c,
+    /// 48-bit bitmap
     Bitmap48 => 0x1d,
+    /// 56-bit bitmap
     Bitmap56 => 0x1e,
+    /// 64-bit bitmap
     Bitmap64 => 0x1f,
+    /// 8-bit unsigned integer
     Unsigned8 => 0x20,
+    /// 16-bit unsigned integer
     Unsigned16 => 0x21,
+    /// 24-bit unsigned integer
     Unsigned24 => 0x22,
+    /// 32-bit unsigned integer
     Unsigned32 => 0x23,
+    /// 40-bit unsigned integer
     Unsigned40 => 0x24,
+    /// 48-bit unsigned integer
     Unsigned48 => 0x25,
+    /// 56-bit unsigned integer
     Unsigned56 => 0x26,
+    /// 64-bit unsigned integer
     Unsigned64 => 0x27,
+    /// 8-bit signed integer
     Signed8 => 0x28,
+    /// 16-bit signed integer
     Signed16 => 0x29,
+    /// 24-bit signed integer
     Signed24 => 0x2a,
+    /// 32-bit signed integer
     Signed32 => 0x2b,
+    /// 40-bit signed integer
     Signed40 => 0x2c,
+    /// 48-bit signed integer
     Signed48 => 0x2d,
+    /// 56-bit signed integer
     Signed56 => 0x2e,
+    /// 64-bit signed integer
     Signed64 => 0x2f,
+    /// 8-bit enumeration
     Enumeration8 => 0x30,
+    /// 16-bit enumeration
     Enumeration16 => 0x31,
+    /// 16-bit floating point
     FloatingPoint16 => 0x38,
+    /// 32-bit floating point
     FloatingPoint32 => 0x39,
+    /// 64-bit floating point
     FloatingPoint64 => 0x3a,
+    /// Octet string with max length 256 octets
     OctetString => 0x41,
+    /// Character string with max length 256 characters
     CharacterString => 0x42,
+    /// Octet string with max length 65535 octets
     LongOctetString => 0x43,
+    /// Character string with max length 65535 characters
     LongCharacterString => 0x44,
+    /// Array of one or more elements of the same type
     Array => 0x48,
+    /// Structure, ordered sequence of elements that may be of different types
     Structure => 0x4c,
+    /// Set of one of more elements of the same type. In no particular order.
     Set => 0x50,
+    /// Bag, same as set but with unique values
     Bag => 0x51,
+    /// Time of day, per octet; hours,minutes,seconds,hundreds-of-seconds
     TimeOfDay => 0xe0,
+    /// Date, per octet; year since 1900,month,day of month,day of week
     Date => 0xe1,
+    /// UTC-time, seconds since 1st of January 2000
     UtcTime => 0xe2,
+    /// 16-bit cluster identifier
     ClusterIdentifier => 0xe8,
+    /// 16-bit attribute identifier
     AttributeIdentifier => 0xe9,
+    /// BACnet OID
     BuildingAutomationControlNetworkObjectIdentifier => 0xea,
+    /// 64-bit IEEE address
     IeeeAddress => 0xf0,
+    /// 128-bit key
     Key128 => 0xf1,
+    /// Unknown type
     Unknown => 0xff,
 );
 
@@ -130,63 +186,239 @@ impl AttributeDataType {
     }
 }
 
+/// Attribute value
 #[derive(Clone, Debug, PartialEq)]
 pub enum AttributeValue {
+    /// No data
     None,
+    /// 8-bit data
     Data8(u8),
+    /// 16-bit data
     Data16(u16),
+    /// 24-bit data
     Data24(u32),
+    /// 32-bit data
     Data32(u32),
+    /// 40-bit data
     Data40([u8; 5]),
+    /// 48-bit data
     Data48([u8; 6]),
+    /// 56-bit data
     Data56([u8; 7]),
+    /// 64-bit data
     Data64(u64),
+    /// Boolean
     Boolean(u8),
+    /// 8-bit bitmap
     Bitmap8(u8),
+    /// 16-bit bitmap
     Bitmap16(u16),
+    /// 24-bit bitmap
     Bitmap24(u32),
+    /// 43-bit bitmap
     Bitmap32(u32),
+    /// 40-bit bitmap
     Bitmap40([u8; 5]),
+    /// 48-bit bitmap
     Bitmap48([u8; 6]),
+    /// 56-bit bitmap
     Bitmap56([u8; 7]),
+    /// 64-bit bitmap
     Bitmap64(u64),
+    /// 8-bit unsigned integer
     Unsigned8(u8),
+    /// 16-bit unsigned integer
     Unsigned16(u16),
+    /// 24-bit unsigned integer
     Unsigned24(u32),
+    /// 32-bit unsigned integer
     Unsigned32(u32),
+    /// 40-bit unsigned integer
     Unsigned40([u8; 5]),
+    /// 48-bit unsigned integer
     Unsigned48([u8; 6]),
+    /// 56-bit unsigned integer
     Unsigned56([u8; 7]),
+    /// 64-bit unsigned integer
     Unsigned64(u64),
+    /// 8-bit signed integer
     Signed8(i8),
+    /// 16-bit signed integer
     Signed16(i16),
+    /// 24-bit signed integer
     Signed24(i32),
+    /// 32-bit signed integer
     Signed32(i32),
+    /// 40-bit signed integer
     Signed40([u8; 5]),
+    /// 48-bit signed integer
     Signed48([u8; 6]),
+    /// 56-bit signed integer
     Signed56([u8; 7]),
+    /// 64-bit signed integer
     Signed64(i64),
+    /// 8-bit enumeration
     Enumeration8(u8),
+    /// 16-bit enumeration
     Enumeration16(u16),
+    /// 32-bit floating point
     FloatingPoint32(f32),
+    /// 64-bit floating point
     FloatingPoint64(f64),
+    /// Octet string (byte array) with max length 256 octets
     OctetString(Option<OctetString>),
+    /// Character string (byte array) with max length 256 characters
     CharacterString(Option<CharacterString>),
     /*
         LongOctetString(Option<Vec<u8>>),
         LongCharacterString(Option<String>),
     */
+    /// Time of day, per octet; hours,minutes,seconds,hundreds-of-seconds
     TimeOfDay(u32),
+    /// Date, per octet; year since 1900,month,day of month,day of week
     Date(u32),
+    /// UTC-time, seconds since 1st of January 2000
     UtcTime(u32),
+    /// 16-bit cluster identifier
     ClusterIdentifier(u16),
+    /// 16-bit attribute identifier
     AttributeIdentifier(u16),
+    /// 64-bit IEEE address
     IeeeAddress(u64),
 }
 
 impl AttributeValue {
-    pub fn pack(&self, _data: &mut [u8]) -> Result<usize, Error> {
-        unimplemented!();
+    pub fn pack(&self, data: &mut [u8]) -> Result<(usize, AttributeDataType), Error> {
+        let data_type = self.data_type();
+        if let Some(num_octets) = data_type.num_octets() {
+            if data.len() < num_octets {
+                return Err(Error::WrongNumberOfBytes);
+            }
+        }
+        let length = match self {
+            AttributeValue::None => 0,
+            AttributeValue::Data8(value)
+            | AttributeValue::Boolean(value)
+            | AttributeValue::Bitmap8(value)
+            | AttributeValue::Unsigned8(value)
+            | AttributeValue::Enumeration8(value) => {
+                data[0] = *value;
+                1
+            }
+            AttributeValue::Data16(value)
+            | AttributeValue::Bitmap16(value)
+            | AttributeValue::Unsigned16(value)
+            | AttributeValue::Enumeration16(value)
+            | AttributeValue::ClusterIdentifier(value)
+            | AttributeValue::AttributeIdentifier(value) => {
+                LittleEndian::write_u16(&mut data[0..2], *value);
+                2
+            }
+            AttributeValue::Data24(value)
+            | AttributeValue::Bitmap24(value)
+            | AttributeValue::Unsigned24(value) => {
+                LittleEndian::write_u24(&mut data[0..3], *value);
+                3
+            }
+            AttributeValue::Data32(value)
+            | AttributeValue::Bitmap32(value)
+            | AttributeValue::Unsigned32(value)
+            | AttributeValue::TimeOfDay(value)
+            | AttributeValue::Date(value)
+            | AttributeValue::UtcTime(value) => {
+                LittleEndian::write_u32(&mut data[0..4], *value);
+                4
+            }
+            AttributeValue::Data40(value)
+            | AttributeValue::Bitmap40(value)
+            | AttributeValue::Unsigned40(value)
+            | AttributeValue::Signed40(value) => {
+                data[0..5].clone_from_slice(value);
+                5
+            }
+            AttributeValue::Data48(value)
+            | AttributeValue::Bitmap48(value)
+            | AttributeValue::Unsigned48(value)
+            | AttributeValue::Signed48(value) => {
+                data[0..6].clone_from_slice(value);
+                6
+            }
+            AttributeValue::Data56(value)
+            | AttributeValue::Bitmap56(value)
+            | AttributeValue::Unsigned56(value)
+            | AttributeValue::Signed56(value) => {
+                data[0..7].clone_from_slice(value);
+                7
+            }
+            AttributeValue::Data64(value)
+            | AttributeValue::Bitmap64(value)
+            | AttributeValue::Unsigned64(value)
+            | AttributeValue::IeeeAddress(value) => {
+                LittleEndian::write_u64(&mut data[0..8], *value);
+                8
+            }
+            AttributeValue::Signed8(value) => {
+                data[0] = *value as u8;
+                1
+            }
+            AttributeValue::Signed16(value) => {
+                LittleEndian::write_i16(&mut data[0..2], *value);
+                2
+            }
+            AttributeValue::Signed24(value) => {
+                LittleEndian::write_i24(&mut data[0..3], *value);
+                3
+            }
+            AttributeValue::Signed32(value) => {
+                LittleEndian::write_i32(&mut data[0..4], *value);
+                4
+            }
+            AttributeValue::Signed64(value) => {
+                LittleEndian::write_i64(&mut data[0..8], *value);
+                8
+            }
+            AttributeValue::FloatingPoint32(value) => {
+                LittleEndian::write_f32(&mut data[0..4], *value);
+                4
+            }
+            AttributeValue::FloatingPoint64(value) => {
+                LittleEndian::write_f64(&mut data[0..8], *value);
+                8
+            }
+            AttributeValue::OctetString(value) => {
+                if data.is_empty() {
+                    return Err(Error::WrongNumberOfBytes);
+                }
+                if let Some(value) = value {
+                    if data.len() <= value.len() {
+                        return Err(Error::WrongNumberOfBytes);
+                    }
+                    data[0] = value.len() as u8;
+                    let used = value.pack(&mut data[1..])?;
+                    1 + used
+                } else {
+                    data[0] = 0xff;
+                    1
+                }
+            }
+            AttributeValue::CharacterString(value) => {
+                if data.is_empty() {
+                    return Err(Error::WrongNumberOfBytes);
+                }
+                if let Some(value) = value {
+                    if data.len() <= value.len() {
+                        return Err(Error::WrongNumberOfBytes);
+                    }
+                    data[0] = value.len() as u8;
+                    let used = value.pack(&mut data[1..])?;
+                    1 + used
+                } else {
+                    data[0] = 0xff;
+                    1
+                }
+            }
+        };
+        Ok((length, data_type))
     }
 
     pub fn unpack(data: &[u8], data_type: AttributeDataType) -> Result<(Self, usize), Error> {
@@ -446,6 +678,7 @@ impl AttributeValue {
         }
     }
 
+    /// Get the data type (`AttributeDataType`) for this value
     pub fn data_type(&self) -> AttributeDataType {
         match self {
             AttributeValue::None => AttributeDataType::None,
@@ -501,6 +734,7 @@ impl AttributeValue {
         }
     }
 
+    /// Check if the value is valid
     pub fn is_valid(&self) -> bool {
         match self {
             AttributeValue::None

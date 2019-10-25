@@ -64,8 +64,9 @@ impl Pack<AttributeStatus, Error> for AttributeStatus {
             if data.len() < 4 {
                 return Err(Error::WrongNumberOfBytes);
             }
-            data[3] = u8::from(value.data_type());
-            value.pack(&mut data[4..])? + 4
+            let (used, data_type) = value.pack(&mut data[4..])?;
+            data[3] = u8::from(data_type);
+            4 + used
         } else {
             3
         };
@@ -151,9 +152,9 @@ impl Pack<WriteAttributeRecord, Error> for WriteAttributeRecord {
             return Err(Error::WrongNumberOfBytes);
         }
         self.identifier.pack(&mut data[0..2])?;
-        data[2] = u8::from(self.value.data_type());
-        let used = self.value.pack(&mut data[3..])?;
-        Ok(used + 3)
+        let (used, data_type) = self.value.pack(&mut data[3..])?;
+        data[2] = u8::from(data_type);
+        Ok(3 + used)
     }
 
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {

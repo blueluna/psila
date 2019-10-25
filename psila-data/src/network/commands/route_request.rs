@@ -1,6 +1,8 @@
 use core::convert::TryFrom;
 
-use crate::common::address::{ExtendedAddress, GroupIdentifier, NetworkAddress, EXTENDED_ADDRESS_SIZE};
+use crate::common::address::{
+    ExtendedAddress, GroupIdentifier, NetworkAddress, EXTENDED_ADDRESS_SIZE,
+};
 use crate::error::Error;
 use crate::pack::{Pack, PackFixed};
 
@@ -63,8 +65,15 @@ pub struct RouteRequest {
 
 impl Pack<RouteRequest, Error> for RouteRequest {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
-        assert_eq!(self.destination_ieee_address.is_some(), self.options.destination_ieee_address);
-        let length = 5 + if self.destination_ieee_address.is_some() { EXTENDED_ADDRESS_SIZE } else { 0 };
+        assert_eq!(
+            self.destination_ieee_address.is_some(),
+            self.options.destination_ieee_address
+        );
+        let length = 5 + if self.destination_ieee_address.is_some() {
+            EXTENDED_ADDRESS_SIZE
+        } else {
+            0
+        };
         if data.len() < length {
             return Err(Error::WrongNumberOfBytes);
         }

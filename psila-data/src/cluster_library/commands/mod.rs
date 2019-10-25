@@ -40,6 +40,7 @@ extended_enum!(
     DiscoverAttributesExtendedResponse => 0x16,
 );
 
+/// Cluster library general command
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     ReadAttributes(ReadAttributes),

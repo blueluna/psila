@@ -158,9 +158,12 @@ impl SecurityHeader {
 
 impl Pack<SecurityHeader, Error> for SecurityHeader {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
-        let length = 5
-            + if self.source.is_some() { EXTENDED_ADDRESS_SIZE } else { 0 }
-            + if self.sequence.is_some() { 1 } else { 0 };
+        let length =
+            5 + if self.source.is_some() {
+                EXTENDED_ADDRESS_SIZE
+            } else {
+                0
+            } + if self.sequence.is_some() { 1 } else { 0 };
         if data.len() < length {
             return Err(Error::NotEnoughSpace);
         }

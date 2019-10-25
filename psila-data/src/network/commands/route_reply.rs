@@ -49,11 +49,27 @@ pub struct RouteReply {
 
 impl Pack<RouteReply, Error> for RouteReply {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
-        assert_eq!(self.orginator_ieee_address.is_some(), self.options.orginator_ieee_address);
-        assert_eq!(self.responder_ieee_address.is_some(), self.options.responder_ieee_address);
+        assert_eq!(
+            self.orginator_ieee_address.is_some(),
+            self.options.orginator_ieee_address
+        );
+        assert_eq!(
+            self.responder_ieee_address.is_some(),
+            self.options.responder_ieee_address
+        );
         let length = 7;
-        let length = length + if self.orginator_ieee_address.is_some() { EXTENDED_ADDRESS_SIZE } else { 0 };
-        let length = length + if self.responder_ieee_address.is_some() { EXTENDED_ADDRESS_SIZE } else { 0 };
+        let length = length
+            + if self.orginator_ieee_address.is_some() {
+                EXTENDED_ADDRESS_SIZE
+            } else {
+                0
+            };
+        let length = length
+            + if self.responder_ieee_address.is_some() {
+                EXTENDED_ADDRESS_SIZE
+            } else {
+                0
+            };
         if data.len() < length {
             return Err(Error::WrongNumberOfBytes);
         }
