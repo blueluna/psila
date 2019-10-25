@@ -18,14 +18,6 @@ impl SecurityService {
             Key::from(security::DEFAULT_LINK_KEY),
             "Default Link Key".to_string(),
         ));
-        keys.push((
-            Key::from(security::LIGHT_LINK_MASTER_KEY),
-            "Light Link Master Key".to_string(),
-        ));
-        keys.push((
-            Key::from(security::LIGHT_LINK_COMMISIONING_LINK_KEY),
-            "Light Link Commisioning Link Key".to_string(),
-        ));
         let backend = GCryptBackend::default();
         let crypto_provider = security::CryptoProvider::new(backend);
         SecurityService {
