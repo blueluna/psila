@@ -25,15 +25,15 @@ Implements packing and unpacking of packets.
 
 Defines traits for cryptographical backend for use with Psila.
 
-### Psila-crypto-gcrypt
+### Psila-crypto-openssl
 
-A implementation of the psila-cryto using gcrypo.
+A implementation of the psila-cryto using openssl.
 
 ### Psila-service
 
 A implementation of a service that handles and produce packages.
 
-### Host-Tool
+### Psila-Host
 
 A tool which listens on specialy encoded packets over serial port and decodes
 these packets.
