@@ -11,11 +11,10 @@ slice-deque = "0.1.16"
 ieee802154 = { git = "https://github.com/braun-embedded/rust-ieee802.15.4.git", branch = "master" }
 esercom = { git = "https://blueluna@bitbucket.org/blueluna/esercom.git", branch = "master" }
 psila-data = { path = "../psila-data" }
-psila-crypto-gcrypt = { path = "../psila-crypto-gcrypt" }
+psila-crypto-openssl = { path = "../psila-crypto-openssl" }
 serde = "1.0"
 serde_derive = "1.0"
 toml = "0.5"
-gcrypt = "0.6"
 chrono = "0.4"
 
 [dependencies.serialport]

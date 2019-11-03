@@ -1,24 +1,22 @@
 use std::convert::From;
 
-use gcrypt;
-use psila_crypto_gcrypt::GCryptBackend;
+use psila_crypto_openssl::OpenSslBackend;
 use psila_data::application_service::commands::transport_key::NetworkKey;
 use psila_data::{common::key::Key, pack::Pack, security};
 
 pub struct SecurityService {
     pub keys: Vec<(Key, String)>,
-    crypto_provider: security::CryptoProvider<GCryptBackend>,
+    crypto_provider: security::CryptoProvider<OpenSslBackend>,
 }
 
 impl SecurityService {
     pub fn new() -> Self {
-        gcrypt::init_default();
         let mut keys = Vec::new();
         keys.push((
             Key::from(security::DEFAULT_LINK_KEY),
             "Default Link Key".to_string(),
         ));
-        let backend = GCryptBackend::default();
+        let backend = OpenSslBackend::default();
         let crypto_provider = security::CryptoProvider::new(backend);
         SecurityService {
             keys,

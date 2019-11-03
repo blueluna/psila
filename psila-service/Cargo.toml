@@ -12,8 +12,7 @@ psila-crypto = { path = "../psila-crypto" }
 psila-data = { path = "../psila-data" }
 
 [dev-dependencies]
-psila-crypto-gcrypt = { path = "../psila-crypto-gcrypt" }
-gcrypt = { version = "0.6" }
+psila-crypto-openssl = { path = "../psila-crypto-openssl" }
 
 [features]
 default = []

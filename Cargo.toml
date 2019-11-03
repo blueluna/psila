@@ -4,6 +4,6 @@ members = [
     "host-tool",
     "psila-data",
     "psila-crypto",
-    "psila-crypto-gcrypt",
+    "psila-crypto-openssl",
     "psila-service",
 ]

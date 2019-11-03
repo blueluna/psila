@@ -341,16 +341,6 @@ impl CryptoBackend for GCryptBackend {
             .map_err(|e| Error::Other(e.code()))
     }
 
-    /// Set the IV
-    fn aes128_ecb_encrypt_set_iv(&mut self, _iv: &[u8]) -> Result<(), Error> {
-        Err(Error::NotImplemented)
-    }
-
-    /// Set the IV
-    fn aes128_ecb_encrypt_get_iv(&mut self, _iv: &mut [u8]) -> Result<(), Error> {
-        Err(Error::NotImplemented)
-    }
-
     /// Process blocks of data
     fn aes128_ecb_encrypt_process_block(
         &mut self,

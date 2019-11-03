@@ -297,18 +297,15 @@ where
 mod tests {
     use super::*;
     use bbqueue::{self, bbq, BBQueue};
-    use psila_crypto_gcrypt::GCryptBackend;
+    use psila_crypto_openssl::OpenSslBackend;
 
     #[test]
     fn build_beacon_request() {
-        use gcrypt;
-        gcrypt::init_default();
-
         const DEFAULT_LINK_KEY: [u8; 16] = [
             0x5a, 0x69, 0x67, 0x42, 0x65, 0x65, 0x41, 0x6c, 0x6c, 0x69, 0x61, 0x6e, 0x63, 0x65,
             0x30, 0x39,
         ];
-        let crypto_backend = GCryptBackend::default();
+        let crypto_backend = OpenSslBackend::default();
         let address = psila_data::ExtendedAddress::new(0x8899_aabb_ccdd_eeff);
         let tx_queue = bbq![256 * 2].unwrap();
         let (tx_producer, mut tx_consumer) = tx_queue.split();
