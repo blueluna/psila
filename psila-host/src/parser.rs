@@ -370,10 +370,10 @@ impl Parser {
                     Command::SwitchKey(cmd) => {
                         print!("Switch Key, Sequence {}", cmd.sequence);
                     }
-                    Command::EntityAuthenticationInitiatorChallange => {
+                    Command::EntityAuthenticationInitiatorChallenge => {
                         print!("EAC Initiator");
                     }
-                    Command::EntityAuthenticationResponderChallange => {
+                    Command::EntityAuthenticationResponderChallenge => {
                         print!("EAC Responder");
                     }
                     Command::EntityAuthenticationInitiatorMacAndData => {
@@ -689,16 +689,16 @@ impl Parser {
                         print!("Wrong number of bytes");
                     }
                     psila_data::Error::UnknownFrameType => {
-                        print!("Unkown frame type");
+                        print!("Unknown frame type");
                     }
                     psila_data::Error::BrokenRelayList => {
                         print!("Broken relay list");
                     }
                     psila_data::Error::UnknownNetworkCommand => {
-                        print!("Unkown network command");
+                        print!("Unknown network command");
                     }
                     psila_data::Error::UnknownDeliveryMode => {
-                        print!("Unkown delivery mode");
+                        print!("Unknown delivery mode");
                     }
                     _ => {
                         print!("{:?}", e);

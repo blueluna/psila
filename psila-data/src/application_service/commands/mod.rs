@@ -115,10 +115,10 @@ impl Command {
             RemoveDevice(_) => CommandIdentifier::RemoveDevice,
             RequestKey(_) => CommandIdentifier::RequestKey,
             SwitchKey(_) => CommandIdentifier::SwitchKey,
-            EntityAuthenticationInitiatorChallange => {
+            EntityAuthenticationInitiatorChallenge => {
                 CommandIdentifier::EntityAuthenticationInitiatorChallenge
             }
-            EntityAuthenticationResponderChallange => {
+            EntityAuthenticationResponderChallenge => {
                 CommandIdentifier::EntityAuthenticationResponderChallenge
             }
             EntityAuthenticationInitiatorMacAndData => {
