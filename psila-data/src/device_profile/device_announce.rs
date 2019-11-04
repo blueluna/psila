@@ -86,4 +86,29 @@ mod tests {
         assert_eq!(da.capability.frame_protection, false);
         assert_eq!(da.capability.allocate_address, true);
     }
+
+    #[test]
+    fn pack_device_announce() {
+        let mut data = [0xff; 32];
+        let device_announce = DeviceAnnounce {
+            network_address: NetworkAddress::new(0x8765),
+            ieee_address: ExtendedAddress::new(0xfedc_ba98_7654_3210),
+            capability: CapabilityInformation {
+                alternate_pan_coordinator: false,
+                router_capable: false,
+                mains_power: true,
+                idle_receive: false,
+                frame_protection: false,
+                allocate_address: true,
+            },
+        };
+        let used = device_announce.pack(&mut data).unwrap();
+        assert_eq!(used, 11);
+        assert_eq!(data[0..2], [0x65, 0x87]);
+        assert_eq!(
+            data[2..10],
+            [0x10, 0x32, 0x54, 0x76, 0x98, 0xba, 0xdc, 0xfe]
+        );
+        assert_eq!(data[10], 0x84);
+    }
 }
