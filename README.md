@@ -35,7 +35,7 @@ A implementation of a service that handles and produce packages.
 
 ### Psila-Host
 
-A tool which listens on specialy encoded packets over serial port and decodes
+A tool which listens on specially encoded packets over serial port and decodes
 these packets.
 
 ## License
