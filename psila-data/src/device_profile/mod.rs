@@ -23,17 +23,21 @@ const RESPONSE: u16 = 0x8000;
 extended_enum!(
 	/// Device profile cluster identifiers
 	ClusterIdentifier, u16,
+    /// Request the network address of another device
 	NetworkAddressRequest => 0x0000,
+    /// Request the IEEE address of another device
 	IeeeAddressRequest => 0x0001,
+    /// Request the node descriptor of another device
 	NodeDescriptorRequest => 0x0002,
 	PowerDescriptorRequest => 0x0003,
 	SimpleDescriptorRequest => 0x0004,
 	ActiveEndpointRequest => 0x0005,
+    /// Find other devices that match the criterias
 	MatchDescriptorRequest => 0x0006,
 	ComplexDescriptorRequest => 0x0010,
 	UserDescriptorRequest => 0x0011,
 	DiscoveryCacheRequest => 0x0012,
-	// No response
+    /// Device announcment notification
 	DeviceAnnounce => 0x0013,
 	SetUserDescriptor => 0x0014,
 	SystemServerDiscoveryRequest => 0x0015,
@@ -59,6 +63,7 @@ extended_enum!(
 	BackupSourceBindRequest => 0x0029,
 	RecoverSourceBindRequest => 0x002a,
 	ManagementNetworkDiscoveryRequest => 0x0030,
+    /// Management link quality indicator (LQI) request
 	ManagementLinkQualityIndicatorRequest => 0x0031,
 	ManagementRoutingTableRequest => 0x0032,
 	ManagementBindingTableRequest => 0x0033,
@@ -75,54 +80,74 @@ extended_enum!(
 	Status, u8,
     /// Request succeded
 	Success => 0x00,
-    /// 
+    /// The supplied request type was invalid
 	InvalidRequestType => 0x80,
+    /// The requested device cannot be found
 	DeviceNotFound => 0x81,
+    /// The provided endpoint is invalid (0x00 or 0xff)
 	InvalidEndpoint => 0x82,
+    /// Endpoint is not described by a simple descriptor
 	NotActive => 0x83,
+    /// The requested optional feature is not supported by this device
 	NotSupported => 0x84,
+    /// The request timed out
 	Timeout => 0x85,
+    /// Bind request was unsuccessful because the requested cluster was not found
 	NoMatch => 0x86,
+    /// Failed to unbind because lack of binding entries
 	NoEntry => 0x88,
+    /// The child descriptor is not available to the parent
 	NoDescriptor => 0x89,
+    /// The device do not have sufficient storafe to support the request
 	InsufficientSpace => 0x8a,
+    /// The device could not complete the operation at this time
 	NotPermitted => 0x8b,
+    /// The device could not complete the operation since the table is full
 	TableFull => 0x8c,
+    /// The device was not authorized to complete the operation
 	NotAuthorized => 0x8d,
+    /// The device could not complete the operation because the device binding table is full
 	DeviceBindingTableFull => 0x8e,
 	InvalidIndex => 0x8f,
 );
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DeviceProfileMessage {
+    /// Request the network address of another device
     NetworkAddressRequest(NetworkAddressRequest),
+    /// Network address response
     NetworkAddressResponse(AddressResponse),
+    /// Request the IEEE address of another device
     IeeeAddressRequest(IeeeAddressRequest),
+    /// IEEE address response
     IeeeAddressResponse(AddressResponse),
+    /// Request the node descriptor of another device
     NodeDescriptorRequest(NodeDescriptorRequest),
+    /// Find other devices that match the criterias
     MatchDescriptorRequest(MatchDescriptorRequest),
+    /// Response to a match descriptor request
     MatchDescriptorResponse(MatchDescriptorResponse),
+    /// Device announcment notification
     DeviceAnnounce(DeviceAnnounce),
     /// Management link quality indicator (LQI) request
     /// Message contains the start index as u8
     ManagementLinkQualityIndicatorRequest(u8),
+    /// Response to management link quality indicator request
     ManagementLinkQualityIndicatorResponse(ManagementLinkQualityIndicatorResponse),
 }
 
 impl DeviceProfileMessage {
     pub fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
         match *self {
-            DeviceProfileMessage::NetworkAddressRequest(ref m) => m.pack(&mut data[..]),
-            DeviceProfileMessage::NetworkAddressResponse(ref m) => m.pack(&mut data[..]),
-            DeviceProfileMessage::IeeeAddressRequest(ref m) => m.pack(&mut data[..]),
-            DeviceProfileMessage::IeeeAddressResponse(ref m) => m.pack(&mut data[..]),
-            DeviceProfileMessage::NodeDescriptorRequest(ref m) => m.pack(&mut data[..]),
-            DeviceProfileMessage::MatchDescriptorRequest(ref m) => m.pack(&mut data[..]),
-            DeviceProfileMessage::MatchDescriptorResponse(ref m) => m.pack(&mut data[..]),
-            DeviceProfileMessage::DeviceAnnounce(ref m) => m.pack(&mut data[..]),
-            DeviceProfileMessage::ManagementLinkQualityIndicatorResponse(ref m) => {
-                m.pack(&mut data[..])
-            }
+            DeviceProfileMessage::NetworkAddressRequest(ref m) => m.pack(data),
+            DeviceProfileMessage::NetworkAddressResponse(ref m) => m.pack(data),
+            DeviceProfileMessage::IeeeAddressRequest(ref m) => m.pack(data),
+            DeviceProfileMessage::IeeeAddressResponse(ref m) => m.pack(data),
+            DeviceProfileMessage::NodeDescriptorRequest(ref m) => m.pack(data),
+            DeviceProfileMessage::MatchDescriptorRequest(ref m) => m.pack(data),
+            DeviceProfileMessage::MatchDescriptorResponse(ref m) => m.pack(data),
+            DeviceProfileMessage::DeviceAnnounce(ref m) => m.pack(data),
+            DeviceProfileMessage::ManagementLinkQualityIndicatorResponse(ref m) => m.pack(data),
             DeviceProfileMessage::ManagementLinkQualityIndicatorRequest(ref m) => {
                 data[0] = *m;
                 Ok(1)
