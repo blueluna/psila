@@ -18,9 +18,9 @@ pub enum Error {
     MalformedPacket,
     /// Not enough space to complete the operation
     NotEnoughSpace,
-    /// A psila-data errror occured
+    /// A psila-data error occurred
     DataError(psila_data::Error),
-    /// A psila-crypto errror occured
+    /// A psila-crypto error occurred
     CryptoError(psila_crypto::Error),
 }
 

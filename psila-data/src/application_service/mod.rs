@@ -13,7 +13,7 @@ pub use header::ApplicationServiceHeader;
 extended_enum!(
     /// Status codes used in the application service sub-system
     ApplicationServiceStatus, u8,
-    /// Request succeded
+    /// Request succeeded
     Success => 0x00,
     /// A transmit request failed since the ASDU is too large and
     /// fragmentation is not supported.

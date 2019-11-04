@@ -20,7 +20,7 @@ const COMMAND_IDENTIFIER_MASK: u8 = 0b1110_0000;
 /// dentifier.
 ///
 /// This command actually has the potential to mean other things, but only one
-/// command identifier is standardized as of yet.
+/// command identifier is standardised as of yet.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NetworkUpdate {
     pub command_identifier: CommandIdentifier,

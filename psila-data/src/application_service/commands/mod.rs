@@ -37,10 +37,10 @@ extended_enum!(
     RequestKey => 0x08,
     /// Switch key command identifier
     SwitchKey => 0x09,
-    /// Entity authentication challange initiation command identifier
-    EntityAuthenticationInitiatorChallange => 0x0a,
-    /// Entity authentication challange response command identifier
-    EntityAuthenticationResponderChallange => 0x0b,
+    /// Entity authentication challenge initiation command identifier
+    EntityAuthenticationInitiatorChallenge => 0x0a,
+    /// Entity authentication challenge response command identifier
+    EntityAuthenticationResponderChallenge => 0x0b,
     /// Entity authentication ? command identifier
     EntityAuthenticationInitiatorMacAndData => 0x0c,
     /// Entity authentication ? command identifier
@@ -79,11 +79,11 @@ pub enum Command {
     /// Entity authentication command
     ///
     /// NOT IMPLEMENTED
-    EntityAuthenticationInitiatorChallange,
+    EntityAuthenticationInitiatorChallenge,
     /// Entity authentication command
     ///
     /// NOT IMPLEMENTED
-    EntityAuthenticationResponderChallange,
+    EntityAuthenticationResponderChallenge,
     /// Entity authentication command
     ///
     /// NOT IMPLEMENTED
@@ -116,10 +116,10 @@ impl Command {
             RequestKey(_) => CommandIdentifier::RequestKey,
             SwitchKey(_) => CommandIdentifier::SwitchKey,
             EntityAuthenticationInitiatorChallange => {
-                CommandIdentifier::EntityAuthenticationInitiatorChallange
+                CommandIdentifier::EntityAuthenticationInitiatorChallenge
             }
             EntityAuthenticationResponderChallange => {
-                CommandIdentifier::EntityAuthenticationResponderChallange
+                CommandIdentifier::EntityAuthenticationResponderChallenge
             }
             EntityAuthenticationInitiatorMacAndData => {
                 CommandIdentifier::EntityAuthenticationInitiatorMacAndData
@@ -151,8 +151,8 @@ impl Pack<Command, Error> for Command {
             Command::RemoveDevice(cmd) => cmd.pack(&mut data[1..])?,
             Command::RequestKey(cmd) => cmd.pack(&mut data[1..])?,
             Command::SwitchKey(cmd) => cmd.pack(&mut data[1..])?,
-            Command::EntityAuthenticationInitiatorChallange
-            | Command::EntityAuthenticationResponderChallange
+            Command::EntityAuthenticationInitiatorChallenge
+            | Command::EntityAuthenticationResponderChallenge
             | Command::EntityAuthenticationInitiatorMacAndData
             | Command::EntityAuthenticationResponderMacAndData => 0,
             Command::Tunnel(cmd) => cmd.pack(&mut data[1..])?,
@@ -204,11 +204,11 @@ impl Pack<Command, Error> for Command {
                 let (sk, used) = SwitchKey::unpack(&data[1..])?;
                 (Command::SwitchKey(sk), used)
             }
-            CommandIdentifier::EntityAuthenticationInitiatorChallange => {
-                (Command::EntityAuthenticationInitiatorChallange, 0)
+            CommandIdentifier::EntityAuthenticationInitiatorChallenge => {
+                (Command::EntityAuthenticationInitiatorChallenge, 0)
             }
-            CommandIdentifier::EntityAuthenticationResponderChallange => {
-                (Command::EntityAuthenticationResponderChallange, 0)
+            CommandIdentifier::EntityAuthenticationResponderChallenge => {
+                (Command::EntityAuthenticationResponderChallenge, 0)
             }
             CommandIdentifier::EntityAuthenticationInitiatorMacAndData => {
                 (Command::EntityAuthenticationInitiatorMacAndData, 0)

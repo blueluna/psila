@@ -61,7 +61,7 @@ impl PartialEq<StackProfile> for u8 {
     }
 }
 
-/// Beacon informaion sent with 802.15.4 beacon frames
+/// Beacon information sent with 802.15.4 beacon frames
 pub struct BeaconInformation {
     /// Protocol identifier, describes the proticol used by this node
     pub protocol_indentifier: ProtocolIdentifier,

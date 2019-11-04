@@ -93,7 +93,7 @@ pub struct SecurityControl {
     pub level: SecurityLevel,
     /// Key identifier
     pub identifier: KeyIdentifier,
-    /// The auxilliary header has sender address
+    /// The auxiliary header has sender address
     has_source_address: bool,
 }
 

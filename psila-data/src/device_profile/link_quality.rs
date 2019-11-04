@@ -19,14 +19,14 @@ extended_enum!(
 );
 
 impl Default for DeviceType {
-    /// Initialize the device type as `DeviceType::Unknown`
+    /// Initialise the device type as `DeviceType::Unknown`
     fn default() -> Self {
         DeviceType::Unknown
     }
 }
 
 extended_enum!(
-    /// Wether the node receives when idle or not
+    /// Whether the node receives when idle or not
     RxOnWhenIdle, u8,
     /// Receiver is disabled when idle
     Off => 0x00,
@@ -37,7 +37,7 @@ extended_enum!(
 );
 
 impl Default for RxOnWhenIdle {
-    /// Initialize the receive on when idle as `RxOnWhenIdle::Unknown`
+    /// Initialise the receive on when idle as `RxOnWhenIdle::Unknown`
     fn default() -> Self {
         RxOnWhenIdle::Unknown
     }
@@ -59,7 +59,7 @@ extended_enum!(
 );
 
 impl Default for Relationship {
-    /// Initialize the relationship as `Relationship::NoneOfAbove`
+    /// Initialise the relationship as `Relationship::NoneOfAbove`
     fn default() -> Self {
         Relationship::NoneOfAbove
     }

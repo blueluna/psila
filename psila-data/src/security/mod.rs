@@ -7,6 +7,7 @@ use crate::error::Error;
 mod header;
 
 use crate::common::key::KEY_SIZE;
+use crate::network::NetworkHeader;
 use crate::pack::{Pack, PackFixed};
 
 pub use header::{KeyIdentifier, SecurityControl, SecurityHeader, SecurityLevel};
@@ -199,5 +200,32 @@ where
         )?;
 
         Ok(used)
+    }
+
+    pub fn encrypt_network_payload(
+        &mut self,
+        header: NetworkHeader,
+        key: &[u8; KEY_SIZE],
+        security_header: SecurityHeader,
+        payload: &[u8],
+        output_payload: &mut [u8],
+    ) -> Result<usize, Error> {
+        let nwk_used = header.pack(&mut self.buffer[..])?;
+        let sec_used = security_header.pack(&mut self.buffer[nwk_used..])?;
+        let aad_length = nwk_used + sec_used;
+        let mut nonce = [0u8; 13];
+        security_header.get_nonce(&mut nonce)?;
+        let mut mic = [0u8; 16];
+        let mic_length = security_header.control.level.mic_bytes();
+
+        let encrypted_length = self.backend.ccmstar_encrypt(
+            key,
+            &nonce,
+            payload,
+            &mut mic[..mic_length],
+            &self.buffer[..aad_length],
+            output_payload,
+        )?;
+        Ok(encrypted_length)
     }
 }

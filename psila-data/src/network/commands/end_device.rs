@@ -44,9 +44,9 @@ impl Timeout {
     }
 }
 
-/// End-device timout request
+/// End-device timeout request
 ///
-/// Request for timout configuration. If the end device do not communicate
+/// Request for timeout configuration. If the end device do not communicate
 /// within the timeout, the device can be removed from the neighbor table.
 #[derive(Clone, Debug, PartialEq)]
 pub struct EndDeviceTimeoutRequest {
@@ -84,7 +84,7 @@ extended_enum!(
 const MAC_KEEP_ALIVE: u8 = 0b0000_0001;
 const END_DEVICE_KEEP_ALIVE: u8 = 0b0000_0010;
 
-/// End-device timout response
+/// End-device timeout response
 ///
 #[derive(Clone, Debug, PartialEq)]
 pub struct EndDeviceTimeoutResponse {

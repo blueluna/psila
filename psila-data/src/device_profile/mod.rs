@@ -32,12 +32,12 @@ extended_enum!(
 	PowerDescriptorRequest => 0x0003,
 	SimpleDescriptorRequest => 0x0004,
 	ActiveEndpointRequest => 0x0005,
-    /// Find other devices that match the criterias
+    /// Find other devices that match the criteria
 	MatchDescriptorRequest => 0x0006,
 	ComplexDescriptorRequest => 0x0010,
 	UserDescriptorRequest => 0x0011,
 	DiscoveryCacheRequest => 0x0012,
-    /// Device announcment notification
+    /// Device announcement notification
 	DeviceAnnounce => 0x0013,
 	SetUserDescriptor => 0x0014,
 	SystemServerDiscoveryRequest => 0x0015,
@@ -78,7 +78,7 @@ extended_enum!(
 extended_enum!(
     /// Response status codes
 	Status, u8,
-    /// Request succeded
+    /// Request succeeded
 	Success => 0x00,
     /// The supplied request type was invalid
 	InvalidRequestType => 0x80,
@@ -104,8 +104,8 @@ extended_enum!(
 	NotPermitted => 0x8b,
     /// The device could not complete the operation since the table is full
 	TableFull => 0x8c,
-    /// The device was not authorized to complete the operation
-	NotAuthorized => 0x8d,
+    /// The device was not authorised to complete the operation
+	NotAuthorised => 0x8d,
     /// The device could not complete the operation because the device binding table is full
 	DeviceBindingTableFull => 0x8e,
 	InvalidIndex => 0x8f,
@@ -123,11 +123,11 @@ pub enum DeviceProfileMessage {
     IeeeAddressResponse(AddressResponse),
     /// Request the node descriptor of another device
     NodeDescriptorRequest(NodeDescriptorRequest),
-    /// Find other devices that match the criterias
+    /// Find other devices that match the criteria
     MatchDescriptorRequest(MatchDescriptorRequest),
     /// Response to a match descriptor request
     MatchDescriptorResponse(MatchDescriptorResponse),
-    /// Device announcment notification
+    /// Device announcement notification
     DeviceAnnounce(DeviceAnnounce),
     /// Management link quality indicator (LQI) request
     /// Message contains the start index as u8

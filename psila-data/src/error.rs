@@ -39,7 +39,7 @@ pub enum Error {
     UnknownClusterIdentifier,
     /// The attribute value is unsupported
     UnsupportedAttributeValue,
-    /// A crypto error has occurd
+    /// A crypto error has occurred
     CryptoError(psila_crypto::Error),
 }
 

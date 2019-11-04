@@ -9,7 +9,7 @@ pub use ieee802154::mac::{
 
 use psila_data::PanIdentifier;
 
-use crate::indentity::Identity;
+use crate::identity::Identity;
 use crate::Error;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -54,7 +54,7 @@ impl MacService {
             pan_identifier: PanIdentifier::broadcast(),
             identity: Identity::from_extended(address),
             capabilities,
-            coordinator: Identity::new(),
+            coordinator: Identity::default(),
         }
     }
 
@@ -126,7 +126,7 @@ impl MacService {
     /// +-------------+--------+---------+-------------+----------+----------+
     /// ```
     ///
-    /// 1. If this is a response to a data reuqest frame, this is set to true
+    /// 1. If this is a response to a data request frame, this is set to true
     ///    if there is data pending, otherwise false.
     ///
     /// No payload

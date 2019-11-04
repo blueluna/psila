@@ -23,8 +23,8 @@ extended_enum!(
     Success => 0x00,
     /// Operation was not successful.
     Failure => 0x01,
-    /// The sender of the command does not have authorization to carry out this command.
-    NotAuthorized => 0x7e,
+    /// The sender of the command does not have authorisation to carry out this command.
+    NotAuthorised => 0x7e,
     /// A reserved field/subfield/bit contains a non-zero value.
     ReservedFieldNotZero => 0x7f,
     /// The command appears to contain the wrong fields, as detected either by the presence of one or more invalid field entries or by there being missing fields. Command not carried out.
@@ -33,9 +33,9 @@ extended_enum!(
     UnsupportedClusterCommand => 0x81,
     /// The specified general ZCL command is not supported on the device.
     UnsupportedGeneralCommand => 0x82,
-    /// A manufacturer specific unicast, cluster specific command was received with an unknown manufacturer code, or the manufacturer code was recognized but the command is not supported.
+    /// A manufacturer specific unicast, cluster specific command was received with an unknown manufacturer code, or the manufacturer code was recognised but the command is not supported.
     UnsupportedManufacturerClusterCommand => 0x83,
-    /// A manufacturer specific unicast, ZCL specific command was received with an unknown manufacturer code, or the manufacturer code was recognized but the command is not supported.
+    /// A manufacturer specific unicast, ZCL specific command was received with an unknown manufacturer code, or the manufacturer code was recognised but the command is not supported.
     UnsupportedManufacturerGeneralCommand => 0x84,
     /// At least one field of the command contains an incorrect value, according to the specification the device is implemented to.
     InvalidField => 0x85,
@@ -57,7 +57,7 @@ extended_enum!(
     InvalidDataType => 0x8d,
     /// The selector for an attribute is incorrect.
     InvalidSelector => 0x8e,
-    /// A request has been made to read an attribute that the requestor is not authorized to read. No action taken.
+    /// A request has been made to read an attribute that the requestor is not authorised to read. No action taken.
     WriteOnly => 0x8f,
     /// Setting the requested values would put the device in an inconsistent state on startup. No action taken.
     InconsistentStartupState => 0x90,

@@ -2,6 +2,7 @@ use crate::Error;
 use log;
 use psila_crypto::CryptoBackend;
 use psila_data::{
+    application_service::commands::transport_key::NetworkKey,
     pack::Pack,
     security::{CryptoProvider, KeyIdentifier, SecurityHeader, SecurityLevel},
     Key,
@@ -10,8 +11,9 @@ use psila_data::{
 pub struct SecurityManager<CB> {
     crypto_provider: CryptoProvider<CB>,
     default_link_key: Key,
-    network_key: Option<Key>,
+    network_key: Option<NetworkKey>,
     security_level: SecurityLevel,
+    sequence: u32,
 }
 
 impl<CB> SecurityManager<CB>
@@ -24,6 +26,7 @@ where
             default_link_key,
             network_key: None,
             security_level: SecurityLevel::EncryptedIntegrity32,
+            sequence: 0,
         }
     }
 
@@ -35,7 +38,7 @@ where
             }
             KeyIdentifier::Network => {
                 log::info!("Network key");
-                self.network_key
+                self.network_key.map(|k| k.key)
             }
             KeyIdentifier::KeyTransport => {
                 log::info!("Key-transport key");
@@ -48,7 +51,7 @@ where
         }
     }
 
-    pub fn set_network_key(&mut self, key: Key) {
+    pub fn set_network_key(&mut self, key: NetworkKey) {
         self.network_key = Some(key);
     }
 
@@ -73,5 +76,9 @@ where
         };
         log::info!("Decrypt result size {}", size);
         Ok(size)
+    }
+
+    pub fn encrypt_network_payload(&mut self) -> Result<usize, Error> {
+        Ok(0)
     }
 }

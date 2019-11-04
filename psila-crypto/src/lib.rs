@@ -56,7 +56,7 @@ pub trait BlockCipher {
     fn finish(&mut self, input: &[u8], output: &mut [u8]) -> Result<(), Error>;
 }
 
-/// Trait for implemeting a crypto backend
+/// Trait for implementing a crypto backend
 pub trait CryptoBackend {
     /// Encrypt using CCM*
     fn ccmstar_encrypt(

@@ -11,12 +11,12 @@ use psila_data::{pack::Pack, CapabilityInformation, ExtendedAddress, Key};
 use psila_crypto::CryptoBackend;
 
 mod error;
-mod indentity;
+mod identity;
 pub mod mac;
 mod security;
 
 pub use error::Error;
-pub use indentity::Identity;
+pub use identity::Identity;
 
 use mac::MacService;
 
@@ -73,7 +73,7 @@ where
 
     /// Receive, call this method when new data has been received by the radio
     /// ### Return
-    /// true if the message was adressed to this device
+    /// true if the message was addressed to this device
     pub fn handle_acknowledge(&mut self, data: &[u8]) -> Result<bool, Error> {
         let mut buffer = [0u8; PACKET_BUFFER_MAX];
         match mac::Frame::decode(data, false) {
@@ -162,6 +162,7 @@ where
         Ok(())
     }
 
+    /// Handle a network frame
     fn handle_network_frame(
         &mut self,
         header: &psila_data::network::NetworkHeader,
@@ -276,7 +277,7 @@ where
                 if let Command::TransportKey(cmd) = command {
                     if let TransportKey::StandardNetworkKey(key) = cmd {
                         log::info!("Set network key");
-                        self.security_manager.set_network_key(key.key);
+                        self.security_manager.set_network_key(key);
                     }
                 }
             }
