@@ -73,7 +73,7 @@ fn main() {
     }
 
     let mut buffer: SliceDeque<u8> = SliceDeque::with_capacity(256);
-    let mut data = [0u8; 256];
+    let mut data = [0u8; 1024];
     let mut pkt_data = [0u8; 256];
 
     match serialport::open_with_settings(&port_name, &settings) {
