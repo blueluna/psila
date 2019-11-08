@@ -73,7 +73,8 @@ fn main() {
     }
 
     let mut buffer: SliceDeque<u8> = SliceDeque::with_capacity(256);
-    let mut data = [0u8; 1024];
+    let mut work = [0u8; 2048];
+    let mut data = [0u8; 256];
     let mut pkt_data = [0u8; 256];
 
     match serialport::open_with_settings(&port_name, &settings) {
@@ -84,7 +85,7 @@ fn main() {
                     Ok(rx_count) => {
                         buffer.extend_from_slice(&data[..rx_count]);
                         loop {
-                            match esercom::com_decode(buffer.as_slice(), &mut data) {
+                            match esercom::com_decode_ex(buffer.as_slice(), &mut data, &mut work) {
                                 Ok((msg, used, written)) => {
                                     if written == 0 {
                                         break;
