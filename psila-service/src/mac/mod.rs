@@ -114,6 +114,22 @@ impl MacService {
         }
     }
 
+    /// Create a header using the provided arguments
+    fn create_header_self_source(
+        &self,
+        frame_type: FrameType,
+        pending: bool,
+        acknowledge: bool,
+        destination: Address,
+    ) -> Header {
+        let source = if self.identity.assigned_short() {
+            Address::Short(self.pan_identifier.into(), self.identity.short.into())
+        } else {
+            Address::Extended(self.pan_identifier.into(), self.identity.extended.into())
+        };
+        self.create_header(frame_type, pending, acknowledge, destination, source)
+    }
+
     /// Build a Imm-Ack frame
     ///
     /// IEEE 802.15.4-2015 chapter 7.3.3
@@ -214,17 +230,11 @@ impl MacService {
         destination: psila_data::ShortAddress,
         data: &mut [u8],
     ) -> Result<(usize, u32), Error> {
-        let source = if self.identity.assigned_short() {
-            Address::Short(self.pan_identifier.into(), self.identity.short.into())
-        } else {
-            Address::Extended(self.pan_identifier.into(), self.identity.extended.into())
-        };
-        let header = self.create_header(
+        let header = self.create_header_self_source(
             FrameType::MacCommand,
             false,
             true,
             Address::Short(self.pan_identifier.into(), destination.into()),
-            source,
         );
         let frame = Frame {
             header,
@@ -233,6 +243,19 @@ impl MacService {
             footer: [0u8; 2],
         };
         Ok((frame.encode(data, WriteFooter::No), 0))
+    }
+
+    pub fn build_data_header(
+        &self,
+        destination: psila_data::ShortAddress,
+        acknowledge: bool,
+    ) -> Header {
+        self.create_header_self_source(
+            FrameType::Data,
+            false, // Pending data
+            acknowledge,
+            Address::Short(self.pan_identifier.into(), destination.into()),
+        )
     }
 
     pub fn requests_acknowledge(&self, frame: &Frame) -> bool {

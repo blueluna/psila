@@ -2,6 +2,8 @@
 
 #![no_std]
 
+use core::cell::Cell;
+
 use log;
 
 use bbqueue;
@@ -10,6 +12,7 @@ use psila_data::{pack::Pack, CapabilityInformation, ExtendedAddress, Key};
 
 use psila_crypto::CryptoBackend;
 
+mod application_service;
 mod error;
 mod identity;
 pub mod mac;
@@ -18,16 +21,26 @@ mod security;
 pub use error::Error;
 pub use identity::Identity;
 
+use application_service::ApplicationServiceContext;
 use mac::MacService;
 
-/// Short address size
+/// Max buffer size
 pub const PACKET_BUFFER_MAX: usize = 128;
+
+#[derive(Clone, Copy)]
+pub enum NetworkState {
+    Orphan,
+    Associated,
+    Secure,
+}
 
 pub struct PsilaService<CB> {
     mac: MacService,
+    application_service: ApplicationServiceContext,
     security_manager: security::SecurityManager<CB>,
     capability: CapabilityInformation,
     tx_queue: bbqueue::Producer,
+    state: Cell<NetworkState>,
 }
 
 impl<CB> PsilaService<CB>
@@ -50,10 +63,20 @@ where
         };
         Self {
             mac: MacService::new(address, capability),
+            application_service: ApplicationServiceContext::default(),
             security_manager: security::SecurityManager::new(crypto, default_link_key),
             capability,
             tx_queue,
+            state: Cell::new(NetworkState::Orphan),
         }
+    }
+
+    pub fn get_state(&self) -> NetworkState {
+        self.state.get()
+    }
+
+    fn set_state(&self, state: NetworkState) {
+        (*self).state.set(state);
     }
 
     /// Push a packet onto the queue
@@ -110,7 +133,10 @@ where
                 if packet_length > 0 {
                     self.queue_packet(&buffer[..packet_length])?;
                 }
-                if self.mac.state() == mac::State::Associated {
+                if let mac::State::Associated = self.mac.state() {
+                    if let NetworkState::Orphan = self.get_state() {
+                        self.set_state(NetworkState::Associated);
+                    }
                     self.handle_mac_frame(&frame)?;
                 }
                 Ok(timeout)
@@ -194,8 +220,8 @@ where
                 }
             }
             FrameType::Command => {
-                self.handle_network_command(nwk_payload)?;
                 // handle command
+                self.handle_network_command(nwk_payload)?;
             }
             FrameType::InterPan => {
                 log::info!("Handle inter-PAN");
@@ -263,6 +289,7 @@ where
             commands::{Command, TransportKey},
             header::FrameType,
         };
+        let mut buffer = [0u8; PACKET_BUFFER_MAX];
         match header.control.frame_type {
             FrameType::Data => {
                 log::info!("Handle application service data");
@@ -277,7 +304,20 @@ where
                 if let Command::TransportKey(cmd) = command {
                     if let TransportKey::StandardNetworkKey(key) = cmd {
                         log::info!("Set network key");
+                        self.set_state(NetworkState::Secure);
                         self.security_manager.set_network_key(key);
+                        log::info!("Queue device announce");
+                        let mac_header = self
+                            .mac
+                            .build_data_header(psila_data::NetworkAddress::broadcast(), false);
+                        let mac_header_len = mac_header.encode(&mut buffer);
+                        let mwk_frame_size = self.application_service.build_device_announce(
+                            &self.mac.identity(),
+                            self.capability,
+                            &mut buffer[mac_header_len..],
+                            &mut self.security_manager,
+                        )?;
+                        self.queue_packet(&buffer[..(mac_header_len + mwk_frame_size)])?;
                     }
                 }
             }

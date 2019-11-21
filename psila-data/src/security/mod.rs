@@ -202,7 +202,7 @@ where
         Ok(used)
     }
 
-    pub fn encrypt_network_payload(
+    pub fn encrypt_network_frame(
         &mut self,
         header: NetworkHeader,
         key: &[u8; KEY_SIZE],
@@ -217,6 +217,7 @@ where
         security_header.get_nonce(&mut nonce)?;
         let mut mic = [0u8; 16];
         let mic_length = security_header.control.level.mic_bytes();
+        output_payload[..aad_length].copy_from_slice(&self.buffer[..aad_length]);
 
         let encrypted_length = self.backend.ccmstar_encrypt(
             key,
@@ -224,8 +225,16 @@ where
             payload,
             &mut mic[..mic_length],
             &self.buffer[..aad_length],
-            output_payload,
+            &mut output_payload[aad_length..],
         )?;
-        Ok(encrypted_length)
+
+        let offset = aad_length + encrypted_length;
+
+        let _ = header.pack(&mut output_payload[..nwk_used])?;
+        let _ = security_header.pack(&mut output_payload[nwk_used..nwk_used + sec_used])?;
+        output_payload[nwk_used] &= !header::SECURITY_LEVEL_MASK;
+        output_payload[offset..offset + mic_length].copy_from_slice(&mic[..mic_length]);
+
+        Ok(offset + mic_length)
     }
 }

@@ -73,12 +73,12 @@ impl PackFixed<FrameControl, Error> for FrameControl {
             let frame_type = self.frame_type as u8;
             let discover_route = self.discover_route as u8;
 
-            data[0] = frame_type & (self.protocol_version << 2) & discover_route;
+            data[0] = frame_type | (self.protocol_version << 2) | discover_route;
             data[1] = self.multicast as u8
-                & ((self.security as u8) << 1)
-                & ((self.contains_source_route_frame as u8) << 2)
-                & ((self.contains_destination_ieee_address as u8) << 3)
-                & ((self.contains_source_ieee_address as u8) << 4);
+                | ((self.security as u8) << 1)
+                | ((self.contains_source_route_frame as u8) << 2)
+                | ((self.contains_destination_ieee_address as u8) << 3)
+                | ((self.contains_source_ieee_address as u8) << 4);
             Ok(())
         }
     }
@@ -249,6 +249,8 @@ impl Pack<SourceRouteFrame, Error> for SourceRouteFrame {
     }
 }
 
+const MIN_NUM_BYTES: usize = 8;
+
 #[derive(Clone, Debug)]
 pub struct NetworkHeader {
     pub control: FrameControl,
@@ -262,7 +264,39 @@ pub struct NetworkHeader {
     pub source_route_frame: Option<SourceRouteFrame>,
 }
 
-const MIN_NUM_BYTES: usize = 8;
+impl NetworkHeader {
+    pub fn new_data_header(
+        protocol_version: u8,
+        discover_route: DiscoverRoute,
+        security: bool,
+        destination_address: NetworkAddress,
+        source_address: NetworkAddress,
+        radius: u8,
+        sequence_number: u8,
+        source_route_frame: Option<SourceRouteFrame>,
+    ) -> Self {
+        Self {
+            control: FrameControl {
+                frame_type: FrameType::Data,
+                protocol_version,
+                discover_route,
+                multicast: false,
+                security,
+                contains_source_route_frame: source_route_frame.is_some(),
+                contains_destination_ieee_address: false,
+                contains_source_ieee_address: false,
+            },
+            destination_address,
+            source_address,
+            radius,
+            sequence_number,
+            destination_ieee_address: None,
+            source_ieee_address: None,
+            multicast_control: None,
+            source_route_frame,
+        }
+    }
+}
 
 impl Pack<NetworkHeader, Error> for NetworkHeader {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
@@ -273,8 +307,8 @@ impl Pack<NetworkHeader, Error> for NetworkHeader {
         }
         let mut total_length = MIN_NUM_BYTES;
 
-        self.destination_address.pack(&mut data[2..4])?;
-        self.source_address.pack(&mut data[2..4])?;
+        self.destination_address.pack(&mut data[2..=3])?;
+        self.source_address.pack(&mut data[4..=5])?;
         data[6] = self.radius;
         data[7] = self.sequence_number;
 
@@ -628,6 +662,98 @@ mod tests {
         }
     }
 
+    #[test]
+    fn pack_frame_control_1() {
+        let control = FrameControl {
+            frame_type: FrameType::Data,
+            protocol_version: 2,
+            discover_route: DiscoverRoute::SurpressDiscovery,
+            multicast: false,
+            security: true,
+            contains_source_route_frame: false,
+            contains_destination_ieee_address: false,
+            contains_source_ieee_address: false,
+        };
+        let correct_data = [0x08, 0x02];
+        let mut data = [0x00; 2];
+        control.pack(&mut data).unwrap();
+        assert_eq!(data, correct_data);
+
+        let control = FrameControl {
+            frame_type: FrameType::Command,
+            protocol_version: 1,
+            discover_route: DiscoverRoute::EnableDiscovery,
+            multicast: false,
+            security: false,
+            contains_source_route_frame: false,
+            contains_destination_ieee_address: false,
+            contains_source_ieee_address: false,
+        };
+        let correct_data = [0x45, 0x00];
+        control.pack(&mut data).unwrap();
+        assert_eq!(data, correct_data);
+
+        let control = FrameControl {
+            frame_type: FrameType::Data,
+            protocol_version: 2,
+            discover_route: DiscoverRoute::SurpressDiscovery,
+            multicast: true,
+            security: false,
+            contains_source_route_frame: false,
+            contains_destination_ieee_address: false,
+            contains_source_ieee_address: false,
+        };
+        let correct_data = [0x08, 0x01];
+        let mut data = [0x00; 2];
+        control.pack(&mut data).unwrap();
+        assert_eq!(data, correct_data);
+
+        let control = FrameControl {
+            frame_type: FrameType::Data,
+            protocol_version: 2,
+            discover_route: DiscoverRoute::SurpressDiscovery,
+            multicast: false,
+            security: false,
+            contains_source_route_frame: true,
+            contains_destination_ieee_address: false,
+            contains_source_ieee_address: false,
+        };
+        let correct_data = [0x08, 0x04];
+        let mut data = [0x00; 2];
+        control.pack(&mut data).unwrap();
+        assert_eq!(data, correct_data);
+
+        let control = FrameControl {
+            frame_type: FrameType::Data,
+            protocol_version: 2,
+            discover_route: DiscoverRoute::SurpressDiscovery,
+            multicast: false,
+            security: false,
+            contains_source_route_frame: false,
+            contains_destination_ieee_address: true,
+            contains_source_ieee_address: false,
+        };
+        let correct_data = [0x08, 0x08];
+        let mut data = [0x00; 2];
+        control.pack(&mut data).unwrap();
+        assert_eq!(data, correct_data);
+
+        let control = FrameControl {
+            frame_type: FrameType::Data,
+            protocol_version: 2,
+            discover_route: DiscoverRoute::SurpressDiscovery,
+            multicast: false,
+            security: false,
+            contains_source_route_frame: false,
+            contains_destination_ieee_address: false,
+            contains_source_ieee_address: true,
+        };
+        let correct_data = [0x08, 0x10];
+        let mut data = [0x00; 2];
+        control.pack(&mut data).unwrap();
+        assert_eq!(data, correct_data);
+    }
+
     fn print_frame(frame: &NetworkHeader) {
         print!("NWK Type {:?} ", frame.control.frame_type);
         print!("Version {} ", frame.control.protocol_version);
@@ -724,5 +850,35 @@ mod tests {
         assert_eq!(nwk.source_ieee_address, None);
         assert_eq!(nwk.multicast_control, None);
         assert!(nwk.source_route_frame.is_some());
+    }
+
+    #[test]
+    fn pack_header() {
+        let control = FrameControl {
+            frame_type: FrameType::Data,
+            protocol_version: 2,
+            discover_route: DiscoverRoute::SurpressDiscovery,
+            multicast: false,
+            security: true,
+            contains_source_route_frame: false,
+            contains_destination_ieee_address: false,
+            contains_source_ieee_address: false,
+        };
+        let header = NetworkHeader {
+            control,
+            destination_address: NetworkAddress::new(0x31a4),
+            source_address: NetworkAddress::new(0x0000),
+            radius: 10,
+            sequence_number: 59,
+            destination_ieee_address: None,
+            source_ieee_address: None,
+            multicast_control: None,
+            source_route_frame: None,
+        };
+        let correct_data = [0x08, 0x02, 0xa4, 0x31, 0x00, 0x00, 0x0a, 0x3b];
+        let mut data = [0; 8];
+        let used = header.pack(&mut data).unwrap();
+        assert_eq!(used, 8);
+        assert_eq!(data, correct_data);
     }
 }

@@ -3,9 +3,10 @@ use log;
 use psila_crypto::CryptoBackend;
 use psila_data::{
     application_service::commands::transport_key::NetworkKey,
+    network::NetworkHeader,
     pack::Pack,
     security::{CryptoProvider, KeyIdentifier, SecurityHeader, SecurityLevel},
-    Key,
+    ExtendedAddress, Key,
 };
 
 pub struct SecurityManager<CB> {
@@ -78,7 +79,32 @@ where
         Ok(size)
     }
 
-    pub fn encrypt_network_payload(&mut self) -> Result<usize, Error> {
-        Ok(0)
+    pub fn encrypt_network_payload(
+        &mut self,
+        source_address: ExtendedAddress,
+        header: NetworkHeader,
+        payload: &[u8],
+        encrypted_payload: &mut [u8],
+    ) -> Result<usize, Error> {
+        let (key_sequence, key) = if let Some(network_key) = self.network_key {
+            (network_key.sequence, network_key.key)
+        } else {
+            return Err(Error::CryptoError(psila_crypto::Error::InvalidKey));
+        };
+        let security_header = SecurityHeader::network_header(
+            self.security_level,
+            self.sequence,
+            source_address,
+            key_sequence,
+        );
+        let size = self.crypto_provider.encrypt_network_frame(
+            header,
+            &key.into(),
+            security_header,
+            payload,
+            encrypted_payload,
+        )?;
+        self.sequence = self.sequence.wrapping_add(1);
+        Ok(size)
     }
 }

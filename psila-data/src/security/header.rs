@@ -6,6 +6,8 @@ use crate::common::address::{ExtendedAddress, EXTENDED_ADDRESS_SIZE};
 use crate::error::Error;
 use crate::pack::{Pack, PackFixed};
 
+pub const SECURITY_LEVEL_MASK: u8 = 0b0000_0111;
+
 /// Security Level
 ///
 /// Describes the length of the message integrity check (MIC) and if encryption
@@ -34,7 +36,7 @@ impl TryFrom<u8> for SecurityLevel {
     type Error = Error;
     /// Get the security level from a octet
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value & 0b0000_0111 {
+        match value & SECURITY_LEVEL_MASK {
             0b000 => Ok(SecurityLevel::None),
             0b001 => Ok(SecurityLevel::Integrity32),
             0b010 => Ok(SecurityLevel::Integrity64),
@@ -143,6 +145,24 @@ pub struct SecurityHeader {
 }
 
 impl SecurityHeader {
+    /// Create a new network security header
+    pub fn network_header(
+        security_level: SecurityLevel,
+        sequence: u32,
+        source_address: ExtendedAddress,
+        key_sequence: u8,
+    ) -> Self {
+        SecurityHeader {
+            control: SecurityControl {
+                level: security_level,
+                identifier: KeyIdentifier::Network,
+                has_source_address: true,
+            },
+            counter: sequence,
+            source: Some(source_address),
+            sequence: Some(key_sequence),
+        }
+    }
     /// Generate nonce from the header
     pub fn get_nonce(&self, buf: &mut [u8]) -> Result<(), Error> {
         if let Some(source) = self.source {
