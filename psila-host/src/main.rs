@@ -16,6 +16,8 @@ use slice_deque::SliceDeque;
 use serde_derive::Deserialize;
 use toml;
 
+use env_logger;
+
 use psila_data::common::key::Key;
 
 #[derive(Debug, Deserialize)]
@@ -34,6 +36,7 @@ fn read_config(file_path: &str) -> Option<Config> {
 }
 
 fn main() {
+    env_logger::init();
     let matches = App::new("nRF52840 802.15.4 host companion")
         .about("Write stuff")
         .setting(AppSettings::DisableVersion)

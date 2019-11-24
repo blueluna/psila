@@ -16,6 +16,8 @@ serde = "1.0"
 serde_derive = "1.0"
 toml = "0.5"
 chrono = "0.4"
+log = "0.4"
+env_logger = "0.7"
 
 [dependencies.serialport]
 version = "3.2"

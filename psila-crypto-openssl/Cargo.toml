@@ -8,3 +8,6 @@ edition = "2018"
 byteorder = { version = "1", default-features = false }
 openssl = { version = "0.10", features = ["vendored"] }
 psila-crypto = { path = "../psila-crypto" }
+
+[dev-dependencies]
+psila-data = { path = "../psila-data" }

@@ -187,7 +187,7 @@ impl OpenSslBackend {
 impl Default for OpenSslBackend {
     fn default() -> Self {
         Self {
-            cipher: OpenSslCipher::new_aes_128_ecb(Mode::Decrypt),
+            cipher: OpenSslCipher::new_aes_128_ecb(Mode::Encrypt),
         }
     }
 }
@@ -777,5 +777,43 @@ mod tests {
 
         assert_eq!(output, encrypted);
         assert_eq!(mic, mic_out);
+    }
+
+    #[test]
+    fn test_key_hash_1() {
+        use psila_data::security::{CryptoProvider, DEFAULT_LINK_KEY};
+
+        let mut provider = CryptoProvider::new(OpenSslBackend::default());
+
+        let mut hashed_key = [0; 16];
+        provider.hash_key(&DEFAULT_LINK_KEY, 0x00, &mut hashed_key).unwrap();
+
+        let correct_key = [
+            0x4b, 0xab, 0x0f, 0x17, 0x3e, 0x14, 0x34, 0xa2, 0xd5, 0x72, 0xe1, 0xc1, 0xef, 0x47,
+            0x87, 0x82,
+        ];
+
+        assert_eq!(hashed_key, correct_key);
+    }
+
+    #[test]
+    fn test_key_hash_2() {
+        use psila_data::security::CryptoProvider;
+
+        let mut provider = CryptoProvider::new(OpenSslBackend::default());
+
+        // C.6.1 Test Vector Set 1
+        let key = [
+            0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D,
+            0x4E, 0x4F,
+        ];
+        let mut hashed_key = [0; 16];
+        provider.hash_key(&key, 0xc0, &mut hashed_key).unwrap();
+        let correct_key = [
+            0x45, 0x12, 0x80, 0x7B, 0xF9, 0x4C, 0xB3, 0x40, 0x0F, 0x0E, 0x2C, 0x25, 0xFB, 0x76,
+            0xE9, 0x99,
+        ];
+
+        assert_eq!(hashed_key, correct_key);
     }
 }
