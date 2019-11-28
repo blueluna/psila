@@ -192,7 +192,6 @@ where
         let payload = &self.buffer[payload_start..mic_offset];
         let mic = &self.buffer[mic_offset..payload_length];
 
-
         log::info!("Decrypt; Payload {}", payload.len());
 
         let used = self.backend.ccmstar_decrypt(

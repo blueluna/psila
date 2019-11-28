@@ -284,8 +284,7 @@ impl MacService {
                     self.coordinator.short = src_short;
                     self.state = State::Associate;
                 }
-            }
-            else {
+            } else {
                 log::info!(
                     "mac: Beacon {:04x}:{:04x}",
                     u16::from(src_id),
@@ -309,8 +308,11 @@ impl MacService {
             return Err(Error::InvalidPanIdentifier);
         };
         if pan_id != self.pan_identifier {
-            log::warn!("Invalid PAN indetifier {:04x} != {:04x}"
-                , u16::from(pan_id), u16::from(self.pan_identifier));
+            log::warn!(
+                "Invalid PAN indetifier {:04x} != {:04x}",
+                u16::from(pan_id),
+                u16::from(self.pan_identifier)
+            );
             return Err(Error::InvalidPanIdentifier);
         }
         match (self.state, status) {
@@ -325,8 +327,11 @@ impl MacService {
                 self.state = State::Associated;
             }
             (State::QueryAssociationStatus, _) => {
-                log::info!("mac: Association Response {:04x} {:02x}",
-                    u16::from(pan_id), u8::from(status));
+                log::info!(
+                    "mac: Association Response {:04x} {:02x}",
+                    u16::from(pan_id),
+                    u8::from(status)
+                );
                 self.pan_identifier = PanIdentifier::broadcast();
                 self.identity.short = psila_data::ShortAddress::broadcast();
                 self.state = State::Orphan;
@@ -338,9 +343,7 @@ impl MacService {
                     address.0
                 );
             }
-            (_, _) => {
-
-            }
+            (_, _) => {}
         }
         Ok((0, 0))
     }
@@ -364,17 +367,14 @@ impl MacService {
         buffer: &mut [u8],
     ) -> Result<(usize, u32), Error> {
         if frame.header.seq == self.sequence.get() {
-            log::info!("mac: Acknowledge {}",
-            frame.header.seq);
+            log::info!("mac: Acknowledge {}", frame.header.seq);
             if let State::Associate = self.state {
                 self.state = State::QueryAssociationStatus;
                 log::info!("mac: Send data request");
                 return self.build_data_request(self.coordinator.short, buffer);
             }
-        }
-        else {
-            log::warn!("mac: Acknowledge, unknown sequence {}",
-                frame.header.seq);
+        } else {
+            log::warn!("mac: Acknowledge, unknown sequence {}", frame.header.seq);
         }
         Ok((0, 0))
     }

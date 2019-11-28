@@ -786,7 +786,9 @@ mod tests {
         let mut provider = CryptoProvider::new(OpenSslBackend::default());
 
         let mut hashed_key = [0; 16];
-        provider.hash_key(&DEFAULT_LINK_KEY, 0x00, &mut hashed_key).unwrap();
+        provider
+            .hash_key(&DEFAULT_LINK_KEY, 0x00, &mut hashed_key)
+            .unwrap();
 
         let correct_key = [
             0x4b, 0xab, 0x0f, 0x17, 0x3e, 0x14, 0x34, 0xa2, 0xd5, 0x72, 0xe1, 0xc1, 0xef, 0x47,
