@@ -365,7 +365,7 @@ mod tests {
 
         let timeout = service.timeout().unwrap();
 
-        assert_eq!(timeout, 1_000_000);
+        assert_eq!(timeout, 2_000_000);
 
         let grant = tx_consumer.read().unwrap();
         let packet_length = grant[0] as usize;
