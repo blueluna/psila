@@ -201,7 +201,7 @@ impl MacService {
             payload: &[],
             footer: [0u8; 2],
         };
-        Ok((frame.encode(data, WriteFooter::No), 1_000_000))
+        Ok((frame.encode(data, WriteFooter::No), 2_000_000))
     }
 
     pub fn build_association_request(
@@ -222,7 +222,7 @@ impl MacService {
             payload: &[],
             footer: [0u8; 2],
         };
-        Ok((frame.encode(data, WriteFooter::No), 1_000_000))
+        Ok((frame.encode(data, WriteFooter::No), 5_000_000))
     }
 
     pub fn build_data_request(
@@ -273,11 +273,10 @@ impl MacService {
             return Err(Error::InvalidAddress);
         };
         if let FrameContent::Beacon(beacon) = &frame.content {
-            log::info!("mac: Beacon");
             if beacon.superframe_spec.pan_coordinator && beacon.superframe_spec.association_permit {
                 if let State::Scan = self.state {
                     log::info!(
-                        "mac: Beacon {:04x}:{:04x}",
+                        "mac: Beacon {:04x}:{:04x} *",
                         u16::from(src_id),
                         u16::from(src_short)
                     );
@@ -285,6 +284,13 @@ impl MacService {
                     self.coordinator.short = src_short;
                     self.state = State::Associate;
                 }
+            }
+            else {
+                log::info!(
+                    "mac: Beacon {:04x}:{:04x}",
+                    u16::from(src_id),
+                    u16::from(src_short)
+                );
             }
         }
         Ok((0, 0))
@@ -299,9 +305,12 @@ impl MacService {
         let pan_id = if let Some(pan_id) = header.source.pan_id() {
             pan_id.into()
         } else {
+            log::warn!("Invalid PAN indetifier");
             return Err(Error::InvalidPanIdentifier);
         };
         if pan_id != self.pan_identifier {
+            log::warn!("Invalid PAN indetifier {:04x} != {:04x}"
+                , u16::from(pan_id), u16::from(self.pan_identifier));
             return Err(Error::InvalidPanIdentifier);
         }
         match (self.state, status) {
@@ -316,12 +325,22 @@ impl MacService {
                 self.state = State::Associated;
             }
             (State::QueryAssociationStatus, _) => {
-                log::info!("mac: Association Response");
+                log::info!("mac: Association Response {:04x} {:02x}",
+                    u16::from(pan_id), u8::from(status));
                 self.pan_identifier = PanIdentifier::broadcast();
                 self.identity.short = psila_data::ShortAddress::broadcast();
                 self.state = State::Orphan;
             }
-            (_, _) => {}
+            (_, AssociationStatus::Successful) => {
+                log::info!(
+                    "mac: Association Response, Success, {:04x}:{:04x}, Bad state",
+                    u16::from(pan_id),
+                    address.0
+                );
+            }
+            (_, _) => {
+
+            }
         }
         Ok((0, 0))
     }
@@ -345,12 +364,17 @@ impl MacService {
         buffer: &mut [u8],
     ) -> Result<(usize, u32), Error> {
         if frame.header.seq == self.sequence.get() {
-            log::info!("mac: Acknowledge");
+            log::info!("mac: Acknowledge {}",
+            frame.header.seq);
             if let State::Associate = self.state {
                 self.state = State::QueryAssociationStatus;
                 log::info!("mac: Send data request");
                 return self.build_data_request(self.coordinator.short, buffer);
             }
+        }
+        else {
+            log::warn!("mac: Acknowledge, unknown sequence {}",
+                frame.header.seq);
         }
         Ok((0, 0))
     }
@@ -376,6 +400,7 @@ impl MacService {
                 self.build_beacon_request(buffer)
             }
             State::Scan | State::QueryAssociationStatus => {
+                log::info!("mac: Association failed, retry");
                 self.state = State::Orphan;
                 Ok((0, 28_000_000))
             }
@@ -499,7 +524,7 @@ mod tests {
         let (size, timeout) = service.build_beacon_request(&mut data).unwrap();
 
         assert_eq!(size, 8);
-        assert_eq!(timeout, 1_000_000);
+        assert_eq!(timeout, 2_000_000);
         assert_eq!(
             data[..size],
             [0x03, 0x08, 0x01, 0xff, 0xff, 0xff, 0xff, 0x07]
@@ -527,7 +552,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(size, 19);
-        assert_eq!(timeout, 1_000_000);
+        assert_eq!(timeout, 5_000_000);
         assert_eq!(
             data[..size],
             [

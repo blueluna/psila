@@ -141,7 +141,9 @@ fn main() {
                                             msg
                                         ),
                                     }
-                                    buffer.truncate_front(buffer.len() - used);
+                                    let front = buffer.len() - used;
+                                    println!("Drop {} bytes {} left", used, front);
+                                    buffer.truncate_front(front);
                                 }
                                 Err(ref e) => {
                                     match *e {

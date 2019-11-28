@@ -197,6 +197,8 @@ where
         use psila_data::application_service::ApplicationServiceHeader;
         use psila_data::network::header::FrameType;
 
+        log::info!("NWK");
+
         match header.control.frame_type {
             FrameType::Data => {
                 let mut aps_payload = [0u8; PACKET_BUFFER_MAX];
@@ -290,6 +292,9 @@ where
             header::FrameType,
         };
         let mut buffer = [0u8; PACKET_BUFFER_MAX];
+
+        log::info!("APS");
+
         match header.control.frame_type {
             FrameType::Data => {
                 log::info!("Handle application service data");
