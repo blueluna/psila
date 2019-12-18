@@ -166,7 +166,6 @@ where
                 let (header, used) = NetworkHeader::unpack(frame.payload)?;
                 let mut payload = [0u8; PACKET_BUFFER_MAX];
                 let payload_size = if header.control.security {
-                    log::info!("Decrypt network data");
                     self.security_manager
                         .decrypt_payload(frame.payload, used, &mut payload)?
                 } else {
@@ -197,16 +196,11 @@ where
         use psila_data::application_service::ApplicationServiceHeader;
         use psila_data::network::header::FrameType;
 
-        log::info!("NWK");
-
         match header.control.frame_type {
             FrameType::Data => {
                 let mut aps_payload = [0u8; PACKET_BUFFER_MAX];
-                log::info!("Unpack application service header");
                 let (header, used) = ApplicationServiceHeader::unpack(nwk_payload)?;
-                log::info!("...done");
                 let aps_payload_length = if header.control.security {
-                    log::info!("Decrypt application service data");
                     self.security_manager
                         .decrypt_payload(nwk_payload, used, &mut aps_payload)?
                 } else {
@@ -235,44 +229,43 @@ where
 
     fn handle_network_command(&self, payload: &[u8]) -> Result<(), Error> {
         use psila_data::network::commands::Command;
-        log::info!("Unpack network command");
         match Command::unpack(payload) {
             Ok((cmd, _used)) => match cmd {
                 Command::RouteRequest(_) => {
-                    log::info!("Route request");
+                    log::info!("Network Route request");
                 }
                 Command::RouteReply(_) => {
-                    log::info!("Route reply");
+                    log::info!("Network Route reply");
                 }
                 Command::NetworkStatus(_) => {
-                    log::info!("Network status");
+                    log::info!("Network Network status");
                 }
                 Command::Leave(_) => {
-                    log::info!("Leave");
+                    log::info!("Network Leave");
                 }
                 Command::RouteRecord(_) => {
-                    log::info!("Route record");
+                    log::info!("Network Route record");
                 }
                 Command::RejoinRequest(_) => {
-                    log::info!("Rejoin request");
+                    log::info!("Network Rejoin request");
                 }
                 Command::RejoinResponse(_) => {
-                    log::info!("Rejoin response");
+                    log::info!("Network Rejoin response");
                 }
                 Command::LinkStatus(_) => {
-                    log::info!("Link Status");
+                    log::info!("Network Link Status");
                 }
                 Command::NetworkReport(_) => {
-                    log::info!("Network report");
+                    log::info!("Network Network report");
                 }
                 Command::NetworkUpdate(_) => {
-                    log::info!("Network update");
+                    log::info!("Network Network update");
                 }
                 Command::EndDeviceTimeoutRequest(_) => {
-                    log::info!("End-device timeout request");
+                    log::info!("ENetwork nd-device timeout request");
                 }
                 Command::EndDeviceTimeoutResponse(_) => {
-                    log::info!("End-device timeout response");
+                    log::info!("Network End-device timeout response");
                 }
             },
             Err(_) => {
@@ -293,25 +286,19 @@ where
         };
         let mut buffer = [0u8; PACKET_BUFFER_MAX];
 
-        log::info!("APS");
-
         match header.control.frame_type {
             FrameType::Data => {
-                log::info!("Handle application service data");
+                log::info!("Application service data");
                 // ...
             }
             FrameType::Command => {
-                log::info!("Handle application service command");
                 // handle command
-                log::info!("Unpack application service command");
                 let (command, _used) = Command::unpack(aps_payload)?;
-                log::info!("...done");
                 if let Command::TransportKey(cmd) = command {
                     if let TransportKey::StandardNetworkKey(key) = cmd {
                         log::info!("Set network key");
                         self.set_state(NetworkState::Secure);
                         self.security_manager.set_network_key(key);
-                        log::info!("Queue device announce");
                         let mac_header = self
                             .mac
                             .build_data_header(psila_data::NetworkAddress::broadcast(), false);
@@ -324,14 +311,16 @@ where
                         )?;
                         self.queue_packet(&buffer[..(mac_header_len + mwk_frame_size)])?;
                     }
+                } else {
+                    log::info!("Application service command");
                 }
             }
             FrameType::InterPan => {
-                log::info!("Handle application service inter-PAN");
+                log::info!("Application service inter-PAN");
                 // Not supported yet
             }
             FrameType::Acknowledgement => {
-                log::info!("Handle application service acknowledge");
+                log::info!("Application service acknowledge");
                 // ...
             }
         }

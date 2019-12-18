@@ -1,3 +1,5 @@
+#![allow(clippy::cognitive_complexity)]
+
 use std::convert::TryFrom;
 
 use crate::security::SecurityService;

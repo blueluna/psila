@@ -37,10 +37,7 @@ where
                 log::info!("Data key");
                 None
             }
-            KeyIdentifier::Network => {
-                log::info!("Network key");
-                self.network_key.map(|k| k.key)
-            }
+            KeyIdentifier::Network => self.network_key.map(|k| k.key),
             KeyIdentifier::KeyTransport => {
                 log::info!("Key-transport key");
                 Some(self.default_link_key)
@@ -75,7 +72,6 @@ where
             log::warn!("No key found");
             0
         };
-        log::info!("Decrypt result size {}", size);
         Ok(size)
     }
 

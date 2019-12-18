@@ -43,7 +43,7 @@ impl SecurityService {
         match security::SecurityHeader::unpack(&payload[offset..]) {
             Ok((header, used)) => {
                 Self::print_header(&header);
-                print!(" {} bytes ", payload.len() - offset - used);
+                print!(" {} bytes", payload.len() - offset - used);
             }
             Err(e) => {
                 println!(" Failed to parse security header, {:?}", e);
@@ -62,7 +62,11 @@ impl SecurityService {
             match result {
                 Ok(size) => {
                     if size > 0 {
-                        println!(" Key \"{}\"", key_name);
+                        println!(" {} bytes Key \"{}\"", size, key_name);
+                        for b in &output[..size] {
+                            print!("{:02x}", b);
+                        }
+                        println!();
                         return size;
                     }
                 }
