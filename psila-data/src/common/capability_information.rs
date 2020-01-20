@@ -74,6 +74,19 @@ impl From<CapabilityInformation> for u8 {
     }
 }
 
+impl Default for CapabilityInformation {
+    fn default() -> Self {
+        Self {
+            alternate_pan_coordinator: false,
+            router_capable: false,
+            mains_power: false,
+            idle_receive: false,
+            frame_protection: false,
+            allocate_address: false,
+        }
+    }
+}
+
 #[cfg(not(feature = "core"))]
 impl std::fmt::Display for CapabilityInformation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -107,5 +120,177 @@ impl std::fmt::Display for CapabilityInformation {
                 ""
             },
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[allow(clippy::cognitive_complexity)]
+    #[test]
+    fn capabilityinformation_from_u8() {
+        let ci = CapabilityInformation::from(0);
+        assert_eq!(ci.alternate_pan_coordinator, false);
+        assert_eq!(ci.router_capable, false);
+        assert_eq!(ci.mains_power, false);
+        assert_eq!(ci.idle_receive, false);
+        assert_eq!(ci.frame_protection, false);
+        assert_eq!(ci.allocate_address, false);
+
+        let ci = CapabilityInformation::from(0x01);
+        assert_eq!(ci.alternate_pan_coordinator, true);
+        assert_eq!(ci.router_capable, false);
+        assert_eq!(ci.mains_power, false);
+        assert_eq!(ci.idle_receive, false);
+        assert_eq!(ci.frame_protection, false);
+        assert_eq!(ci.allocate_address, false);
+
+        let ci = CapabilityInformation::from(0x02);
+        assert_eq!(ci.alternate_pan_coordinator, false);
+        assert_eq!(ci.router_capable, true);
+        assert_eq!(ci.mains_power, false);
+        assert_eq!(ci.idle_receive, false);
+        assert_eq!(ci.frame_protection, false);
+        assert_eq!(ci.allocate_address, false);
+
+        let ci = CapabilityInformation::from(0x04);
+        assert_eq!(ci.alternate_pan_coordinator, false);
+        assert_eq!(ci.router_capable, false);
+        assert_eq!(ci.mains_power, true);
+        assert_eq!(ci.idle_receive, false);
+        assert_eq!(ci.frame_protection, false);
+        assert_eq!(ci.allocate_address, false);
+
+        let ci = CapabilityInformation::from(0x08);
+        assert_eq!(ci.alternate_pan_coordinator, false);
+        assert_eq!(ci.router_capable, false);
+        assert_eq!(ci.mains_power, false);
+        assert_eq!(ci.idle_receive, true);
+        assert_eq!(ci.frame_protection, false);
+        assert_eq!(ci.allocate_address, false);
+
+        let ci = CapabilityInformation::from(0x10);
+        assert_eq!(ci.alternate_pan_coordinator, false);
+        assert_eq!(ci.router_capable, false);
+        assert_eq!(ci.mains_power, false);
+        assert_eq!(ci.idle_receive, false);
+        assert_eq!(ci.frame_protection, false);
+        assert_eq!(ci.allocate_address, false);
+
+        let ci = CapabilityInformation::from(0x20);
+        assert_eq!(ci.alternate_pan_coordinator, false);
+        assert_eq!(ci.router_capable, false);
+        assert_eq!(ci.mains_power, false);
+        assert_eq!(ci.idle_receive, false);
+        assert_eq!(ci.frame_protection, false);
+        assert_eq!(ci.allocate_address, false);
+
+        let ci = CapabilityInformation::from(0x40);
+        assert_eq!(ci.alternate_pan_coordinator, false);
+        assert_eq!(ci.router_capable, false);
+        assert_eq!(ci.mains_power, false);
+        assert_eq!(ci.idle_receive, false);
+        assert_eq!(ci.frame_protection, true);
+        assert_eq!(ci.allocate_address, false);
+
+        let ci = CapabilityInformation::from(0x80);
+        assert_eq!(ci.alternate_pan_coordinator, false);
+        assert_eq!(ci.router_capable, false);
+        assert_eq!(ci.mains_power, false);
+        assert_eq!(ci.idle_receive, false);
+        assert_eq!(ci.frame_protection, false);
+        assert_eq!(ci.allocate_address, true);
+
+        let ci = CapabilityInformation::from(0xff);
+        assert_eq!(ci.alternate_pan_coordinator, true);
+        assert_eq!(ci.router_capable, true);
+        assert_eq!(ci.mains_power, true);
+        assert_eq!(ci.idle_receive, true);
+        assert_eq!(ci.frame_protection, true);
+        assert_eq!(ci.allocate_address, true);
+    }
+
+    #[test]
+    fn u8_from_capabilityinformation() {
+        let ci = CapabilityInformation {
+            alternate_pan_coordinator: false,
+            router_capable: false,
+            mains_power: false,
+            idle_receive: false,
+            frame_protection: false,
+            allocate_address: false,
+        };
+        assert_eq!(u8::from(ci), 0x00);
+
+        let ci = CapabilityInformation {
+            alternate_pan_coordinator: true,
+            router_capable: false,
+            mains_power: false,
+            idle_receive: false,
+            frame_protection: false,
+            allocate_address: false,
+        };
+        assert_eq!(u8::from(ci), 0x01);
+
+        let ci = CapabilityInformation {
+            alternate_pan_coordinator: false,
+            router_capable: true,
+            mains_power: false,
+            idle_receive: false,
+            frame_protection: false,
+            allocate_address: false,
+        };
+        assert_eq!(u8::from(ci), 0x02);
+
+        let ci = CapabilityInformation {
+            alternate_pan_coordinator: false,
+            router_capable: false,
+            mains_power: true,
+            idle_receive: false,
+            frame_protection: false,
+            allocate_address: false,
+        };
+        assert_eq!(u8::from(ci), 0x04);
+
+        let ci = CapabilityInformation {
+            alternate_pan_coordinator: false,
+            router_capable: false,
+            mains_power: false,
+            idle_receive: true,
+            frame_protection: false,
+            allocate_address: false,
+        };
+        assert_eq!(u8::from(ci), 0x08);
+
+        let ci = CapabilityInformation {
+            alternate_pan_coordinator: false,
+            router_capable: false,
+            mains_power: false,
+            idle_receive: false,
+            frame_protection: true,
+            allocate_address: false,
+        };
+        assert_eq!(u8::from(ci), 0x40);
+
+        let ci = CapabilityInformation {
+            alternate_pan_coordinator: false,
+            router_capable: false,
+            mains_power: false,
+            idle_receive: false,
+            frame_protection: false,
+            allocate_address: true,
+        };
+        assert_eq!(u8::from(ci), 0x80);
+
+        let ci = CapabilityInformation {
+            alternate_pan_coordinator: true,
+            router_capable: true,
+            mains_power: true,
+            idle_receive: true,
+            frame_protection: true,
+            allocate_address: true,
+        };
+        assert_eq!(u8::from(ci), 0xcf);
     }
 }

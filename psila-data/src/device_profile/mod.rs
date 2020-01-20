@@ -1,16 +1,22 @@
 //! # Device Profile (ZDP)
 
+mod active_endpoints;
 mod device_announce;
 pub mod link_quality;
 mod match_descriptor;
 mod network_address;
-mod node_descriptor;
+pub mod node_descriptor;
+pub mod power_descriptor;
+mod simple_descriptor;
 
+pub use active_endpoints::{ActiveEndpointRequest, ActiveEndpointResponse};
 pub use device_announce::DeviceAnnounce;
-pub use link_quality::ManagementLinkQualityIndicatorResponse;
+pub use link_quality::{DeviceType, ManagementLinkQualityIndicatorResponse};
 pub use match_descriptor::{MatchDescriptorRequest, MatchDescriptorResponse};
 pub use network_address::{AddressResponse, IeeeAddressRequest, NetworkAddressRequest};
-pub use node_descriptor::NodeDescriptorRequest;
+pub use node_descriptor::{NodeDescriptor, NodeDescriptorRequest, NodeDescriptorResponse};
+pub use power_descriptor::{NodePowerDescriptor, PowerDescriptorRequest, PowerDescriptorResponse};
+pub use simple_descriptor::{SimpleDescriptor, SimpleDescriptorRequest, SimpleDescriptorResponse};
 
 use core::convert::TryFrom;
 
@@ -21,94 +27,97 @@ const RESPONSE: u16 = 0x8000;
 
 // 2.4.2 Device Profile Overview
 extended_enum!(
-	/// Device profile cluster identifiers
-	ClusterIdentifier, u16,
+    /// Device profile cluster identifiers
+    ClusterIdentifier, u16,
     /// Request the network address of another device
-	NetworkAddressRequest => 0x0000,
+    NetworkAddressRequest => 0x0000,
     /// Request the IEEE address of another device
-	IeeeAddressRequest => 0x0001,
+    IeeeAddressRequest => 0x0001,
     /// Request the node descriptor of another device
-	NodeDescriptorRequest => 0x0002,
-	PowerDescriptorRequest => 0x0003,
-	SimpleDescriptorRequest => 0x0004,
-	ActiveEndpointRequest => 0x0005,
+    NodeDescriptorRequest => 0x0002,
+    /// Request the power descriptor of another device
+    PowerDescriptorRequest => 0x0003,
+    /// Request the simple descriptor of another device
+    SimpleDescriptorRequest => 0x0004,
+    /// Request the active endpoints of another device
+    ActiveEndpointRequest => 0x0005,
     /// Find other devices that match the criteria
-	MatchDescriptorRequest => 0x0006,
-	ComplexDescriptorRequest => 0x0010,
-	UserDescriptorRequest => 0x0011,
-	DiscoveryCacheRequest => 0x0012,
+    MatchDescriptorRequest => 0x0006,
+    ComplexDescriptorRequest => 0x0010,
+    UserDescriptorRequest => 0x0011,
+    DiscoveryCacheRequest => 0x0012,
     /// Device announcement notification
-	DeviceAnnounce => 0x0013,
-	SetUserDescriptor => 0x0014,
-	SystemServerDiscoveryRequest => 0x0015,
-	DiscoveryCacheStorageRequest => 0x0016,
-	NodeDescriptorStorageRequest => 0x0017,
-	PowerDescriptorStorageRequest => 0x0018,
-	ActiveEndpointStorageRequest => 0x0019,
-	SimpleDescriptorStorageRequest => 0x001a,
-	RemoveNodeCache => 0x001b,
-	FindNodeCache => 0x001c,
-	ExtendedSimpleDescriptorRequest => 0x001d,
-	ExtendedActiveEndpointRequest => 0x001e,
-	ParentAnnounce => 0x001f,
-	EndDeviceBindRequest => 0x0020,
-	BindRequest => 0x0021,
-	UnbindRequest => 0x0022,
-	BindRegisterRequest => 0x0023,
-	ReplaceDeviceRequest => 0x0024,
-	StoreBackupBindEntryRequest => 0x0025,
-	RemoveBackupBindEntryRequest => 0x0026,
-	BackupBindTableRequest => 0x0027,
-	RecoverBindTableRequest => 0x0028,
-	BackupSourceBindRequest => 0x0029,
-	RecoverSourceBindRequest => 0x002a,
-	ManagementNetworkDiscoveryRequest => 0x0030,
+    DeviceAnnounce => 0x0013,
+    SetUserDescriptor => 0x0014,
+    SystemServerDiscoveryRequest => 0x0015,
+    DiscoveryCacheStorageRequest => 0x0016,
+    NodeDescriptorStorageRequest => 0x0017,
+    PowerDescriptorStorageRequest => 0x0018,
+    ActiveEndpointStorageRequest => 0x0019,
+    SimpleDescriptorStorageRequest => 0x001a,
+    RemoveNodeCache => 0x001b,
+    FindNodeCache => 0x001c,
+    ExtendedSimpleDescriptorRequest => 0x001d,
+    ExtendedActiveEndpointRequest => 0x001e,
+    ParentAnnounce => 0x001f,
+    EndDeviceBindRequest => 0x0020,
+    BindRequest => 0x0021,
+    UnbindRequest => 0x0022,
+    BindRegisterRequest => 0x0023,
+    ReplaceDeviceRequest => 0x0024,
+    StoreBackupBindEntryRequest => 0x0025,
+    RemoveBackupBindEntryRequest => 0x0026,
+    BackupBindTableRequest => 0x0027,
+    RecoverBindTableRequest => 0x0028,
+    BackupSourceBindRequest => 0x0029,
+    RecoverSourceBindRequest => 0x002a,
+    ManagementNetworkDiscoveryRequest => 0x0030,
     /// Management link quality indicator (LQI) request
-	ManagementLinkQualityIndicatorRequest => 0x0031,
-	ManagementRoutingTableRequest => 0x0032,
-	ManagementBindingTableRequest => 0x0033,
-	ManagementLeaveRequest => 0x0034,
-	ManagementDirectJoinRequest => 0x0035,
-	ManagementPermitJoiningRequest => 0x0036,
-	ManagementCacheRequest => 0x0037,
-	ManagementNetworkUpdateRequest => 0x0038,
+    ManagementLinkQualityIndicatorRequest => 0x0031,
+    ManagementRoutingTableRequest => 0x0032,
+    ManagementBindingTableRequest => 0x0033,
+    ManagementLeaveRequest => 0x0034,
+    ManagementDirectJoinRequest => 0x0035,
+    ManagementPermitJoiningRequest => 0x0036,
+    ManagementCacheRequest => 0x0037,
+    ManagementNetworkUpdateRequest => 0x0038,
 );
 
 // 2.4.5 ZDP Enumeration Description
 extended_enum!(
     /// Response status codes
-	Status, u8,
+    Status, u8,
     /// Request succeeded
-	Success => 0x00,
+    Success => 0x00,
     /// The supplied request type was invalid
-	InvalidRequestType => 0x80,
+    InvalidRequestType => 0x80,
     /// The requested device cannot be found
-	DeviceNotFound => 0x81,
+    DeviceNotFound => 0x81,
     /// The provided endpoint is invalid (0x00 or 0xff)
-	InvalidEndpoint => 0x82,
+    InvalidEndpoint => 0x82,
     /// Endpoint is not described by a simple descriptor
-	NotActive => 0x83,
+    NotActive => 0x83,
     /// The requested optional feature is not supported by this device
-	NotSupported => 0x84,
+    NotSupported => 0x84,
     /// The request timed out
-	Timeout => 0x85,
+    Timeout => 0x85,
     /// Bind request was unsuccessful because the requested cluster was not found
-	NoMatch => 0x86,
+    NoMatch => 0x86,
     /// Failed to unbind because lack of binding entries
-	NoEntry => 0x88,
+    NoEntry => 0x88,
     /// The child descriptor is not available to the parent
-	NoDescriptor => 0x89,
+    NoDescriptor => 0x89,
     /// The device do not have sufficient storafe to support the request
-	InsufficientSpace => 0x8a,
+    InsufficientSpace => 0x8a,
     /// The device could not complete the operation at this time
-	NotPermitted => 0x8b,
+    NotPermitted => 0x8b,
     /// The device could not complete the operation since the table is full
-	TableFull => 0x8c,
+    TableFull => 0x8c,
     /// The device was not authorised to complete the operation
-	NotAuthorised => 0x8d,
+    NotAuthorised => 0x8d,
     /// The device could not complete the operation because the device binding table is full
-	DeviceBindingTableFull => 0x8e,
-	InvalidIndex => 0x8f,
+    DeviceBindingTableFull => 0x8e,
+    InvalidIndex => 0x8f,
 );
 
 #[derive(Clone, Debug, PartialEq)]
@@ -123,6 +132,20 @@ pub enum DeviceProfileMessage {
     IeeeAddressResponse(AddressResponse),
     /// Request the node descriptor of another device
     NodeDescriptorRequest(NodeDescriptorRequest),
+    /// Response to a node descriptor request
+    NodeDescriptorResponse(NodeDescriptorResponse),
+    /// Request the power descriptor of another device
+    PowerDescriptorRequest(PowerDescriptorRequest),
+    /// Response to a power descriptor request
+    PowerDescriptorResponse(PowerDescriptorResponse),
+    /// Request the endpoint simple desciptor of another device
+    SimpleDescriptorRequest(SimpleDescriptorRequest),
+    /// Response to a endpoint simple descriptor request
+    SimpleDescriptorResponse(SimpleDescriptorResponse),
+    /// Request the active endpoints of another device
+    ActiveEndpointRequest(ActiveEndpointRequest),
+    /// Response to a active endpoints request
+    ActiveEndpointResponse(ActiveEndpointResponse),
     /// Find other devices that match the criteria
     MatchDescriptorRequest(MatchDescriptorRequest),
     /// Response to a match descriptor request
@@ -144,6 +167,13 @@ impl DeviceProfileMessage {
             DeviceProfileMessage::IeeeAddressRequest(ref m) => m.pack(data),
             DeviceProfileMessage::IeeeAddressResponse(ref m) => m.pack(data),
             DeviceProfileMessage::NodeDescriptorRequest(ref m) => m.pack(data),
+            DeviceProfileMessage::NodeDescriptorResponse(ref m) => m.pack(data),
+            DeviceProfileMessage::PowerDescriptorRequest(ref m) => m.pack(data),
+            DeviceProfileMessage::PowerDescriptorResponse(ref m) => m.pack(data),
+            DeviceProfileMessage::SimpleDescriptorRequest(ref m) => m.pack(data),
+            DeviceProfileMessage::SimpleDescriptorResponse(ref m) => m.pack(data),
+            DeviceProfileMessage::ActiveEndpointRequest(ref m) => m.pack(data),
+            DeviceProfileMessage::ActiveEndpointResponse(ref m) => m.pack(data),
             DeviceProfileMessage::MatchDescriptorRequest(ref m) => m.pack(data),
             DeviceProfileMessage::MatchDescriptorResponse(ref m) => m.pack(data),
             DeviceProfileMessage::DeviceAnnounce(ref m) => m.pack(data),
@@ -167,6 +197,22 @@ impl DeviceProfileMessage {
                 ClusterIdentifier::IeeeAddressRequest => {
                     let (rsp, used) = AddressResponse::unpack(&data)?;
                     Ok((DeviceProfileMessage::IeeeAddressResponse(rsp), used))
+                }
+                ClusterIdentifier::NodeDescriptorRequest => {
+                    let (rsp, used) = NodeDescriptorResponse::unpack(&data)?;
+                    Ok((DeviceProfileMessage::NodeDescriptorResponse(rsp), used))
+                }
+                ClusterIdentifier::PowerDescriptorRequest => {
+                    let (rsp, used) = PowerDescriptorResponse::unpack(&data)?;
+                    Ok((DeviceProfileMessage::PowerDescriptorResponse(rsp), used))
+                }
+                ClusterIdentifier::SimpleDescriptorRequest => {
+                    let (rsp, used) = SimpleDescriptorResponse::unpack(&data)?;
+                    Ok((DeviceProfileMessage::SimpleDescriptorResponse(rsp), used))
+                }
+                ClusterIdentifier::ActiveEndpointRequest => {
+                    let (rsp, used) = ActiveEndpointResponse::unpack(&data)?;
+                    Ok((DeviceProfileMessage::ActiveEndpointResponse(rsp), used))
                 }
                 ClusterIdentifier::MatchDescriptorRequest => {
                     let (rsp, used) = MatchDescriptorResponse::unpack(&data)?;
@@ -195,6 +241,18 @@ impl DeviceProfileMessage {
                 ClusterIdentifier::NodeDescriptorRequest => {
                     let (req, used) = NodeDescriptorRequest::unpack(&data)?;
                     Ok((DeviceProfileMessage::NodeDescriptorRequest(req), used))
+                }
+                ClusterIdentifier::PowerDescriptorRequest => {
+                    let (req, used) = PowerDescriptorRequest::unpack(&data)?;
+                    Ok((DeviceProfileMessage::PowerDescriptorRequest(req), used))
+                }
+                ClusterIdentifier::SimpleDescriptorRequest => {
+                    let (req, used) = SimpleDescriptorRequest::unpack(&data)?;
+                    Ok((DeviceProfileMessage::SimpleDescriptorRequest(req), used))
+                }
+                ClusterIdentifier::ActiveEndpointRequest => {
+                    let (req, used) = ActiveEndpointRequest::unpack(&data)?;
+                    Ok((DeviceProfileMessage::ActiveEndpointRequest(req), used))
                 }
                 ClusterIdentifier::MatchDescriptorRequest => {
                     let (req, used) = MatchDescriptorRequest::unpack(&data)?;

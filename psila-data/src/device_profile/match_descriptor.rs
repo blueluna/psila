@@ -107,7 +107,7 @@ impl Pack<MatchDescriptorRequest, Error> for MatchDescriptorRequest {
 
 // 2.4.3.1.7 Match_Desc_req
 /// Match descriptor request
-/// Requests simmple descriptor for devices matching the requested requirements
+/// Requests simple descriptor for devices matching the requested requirements
 #[derive(Clone, Debug, PartialEq)]
 pub struct MatchDescriptorResponse {
     pub status: Status,

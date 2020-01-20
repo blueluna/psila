@@ -205,6 +205,164 @@ impl Parser {
                     DeviceProfileMessage::NodeDescriptorRequest(req) => {
                         print!("Node Descriptor Request {}", req.address);
                     }
+                    DeviceProfileMessage::NodeDescriptorResponse(rsp) => {
+                        print!(
+                            "Node Descriptor Response {} {:?} {:?}",
+                            rsp.address, rsp.status, rsp.descriptor.device_type,
+                        );
+                        if rsp.descriptor.complex_descriptor {
+                            print!(" CPX");
+                        }
+                        if rsp.descriptor.user_descriptor {
+                            print!(" USR");
+                        }
+                        use psila_data::device_profile::node_descriptor;
+                        if rsp
+                            .descriptor
+                            .frequency_bands
+                            .contains(node_descriptor::BandFlags::BAND_868MHZ)
+                        {
+                            print!(" 868MHz");
+                        }
+                        if rsp
+                            .descriptor
+                            .frequency_bands
+                            .contains(node_descriptor::BandFlags::BAND_902TO928MHZ)
+                        {
+                            print!(" 9XXMHz");
+                        }
+                        if rsp
+                            .descriptor
+                            .frequency_bands
+                            .contains(node_descriptor::BandFlags::BAND_2400TO2483MHZ)
+                        {
+                            print!(" 24XXMHz");
+                        }
+                        print!(
+                            " {} {:04x} {} {} {}",
+                            rsp.descriptor.mac_capability,
+                            rsp.descriptor.manufacturer_code,
+                            rsp.descriptor.maximum_buffer_size,
+                            rsp.descriptor.maximum_incoming_transfer_size,
+                            rsp.descriptor.maximum_outgoing_transfer_size
+                        );
+                        if rsp
+                            .descriptor
+                            .server_mask
+                            .flags
+                            .contains(node_descriptor::ServerFlags::PRIMARY_TRUST_CENTER)
+                        {
+                            print!(" TC");
+                        }
+                        if rsp
+                            .descriptor
+                            .server_mask
+                            .flags
+                            .contains(node_descriptor::ServerFlags::BACKUP_TRUST_CENTER)
+                        {
+                            print!(" BTC");
+                        }
+                        if rsp
+                            .descriptor
+                            .server_mask
+                            .flags
+                            .contains(node_descriptor::ServerFlags::PRIMARY_BINDING_TABLE)
+                        {
+                            print!(" BT");
+                        }
+                        if rsp
+                            .descriptor
+                            .server_mask
+                            .flags
+                            .contains(node_descriptor::ServerFlags::BACKUP_BINDING_TABLE)
+                        {
+                            print!(" BBT");
+                        }
+                        if rsp
+                            .descriptor
+                            .server_mask
+                            .flags
+                            .contains(node_descriptor::ServerFlags::PRIMARY_DISCOVERY_CACHE)
+                        {
+                            print!(" DC");
+                        }
+                        if rsp
+                            .descriptor
+                            .server_mask
+                            .flags
+                            .contains(node_descriptor::ServerFlags::BACKUP_DISCOVERY_CACHE)
+                        {
+                            print!(" BDC");
+                        }
+                        if rsp
+                            .descriptor
+                            .server_mask
+                            .flags
+                            .contains(node_descriptor::ServerFlags::NETWORK_MANAGER)
+                        {
+                            print!(" NM");
+                        }
+                        print!(
+                            " {:02}",
+                            rsp.descriptor.server_mask.stack_complience_version
+                        );
+                        if rsp.descriptor.descriptor_capability.contains(node_descriptor::DescriptorCapability::EXTENDED_ACTIVE_END_POINT_LIST_AVAILABLE) {
+                            print!(" EEL");
+                        }
+                        if rsp.descriptor.descriptor_capability.contains(node_descriptor::DescriptorCapability::EXTENDED_SIMPLE_DESCRIPTOR_LIST_AVAILABLE) {
+                            print!(" ESD");
+                        }
+                    }
+                    DeviceProfileMessage::PowerDescriptorRequest(req) => {
+                        print!("Power Descriptor Request {}", req.address);
+                    }
+                    DeviceProfileMessage::PowerDescriptorResponse(rsp) => {
+                        print!(
+                            "Power Descriptor Response {} {:?} {:?} {:?} {:?} {:?}",
+                            rsp.address,
+                            rsp.status,
+                            rsp.descriptor.mode,
+                            rsp.descriptor.available_sources,
+                            rsp.descriptor.current_sources,
+                            rsp.descriptor.level
+                        );
+                    }
+                    DeviceProfileMessage::SimpleDescriptorRequest(req) => {
+                        print!(
+                            "Simple Descriptor Request {} Endpoint {:02x}",
+                            req.address, req.endpoint
+                        );
+                    }
+                    DeviceProfileMessage::SimpleDescriptorResponse(rsp) => {
+                        print!(
+                            "Simple Descriptor Response {} {:?} {:02x} {:04x} {:04x} {:02x}",
+                            rsp.address,
+                            rsp.status,
+                            rsp.descriptor.endpoint,
+                            rsp.descriptor.profile,
+                            rsp.descriptor.device,
+                            rsp.descriptor.device_version,
+                        );
+                        let clusters = rsp.descriptor.input_clusters();
+                        print!(" IN {}", clusters.len());
+                        for cluster in clusters {
+                            print!(" {:04x}", cluster);
+                        }
+                        let clusters = rsp.descriptor.output_clusters();
+                        print!(" OUT {}", clusters.len());
+                        for cluster in clusters {
+                            print!(" {:04x}", cluster);
+                        }
+                    }
+                    DeviceProfileMessage::ActiveEndpointRequest(req) => {
+                        print!("Active Endpoint Request {}", req.address);
+                    }
+                    DeviceProfileMessage::ActiveEndpointResponse(rsp) => {
+                        print!("Active Endpoint Response {} {:?}", rsp.address, rsp.status);
+                        for endpoint in rsp.endpoints() {
+                            print!(" {:02x}", endpoint);
+                        }
+                    }
                     DeviceProfileMessage::MatchDescriptorRequest(req) => {
                         print!(
                             "Match Descriptor Request: Address {} Profile {:04x} Input",

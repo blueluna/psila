@@ -7,6 +7,9 @@
 #![cfg_attr(feature = "core", no_std)]
 
 #[macro_use]
+extern crate bitflags;
+
+#[macro_use]
 mod utils;
 
 pub mod application_service; // APS
