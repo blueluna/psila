@@ -14,8 +14,10 @@ pub struct SimpleDescriptor {
     pub profile: u16,
     pub device: u16,
     pub device_version: u8,
+    /// Server clusters implemented by the device
     pub input_cluster_count: u8,
     pub input_clusters: [u16; 32],
+    /// Client clusters implemented by the device
     pub output_cluster_count: u8,
     pub output_clusters: [u16; 32],
 }

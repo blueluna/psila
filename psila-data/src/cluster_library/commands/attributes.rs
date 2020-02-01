@@ -306,7 +306,7 @@ mod tests {
     }
 
     #[test]
-    fn unpack_read_attributes_response() {
+    fn unpack_read_attributes_response_1() {
         use crate::cluster_library::AttributeValue;
 
         let data = [
@@ -326,6 +326,54 @@ mod tests {
         assert_eq!(
             format!("{}", cmd.attributes[0].value.as_ref().unwrap()),
             "IKEA of Sweden".to_string()
+        );
+    }
+
+    #[test]
+    fn unpack_read_attributes_response_2() {
+        use crate::cluster_library::AttributeValue;
+
+        let data = [
+            0x05, 0x00, 0x00, 0x42, 0x06, 0x53, 0x50, 0x20, 0x31, 0x32, 0x30, 0x06, 0x00, 0x00,
+            0x42, 0x0c, 0x32, 0x30, 0x31, 0x37, 0x31, 0x30, 0x32, 0x37, 0x2d, 0x31, 0x30, 0x30,
+            0x07, 0x00, 0x00, 0x30, 0x01, 0x0a, 0x00, 0x00, 0x41, 0x09, 0x30, 0x31, 0x30, 0x34,
+            0x30, 0x30, 0x30, 0x38, 0x32, 0x00, 0x40, 0x00, 0x42, 0x03, 0x32, 0x2e, 0x30,
+        ];
+        let (cmd, used) = ReadAttributesResponse::unpack(&data).unwrap();
+        assert_eq!(used, 55);
+        assert_eq!(cmd.attributes[0].identifier, 0x0005);
+        assert_eq!(cmd.attributes[0].status, ClusterLibraryStatus::Success);
+        assert_eq!(
+            cmd.attributes[0].value,
+            Some(AttributeValue::CharacterString(Some("SP 120".to_string())))
+        );
+        assert_eq!(cmd.attributes[1].identifier, 0x0006);
+        assert_eq!(cmd.attributes[1].status, ClusterLibraryStatus::Success);
+        assert_eq!(
+            cmd.attributes[1].value,
+            Some(AttributeValue::CharacterString(Some(
+                "20171027-100".to_string()
+            )))
+        );
+        assert_eq!(cmd.attributes[2].identifier, 0x0007);
+        assert_eq!(cmd.attributes[2].status, ClusterLibraryStatus::Success);
+        assert_eq!(
+            cmd.attributes[2].value,
+            Some(AttributeValue::Enumeration8(1))
+        );
+        assert_eq!(cmd.attributes[3].identifier, 0x000a);
+        assert_eq!(cmd.attributes[3].status, ClusterLibraryStatus::Success);
+        assert_eq!(
+            cmd.attributes[3].value,
+            Some(AttributeValue::OctetString(Some(vec![
+                0x30, 0x31, 0x30, 0x34, 0x30, 0x30, 0x30, 0x38, 0x32
+            ])))
+        );
+        assert_eq!(cmd.attributes[4].identifier, 0x4000);
+        assert_eq!(cmd.attributes[4].status, ClusterLibraryStatus::Success);
+        assert_eq!(
+            cmd.attributes[4].value,
+            Some(AttributeValue::CharacterString(Some("2.0".to_string())))
         );
     }
 

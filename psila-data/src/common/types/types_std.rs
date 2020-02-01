@@ -23,8 +23,7 @@ impl Pack<OctetString, Error> for OctetString {
         if data.len() <= length {
             return Err(Error::WrongNumberOfBytes);
         }
-        let mut value = OctetString::with_capacity(length);
-        value.copy_from_slice(&data[1..=length]);
+        let value = (&data[1..=length]).to_vec();
         Ok((value, length + 1))
     }
 }

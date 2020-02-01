@@ -45,7 +45,11 @@ pub struct ActiveEndpointResponse {
 impl ActiveEndpointResponse {
     pub fn success_response(address: NetworkAddress, endpoints: &[u8]) -> Self {
         let mut eps = [0u8; 32];
-        let count = if endpoints.len() > 32 { 32 } else { endpoints.len() };
+        let count = if endpoints.len() > 32 {
+            32
+        } else {
+            endpoints.len()
+        };
         let ep_count = count as u8;
         eps[..count].copy_from_slice(&endpoints[..count]);
         Self {
@@ -71,7 +75,9 @@ impl Pack<ActiveEndpointResponse, Error> for ActiveEndpointResponse {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
         let count = if self.status == Status::Success {
             self.endpoint_count as usize
-        } else { 0 };
+        } else {
+            0
+        };
         if data.len() < 4 + count {
             return Err(Error::WrongNumberOfBytes);
         }
@@ -92,7 +98,9 @@ impl Pack<ActiveEndpointResponse, Error> for ActiveEndpointResponse {
         let endpoint_count = data[3];
         let count = if status == Status::Success {
             endpoint_count as usize
-        } else { 0 };
+        } else {
+            0
+        };
         let endpoint_count = count as u8;
         if data.len() < 4 + count {
             return Err(Error::WrongNumberOfBytes);
@@ -154,7 +162,6 @@ mod tests {
         assert_eq!(req.endpoint_count, 1);
         assert_eq!(req.endpoints[..1], [0x01]);
 
-
         let data = [0x00, 0x45, 0x78, 0x04, 0x01, 0x10, 0x0f, 0x20];
         let (req, used) = ActiveEndpointResponse::unpack(&data[..]).unwrap();
         assert_eq!(used, 8);
@@ -176,7 +183,8 @@ mod tests {
 
     #[test]
     fn pack_active_endpoint_response_success() {
-        let response = ActiveEndpointResponse::success_response(NetworkAddress::from(0xcdfe), &[0x01, 0x02]);
+        let response =
+            ActiveEndpointResponse::success_response(NetworkAddress::from(0xcdfe), &[0x01, 0x02]);
         let mut data = [0u8; 6];
         let used = response.pack(&mut data[..]).unwrap();
         assert_eq!(used, 6);
@@ -185,7 +193,10 @@ mod tests {
 
     #[test]
     fn pack_active_endpoint_response_error() {
-        let response = ActiveEndpointResponse::error_response(NetworkAddress::from(0xcdfe), Status::InvalidRequestType);
+        let response = ActiveEndpointResponse::error_response(
+            NetworkAddress::from(0xcdfe),
+            Status::InvalidRequestType,
+        );
         let mut data = [0u8; 4];
         let used = response.pack(&mut data[..]).unwrap();
         assert_eq!(used, 4);
