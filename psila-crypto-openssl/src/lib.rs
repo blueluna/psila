@@ -74,10 +74,8 @@ impl BlockCipher for OpenSslCipher {
         assert!(output.len() == BLOCK_SIZE);
         let mut temp = [0u8; BLOCK_SIZE * 2];
         let mut crypter =
-            Crypter::new(self.cipher, self.mode, &self.key, None).map_err(|e| into_error(e))?;
-        crypter
-            .update(input, &mut temp)
-            .map_err(|e| into_error(e))?;
+            Crypter::new(self.cipher, self.mode, &self.key, None).map_err(into_error)?;
+        crypter.update(input, &mut temp).map_err(into_error)?;
         output.copy_from_slice(&temp[..BLOCK_SIZE]);
         Ok(())
     }
@@ -149,16 +147,16 @@ where
         assert!(output.len() == BLOCK_SIZE);
         match self.mode {
             Mode::Encrypt => {
-                for n in 0..BLOCK_SIZE {
-                    self.block[n] ^= input[n];
+                for (i, b) in input.iter().zip(self.block.iter_mut()) {
+                    *b ^= *i;
                 }
                 self.cipher.process_block(&self.block, output)?;
                 self.block.copy_from_slice(output);
             }
             Mode::Decrypt => {
                 self.cipher.process_block(input, output)?;
-                for n in 0..BLOCK_SIZE {
-                    output[n] ^= self.block[n];
+                for (o, b) in output.iter_mut().zip(self.block.iter()) {
+                    *o ^= *b;
                 }
                 self.block.copy_from_slice(input);
             }
