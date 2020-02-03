@@ -7,8 +7,8 @@ use crate::pack::Pack;
 use crate::Error;
 
 use attributes::{
-    ReadAttributes, ReadAttributesResponse, ReportAttributes, WriteAttributes,
-    WriteAttributesResponse,
+    DiscoverAttributes, DiscoverAttributesResponse, ReadAttributes, ReadAttributesResponse,
+    ReportAttributes, WriteAttributes, WriteAttributesResponse,
 };
 use default_response::DefaultResponse;
 
@@ -55,8 +55,8 @@ pub enum Command {
     ReadReportingConfigurationResponse,
     ReportAttributes(ReportAttributes),
     DefaultResponse(DefaultResponse),
-    DiscoverAttributes,
-    DiscoverAttributesResponse,
+    DiscoverAttributes(DiscoverAttributes),
+    DiscoverAttributesResponse(DiscoverAttributesResponse),
     ReadAttributesStructured,
     WriteAttributesStructured,
     WriteAttributesStructuredResponse,
@@ -114,9 +114,13 @@ impl Command {
                 let used = cmd.pack(data)?;
                 Ok((used, GeneralCommandIdentifier::DefaultResponse))
             }
-            Command::DiscoverAttributes => Ok((0, GeneralCommandIdentifier::DiscoverAttributes)),
-            Command::DiscoverAttributesResponse => {
-                Ok((0, GeneralCommandIdentifier::DiscoverAttributesResponse))
+            Command::DiscoverAttributes(cmd) => {
+                let used = cmd.pack(data)?;
+                Ok((used, GeneralCommandIdentifier::DiscoverAttributes))
+            }
+            Command::DiscoverAttributesResponse(cmd) => {
+                let used = cmd.pack(data)?;
+                Ok((used, GeneralCommandIdentifier::DiscoverAttributesResponse))
             }
             Command::ReadAttributesStructured => {
                 Ok((0, GeneralCommandIdentifier::ReadAttributesStructured))
@@ -196,9 +200,13 @@ impl Command {
                 let (cmd, used) = DefaultResponse::unpack(&data)?;
                 Ok((Command::DefaultResponse(cmd), used))
             }
-            GeneralCommandIdentifier::DiscoverAttributes => Ok((Command::DiscoverAttributes, 0)),
+            GeneralCommandIdentifier::DiscoverAttributes => {
+                let (cmd, used) = DiscoverAttributes::unpack(&data)?;
+                Ok((Command::DiscoverAttributes(cmd), used))
+            }
             GeneralCommandIdentifier::DiscoverAttributesResponse => {
-                Ok((Command::DiscoverAttributesResponse, 0))
+                let (cmd, used) = DiscoverAttributesResponse::unpack(&data)?;
+                Ok((Command::DiscoverAttributesResponse(cmd), used))
             }
             GeneralCommandIdentifier::ReadAttributesStructured => {
                 Ok((Command::ReadAttributesStructured, 0))

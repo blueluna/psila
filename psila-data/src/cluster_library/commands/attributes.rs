@@ -293,6 +293,81 @@ impl Pack<ReportAttributes, Error> for ReportAttributes {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct DiscoverAttributes {
+    pub start: AttributeIdentifier,
+    pub count: u8,
+}
+
+impl Pack<DiscoverAttributes, Error> for DiscoverAttributes {
+    fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
+        if data.len() < 3 {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        self.start.pack(&mut data[0..2])?;
+        data[2] = self.count;
+        Ok(3)
+    }
+    fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
+        if data.len() < 3 {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        let start = AttributeIdentifier::unpack(&data[0..2])?;
+        let count = data[2];
+        Ok((Self { start, count }, 3))
+    }
+}
+
+#[cfg(not(feature = "core"))]
+pub type DiscoverAttributeVec = std::vec::Vec<(AttributeIdentifier, AttributeDataType)>;
+
+#[cfg(feature = "core")]
+pub type DiscoverAttributeVec =
+    heapless::Vec<(AttributeIdentifier, AttributeDataType), heapless::consts::U16>;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DiscoverAttributesResponse {
+    pub complete: bool,
+    pub attributes: DiscoverAttributeVec,
+}
+
+impl Pack<DiscoverAttributesResponse, Error> for DiscoverAttributesResponse {
+    fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
+        if data.len() < (self.attributes.len() * 3) + 1 {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        data[0] = u8::from(self.complete);
+        let mut offset = 1;
+        for attribute in self.attributes.iter() {
+            attribute.0.pack(&mut data[offset..offset + 2])?;
+            data[offset + 2] = u8::from(attribute.1);
+            offset += 3;
+        }
+        Ok(offset)
+    }
+    fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
+        if data.len() < 1 {
+            return Err(Error::WrongNumberOfBytes);
+        }
+        let complete = data[0] != 0;
+        let mut offset = 1;
+        let mut attributes = DiscoverAttributeVec::new();
+        while (offset + 3) <= data.len() {
+            let id = AttributeIdentifier::unpack(&data[offset..offset + 2])?;
+            let dt = AttributeDataType::try_from(data[offset + 2])?;
+            attributes.push((id, dt));
+            offset += 3;
+        }
+        Ok((
+            Self {
+                complete,
+                attributes,
+            },
+            offset,
+        ))
+    }
+}
+
 #[cfg(all(test, not(feature = "core")))]
 mod tests {
     use super::*;
@@ -393,5 +468,173 @@ mod tests {
         assert_eq!(cmd.attributes[1].value, AttributeValue::Unsigned16(0x691d));
         assert_eq!(cmd.attributes[2].identifier, 0x0007);
         assert_eq!(cmd.attributes[2].value, AttributeValue::Unsigned16(0x01c6));
+    }
+
+    #[test]
+    fn unpack_discover_attributes() {
+        let data = [0x00, 0x00, 0xf0];
+        let (cmd, used) = DiscoverAttributes::unpack(&data).unwrap();
+        assert_eq!(used, 3);
+        assert_eq!(cmd.start, AttributeIdentifier::from(0));
+        assert_eq!(cmd.count, 240);
+    }
+
+    #[test]
+    fn pack_discover_attributes() {
+        let cmd = DiscoverAttributes {
+            start: AttributeIdentifier::from(0x1234),
+            count: 12,
+        };
+        let mut data = [0u8; 3];
+        let used = cmd.pack(&mut data[..]).unwrap();
+        assert_eq!(used, 3);
+        assert_eq!(data, [0x34, 0x12, 0x0c]);
+    }
+
+    #[test]
+    fn unpack_discover_attributes_response() {
+        let data = [
+            0x00, 0x00, 0x00, 0x10, 0x00, 0x40, 0x10, 0x01, 0x40, 0x21, 0x02, 0x40, 0x21, 0x03,
+            0x40, 0x30,
+        ];
+        let (cmd, used) = DiscoverAttributesResponse::unpack(&data).unwrap();
+        assert_eq!(used, 16);
+        assert_eq!(cmd.complete, false);
+        assert_eq!(cmd.attributes.len(), 5);
+        assert_eq!(cmd.attributes[0].0, AttributeIdentifier::from(0x0000));
+        assert_eq!(cmd.attributes[0].1, AttributeDataType::Boolean);
+        assert_eq!(cmd.attributes[1].0, AttributeIdentifier::from(0x4000));
+        assert_eq!(cmd.attributes[1].1, AttributeDataType::Boolean);
+        assert_eq!(cmd.attributes[2].0, AttributeIdentifier::from(0x4001));
+        assert_eq!(cmd.attributes[2].1, AttributeDataType::Unsigned16);
+        assert_eq!(cmd.attributes[3].0, AttributeIdentifier::from(0x4002));
+        assert_eq!(cmd.attributes[3].1, AttributeDataType::Unsigned16);
+        assert_eq!(cmd.attributes[4].0, AttributeIdentifier::from(0x4003));
+        assert_eq!(cmd.attributes[4].1, AttributeDataType::Enumeration8);
+
+        let data = [
+            0x01, 0x00, 0x00, 0x10, 0x00, 0x40, 0x10, 0x01, 0x40, 0x21, 0x02, 0x40, 0x21, 0x03,
+            0x40, 0x30, 0xfd, 0xff, 0x21,
+        ];
+        let (cmd, used) = DiscoverAttributesResponse::unpack(&data).unwrap();
+        assert_eq!(used, 19);
+        assert_eq!(cmd.complete, true);
+        assert_eq!(cmd.attributes.len(), 6);
+        assert_eq!(cmd.attributes[0].0, AttributeIdentifier::from(0x0000));
+        assert_eq!(cmd.attributes[0].1, AttributeDataType::Boolean);
+        assert_eq!(cmd.attributes[1].0, AttributeIdentifier::from(0x4000));
+        assert_eq!(cmd.attributes[1].1, AttributeDataType::Boolean);
+        assert_eq!(cmd.attributes[2].0, AttributeIdentifier::from(0x4001));
+        assert_eq!(cmd.attributes[2].1, AttributeDataType::Unsigned16);
+        assert_eq!(cmd.attributes[3].0, AttributeIdentifier::from(0x4002));
+        assert_eq!(cmd.attributes[3].1, AttributeDataType::Unsigned16);
+        assert_eq!(cmd.attributes[4].0, AttributeIdentifier::from(0x4003));
+        assert_eq!(cmd.attributes[4].1, AttributeDataType::Enumeration8);
+        assert_eq!(cmd.attributes[5].0, AttributeIdentifier::from(0xfffd));
+        assert_eq!(cmd.attributes[5].1, AttributeDataType::Unsigned16);
+
+        let data = [
+            0x01, 0x02, 0x00, 0x21, 0x03, 0x00, 0x21, 0x04, 0x00, 0x21, 0x07, 0x00, 0x21, 0x08,
+            0x00, 0x30, 0x0f, 0x00, 0x18, 0x10, 0x00, 0x20, 0x01, 0x40, 0x30, 0x0a, 0x40, 0x19,
+            0x0b, 0x40, 0x21, 0x0c, 0x40, 0x21, 0x0d, 0x40, 0x21, 0x10, 0x40, 0x21, 0xfd, 0xff,
+            0x21,
+        ];
+        let (cmd, used) = DiscoverAttributesResponse::unpack(&data).unwrap();
+        assert_eq!(used, 43);
+        assert_eq!(cmd.complete, true);
+        assert_eq!(cmd.attributes.len(), 14);
+        assert_eq!(cmd.attributes[0].0, AttributeIdentifier::from(0x0002));
+        assert_eq!(cmd.attributes[0].1, AttributeDataType::Unsigned16);
+        assert_eq!(cmd.attributes[1].0, AttributeIdentifier::from(0x0003));
+        assert_eq!(cmd.attributes[1].1, AttributeDataType::Unsigned16);
+        assert_eq!(cmd.attributes[2].0, AttributeIdentifier::from(0x0004));
+        assert_eq!(cmd.attributes[2].1, AttributeDataType::Unsigned16);
+        assert_eq!(cmd.attributes[3].0, AttributeIdentifier::from(0x0007));
+        assert_eq!(cmd.attributes[3].1, AttributeDataType::Unsigned16);
+        assert_eq!(cmd.attributes[4].0, AttributeIdentifier::from(0x0008));
+        assert_eq!(cmd.attributes[4].1, AttributeDataType::Enumeration8);
+        assert_eq!(cmd.attributes[5].0, AttributeIdentifier::from(0x000f));
+        assert_eq!(cmd.attributes[5].1, AttributeDataType::Bitmap8);
+        assert_eq!(cmd.attributes[6].0, AttributeIdentifier::from(0x0010));
+        assert_eq!(cmd.attributes[6].1, AttributeDataType::Unsigned8);
+        assert_eq!(cmd.attributes[7].0, AttributeIdentifier::from(0x4001));
+        assert_eq!(cmd.attributes[7].1, AttributeDataType::Enumeration8);
+        assert_eq!(cmd.attributes[8].0, AttributeIdentifier::from(0x400a));
+        assert_eq!(cmd.attributes[8].1, AttributeDataType::Bitmap16);
+        assert_eq!(cmd.attributes[9].0, AttributeIdentifier::from(0x400b));
+        assert_eq!(cmd.attributes[9].1, AttributeDataType::Unsigned16);
+        assert_eq!(cmd.attributes[10].0, AttributeIdentifier::from(0x400c));
+        assert_eq!(cmd.attributes[10].1, AttributeDataType::Unsigned16);
+        assert_eq!(cmd.attributes[11].0, AttributeIdentifier::from(0x400d));
+        assert_eq!(cmd.attributes[11].1, AttributeDataType::Unsigned16);
+        assert_eq!(cmd.attributes[12].0, AttributeIdentifier::from(0x4010));
+        assert_eq!(cmd.attributes[12].1, AttributeDataType::Unsigned16);
+        assert_eq!(cmd.attributes[13].0, AttributeIdentifier::from(0xfffd));
+        assert_eq!(cmd.attributes[13].1, AttributeDataType::Unsigned16);
+    }
+
+    #[test]
+    fn pack_discover_attributes_response() {
+        let mut attributes = DiscoverAttributeVec::new();
+        attributes.push((
+            AttributeIdentifier::from(0x0000),
+            AttributeDataType::Unsigned8,
+        ));
+        attributes.push((
+            AttributeIdentifier::from(0x0001),
+            AttributeDataType::Unsigned16,
+        ));
+        attributes.push((
+            AttributeIdentifier::from(0x0002),
+            AttributeDataType::Unsigned32,
+        ));
+        let cmd = DiscoverAttributesResponse {
+            complete: false,
+            attributes,
+        };
+        let mut data = [0u8; 10];
+        let used = cmd.pack(&mut data[..]).unwrap();
+        assert_eq!(used, 10);
+        assert_eq!(
+            data,
+            [0x00, 0x00, 0x00, 0x20, 0x01, 0x00, 0x21, 0x02, 0x00, 0x23]
+        );
+
+        let mut attributes = DiscoverAttributeVec::new();
+        attributes.push((AttributeIdentifier::from(0x8765), AttributeDataType::Data32));
+        attributes.push((
+            AttributeIdentifier::from(0xfffd),
+            AttributeDataType::OctetString,
+        ));
+        attributes.push((
+            AttributeIdentifier::from(0x0123),
+            AttributeDataType::UtcTime,
+        ));
+        attributes.push((
+            AttributeIdentifier::from(0x0000),
+            AttributeDataType::Unsigned8,
+        ));
+        attributes.push((
+            AttributeIdentifier::from(0x5678),
+            AttributeDataType::FloatingPoint64,
+        ));
+        attributes.push((
+            AttributeIdentifier::from(0x0101),
+            AttributeDataType::IeeeAddress,
+        ));
+        let cmd = DiscoverAttributesResponse {
+            complete: true,
+            attributes,
+        };
+        let mut data = [0u8; 19];
+        let used = cmd.pack(&mut data[..]).unwrap();
+        assert_eq!(used, 19);
+        assert_eq!(
+            data,
+            [
+                0x01, 0x65, 0x87, 0x0b, 0xfd, 0xff, 0x41, 0x23, 0x01, 0xe2, 0x00, 0x00, 0x20, 0x78,
+                0x56, 0x3a, 0x01, 0x01, 0xf0
+            ]
+        );
     }
 }

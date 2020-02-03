@@ -106,16 +106,16 @@ impl Pack<SimpleDescriptor, Error> for SimpleDescriptor {
         let count = input_cluster_count as usize;
         let mut offset = 7;
         let mut input_clusters = [0u16; 32];
-        for n in 0..count {
-            input_clusters[n] = LittleEndian::read_u16(&data[offset..offset + 2]);
+        for cluster in &mut input_clusters[..count] {
+            *cluster = LittleEndian::read_u16(&data[offset..offset + 2]);
             offset += 2;
         }
         let output_cluster_count = data[offset];
         let count = output_cluster_count as usize;
         offset += 1;
         let mut output_clusters = [0u16; 32];
-        for n in 0..count {
-            output_clusters[n] = LittleEndian::read_u16(&data[offset..offset + 2]);
+        for cluster in &mut output_clusters[..count] {
+            *cluster = LittleEndian::read_u16(&data[offset..offset + 2]);
             offset += 2;
         }
         Ok((

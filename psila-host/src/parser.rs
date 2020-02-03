@@ -71,9 +71,9 @@ impl Parser {
                         println!();
                     }
                     cluster_library::Command::WriteAttributesResponse(cmd) => {
-                        print!("Write attributes response ");
+                        print!("Write attributes response");
                         for attr in cmd.attributes.iter() {
-                            print!("{} {:?} ", attr.identifier, attr.status);
+                            print!(" {} {:?}", attr.identifier, attr.status);
                         }
                         println!();
                     }
@@ -86,6 +86,16 @@ impl Parser {
                     }
                     cluster_library::Command::DefaultResponse(cmd) => {
                         println!("Default response {:02x} {:?}", cmd.command, cmd.status);
+                    }
+                    cluster_library::Command::DiscoverAttributes(cmd) => {
+                        println!("Discovery attributes {} {}", cmd.start, cmd.count);
+                    }
+                    cluster_library::Command::DiscoverAttributesResponse(cmd) => {
+                        print!("Discovery attributes response {}", cmd.complete);
+                        for attribute in cmd.attributes.iter() {
+                            print!(" {} {:?}", attribute.0, attribute.1);
+                        }
+                        println!();
                     }
                     _ => {
                         print!("{:?} Payload: ", cmd);
