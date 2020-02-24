@@ -1,9 +1,8 @@
-
 [workspace]
 members = [
-    "psila-data",
     "psila-crypto",
     "psila-crypto-openssl",
+    "psila-data",
     "psila-host",
     "psila-service",
 ]

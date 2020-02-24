@@ -26,7 +26,7 @@ impl Parser {
         }
     }
 
-    fn handle_cluser_library_command(
+    fn handle_cluster_library_command(
         &self,
         payload: &[u8],
         command: cluster_library::GeneralCommandIdentifier,
@@ -117,7 +117,7 @@ impl Parser {
         }
     }
 
-    fn handle_cluser_library(&self, payload: &[u8], profile: ProfileIdentifier, cluster: u16) {
+    fn handle_cluster_library(&self, payload: &[u8], profile: ProfileIdentifier, cluster: u16) {
         use psila_data::cluster_library::{ClusterLibraryHeader, FrameType};
 
         print!("ZCL {:?} {:04x} ", profile, cluster);
@@ -139,7 +139,7 @@ impl Parser {
                         cluster_library::GeneralCommandIdentifier::try_from(header.command)
                     {
                         println!("CMD {:?} ", cmd);
-                        self.handle_cluser_library_command(&payload[used..], cmd);
+                        self.handle_cluster_library_command(&payload[used..], cmd);
                     } else {
                         print!("Unknown command {:02x} Payload: ", header.command);
                         for b in payload[used..].iter() {
@@ -630,7 +630,7 @@ impl Parser {
                                         );
                                     }
                                     _ => {
-                                        self.handle_cluser_library(
+                                        self.handle_cluster_library(
                                             &processed_payload[..length],
                                             profile,
                                             cluster,

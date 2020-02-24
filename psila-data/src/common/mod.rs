@@ -7,3 +7,5 @@ pub mod capability_information;
 pub mod key;
 pub mod profile_identifier;
 pub mod types;
+
+pub use profile_identifier::ProfileIdentifier;

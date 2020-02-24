@@ -346,7 +346,7 @@ impl Pack<DiscoverAttributesResponse, Error> for DiscoverAttributesResponse {
         Ok(offset)
     }
     fn unpack(data: &[u8]) -> Result<(Self, usize), Error> {
-        if data.len() < 1 {
+        if data.is_empty() {
             return Err(Error::WrongNumberOfBytes);
         }
         let complete = data[0] != 0;

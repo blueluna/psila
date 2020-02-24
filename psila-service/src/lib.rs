@@ -3,12 +3,13 @@
 #![no_std]
 
 use core::cell::Cell;
+use core::convert::TryFrom;
 
 use log;
 
-use bbqueue;
+use bbqueue::{ArrayLength, Producer};
 
-use psila_data::{pack::Pack, CapabilityInformation, ExtendedAddress, Key};
+use psila_data::{self, pack::Pack, CapabilityInformation, ExtendedAddress, Key};
 
 use psila_crypto::CryptoBackend;
 
@@ -34,22 +35,22 @@ pub enum NetworkState {
     Secure,
 }
 
-pub struct PsilaService<CB> {
+pub struct PsilaService<'a, N: ArrayLength<u8>, CB> {
     mac: MacService,
     application_service: ApplicationServiceContext,
     security_manager: security::SecurityManager<CB>,
     capability: CapabilityInformation,
-    tx_queue: bbqueue::Producer,
+    tx_queue: Producer<'a, N>,
     state: Cell<NetworkState>,
 }
 
-impl<CB> PsilaService<CB>
+impl<'a, N: ArrayLength<u8>, CB> PsilaService<'a, N, CB>
 where
     CB: CryptoBackend,
 {
     pub fn new(
         crypto: CB,
-        tx_queue: bbqueue::Producer,
+        tx_queue: Producer<'a, N>,
         address: ExtendedAddress,
         default_link_key: Key,
     ) -> Self {
@@ -83,11 +84,11 @@ where
     fn queue_packet(&mut self, data: &[u8]) -> Result<(), Error> {
         assert!(data.len() < (u8::max_value() as usize));
         let length = data.len() + 1;
-        match self.tx_queue.grant(length) {
+        match self.tx_queue.grant_exact(length) {
             Ok(mut grant) => {
                 grant[0] = data.len() as u8;
                 grant[1..].copy_from_slice(&data);
-                self.tx_queue.commit(length, grant);
+                grant.commit(length);
                 Ok(())
             }
             Err(_) => Err(Error::NotEnoughSpace),
@@ -280,14 +281,32 @@ where
         header: &psila_data::application_service::ApplicationServiceHeader,
         aps_payload: &[u8],
     ) -> Result<(), Error> {
-        use psila_data::application_service::{
-            commands::{Command, TransportKey},
-            header::FrameType,
+        use psila_data::{
+            application_service::{
+                commands::{Command, TransportKey},
+                header::FrameType,
+            },
+            common::ProfileIdentifier,
         };
         let mut buffer = [0u8; PACKET_BUFFER_MAX];
 
         match header.control.frame_type {
             FrameType::Data => {
+                if let (Some(cluster), Some(profile)) = (header.cluster, header.profile) {
+                    if let Ok(ProfileIdentifier::DeviceProfile) =
+                        ProfileIdentifier::try_from(profile)
+                    {
+                        use psila_data::device_profile::DeviceProfileFrame;
+                        match DeviceProfileFrame::unpack(aps_payload, cluster) {
+                            Ok((frame, _)) => {
+                                self.handle_device_profile(frame)?;
+                            }
+                            Err(_) => {
+                                log::error!("Failed to parse device profile message");
+                            }
+                        }
+                    }
+                }
                 log::info!("Application service data");
                 // ...
             }
@@ -326,12 +345,74 @@ where
         }
         Ok(())
     }
+
+    fn handle_device_profile(
+        &mut self,
+        frame: psila_data::device_profile::DeviceProfileFrame,
+    ) -> Result<(), Error> {
+        use psila_data::device_profile::DeviceProfileMessage;
+
+        match frame.message {
+            DeviceProfileMessage::NetworkAddressRequest(_req) => {
+                log::info!("Network address request");
+            }
+            DeviceProfileMessage::IeeeAddressRequest(_req) => {
+                log::info!("IEEE address request");
+            }
+            DeviceProfileMessage::NodeDescriptorRequest(_req) => {
+                log::info!("Node descriptor request");
+            }
+            DeviceProfileMessage::PowerDescriptorRequest(_req) => {
+                log::info!("Power descriptor request");
+            }
+            DeviceProfileMessage::SimpleDescriptorRequest(_req) => {
+                log::info!("Simple descriptor request");
+            }
+            DeviceProfileMessage::ActiveEndpointRequest(_req) => {
+                log::info!("Active endpoint request");
+            }
+            DeviceProfileMessage::MatchDescriptorRequest(_req) => {
+                log::info!("Match descriptor request");
+            }
+            DeviceProfileMessage::DeviceAnnounce(_req) => {
+                log::info!("Device announce");
+            }
+            DeviceProfileMessage::ManagementLinkQualityIndicatorRequest(_req) => {
+                log::info!("Link quality indicator request");
+            }
+            DeviceProfileMessage::NetworkAddressResponse(_rsp) => {
+                log::info!("Network address response");
+            }
+            DeviceProfileMessage::IeeeAddressResponse(_rsp) => {
+                log::info!("IEEE address response");
+            }
+            DeviceProfileMessage::NodeDescriptorResponse(_rsp) => {
+                log::info!("Node descriptor response");
+            }
+            DeviceProfileMessage::PowerDescriptorResponse(_rsp) => {
+                log::info!("Power descriptor response");
+            }
+            DeviceProfileMessage::SimpleDescriptorResponse(_rsp) => {
+                log::info!("Simple descriptor response");
+            }
+            DeviceProfileMessage::ActiveEndpointResponse(_rsp) => {
+                log::info!("Active endpoint response");
+            }
+            DeviceProfileMessage::MatchDescriptorResponse(_rsp) => {
+                log::info!("Match desriptor response");
+            }
+            DeviceProfileMessage::ManagementLinkQualityIndicatorResponse(_rsp) => {
+                log::info!("Link quality indicator response");
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg(all(test, not(feature = "core")))]
 mod tests {
     use super::*;
-    use bbqueue::{self, bbq, BBQueue};
+    use bbqueue::{consts::U512, BBBuffer};
     use psila_crypto_openssl::OpenSslBackend;
 
     #[test]
@@ -342,8 +423,8 @@ mod tests {
         ];
         let crypto_backend = OpenSslBackend::default();
         let address = psila_data::ExtendedAddress::new(0x8899_aabb_ccdd_eeff);
-        let tx_queue = bbq![256 * 2].unwrap();
-        let (tx_producer, mut tx_consumer) = tx_queue.split();
+        let tx_queue: BBBuffer<U512> = BBBuffer::new();
+        let (tx_producer, mut tx_consumer) = tx_queue.try_split().unwrap();
 
         let mut service = PsilaService::new(
             crypto_backend,
@@ -363,7 +444,7 @@ mod tests {
         assert_eq!(packet_length, 8);
 
         assert_eq!(packet, [0x03, 0x08, 0x01, 0xff, 0xff, 0xff, 0xff, 0x07]);
-        tx_consumer.release(packet_length + 1, grant);
+        grant.release(packet_length + 1);
 
         assert!(tx_consumer.read().is_err());
     }
