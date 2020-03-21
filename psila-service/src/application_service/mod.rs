@@ -5,11 +5,15 @@ use crate::{Error, Identity};
 use psila_crypto::CryptoBackend;
 use psila_data::{
     application_service::ApplicationServiceHeader,
-    device_profile::{DeviceAnnounce, DeviceProfileFrame, DeviceProfileMessage},
+    device_profile::{
+        self, ClusterIdentifier, DeviceAnnounce, DeviceProfileFrame, DeviceProfileMessage,
+    },
     network::{header::DiscoverRoute, NetworkHeader},
     pack::Pack,
     CapabilityInformation, NetworkAddress,
 };
+
+use log;
 
 pub struct ApplicationServiceContext {
     aps_sequence: Cell<u8>,
@@ -50,6 +54,38 @@ impl ApplicationServiceContext {
         sequence
     }
 
+    pub fn build_acknowledge<CB: CryptoBackend>(
+        &self,
+        source: &Identity,
+        destination: NetworkAddress,
+        source_header: &ApplicationServiceHeader,
+        buffer: &mut [u8],
+        security: &mut SecurityManager<CB>,
+    ) -> Result<usize, Error> {
+        let aps_header = ApplicationServiceHeader::new_acknowledge_header(source_header);
+        let network_header = NetworkHeader::new_data_header(
+            2,                              // protocol version
+            DiscoverRoute::EnableDiscovery, // discovery route
+            true,                           // security
+            destination,                    // destination address
+            source.short,                   // source address
+            16,                             // radius
+            self.nwk_sequence_next(),       // network sequence number
+            None,                           // source route frame
+        );
+        let mut nwk_buffer = [0u8; 128];
+        let mut offset = 0;
+        let used = aps_header.pack(&mut nwk_buffer[offset..])?;
+        offset += used;
+        let used = security.encrypt_network_payload(
+            source.extended,
+            network_header,
+            &nwk_buffer[..offset],
+            buffer,
+        )?;
+        Ok(used)
+    }
+
     pub fn build_device_announce<CB: CryptoBackend>(
         &self,
         identity: &Identity,
@@ -68,13 +104,13 @@ impl ApplicationServiceContext {
             message,
         };
         let aps_header = ApplicationServiceHeader::new_data_header(
-            0,                        // destination
-            0x0013,                   // cluster
-            0,                        // profile
-            0,                        // source
-            self.aps_sequence_next(), // counter
-            false,                    // acknowledge request
-            false,                    // security
+            0,                                        // destination
+            ClusterIdentifier::DeviceAnnounce.into(), // cluster
+            0,                                        // profile
+            0,                                        // source
+            self.aps_sequence_next(),                 // counter
+            false,                                    // acknowledge request
+            false,                                    // security
         );
         let network_header = NetworkHeader::new_data_header(
             2,                              // protocol version
@@ -94,6 +130,281 @@ impl ApplicationServiceContext {
         offset += used;
         let used = security.encrypt_network_payload(
             identity.extended,
+            network_header,
+            &nwk_buffer[..offset],
+            buffer,
+        )?;
+        Ok(used)
+    }
+
+    pub fn build_node_descriptor_response<CB: CryptoBackend>(
+        &self,
+        source: &Identity,
+        destination: NetworkAddress,
+        request: &device_profile::NodeDescriptorRequest,
+        capability: CapabilityInformation,
+        buffer: &mut [u8],
+        security: &mut SecurityManager<CB>,
+    ) -> Result<usize, Error> {
+        let ndr = if request.address == source.short {
+            let descriptor = device_profile::NodeDescriptor {
+                device_type: device_profile::DeviceType::EndDevice,
+                complex_descriptor: false,
+                user_descriptor: false,
+                frequency_bands: device_profile::node_descriptor::BandFlags::BAND_2400TO2483MHZ,
+                mac_capability: capability,
+                manufacturer_code: 0x1272, // Smartplus Inc.
+                maximum_buffer_size: 82,
+                maximum_incoming_transfer_size: 82,
+                server_mask: device_profile::node_descriptor::ServerMask::default(),
+                maximum_outgoing_transfer_size: 82,
+                descriptor_capability: device_profile::node_descriptor::DescriptorCapability::empty(
+                ),
+            };
+            device_profile::NodeDescriptorResponse {
+                status: device_profile::Status::Success,
+                address: source.short,
+                descriptor,
+            }
+        } else {
+            device_profile::NodeDescriptorResponse::failure_response(
+                device_profile::Status::InvalidRequestType,
+                source.short,
+            )
+        };
+        let message = DeviceProfileMessage::NodeDescriptorResponse(ndr);
+        let device_profile_frame = DeviceProfileFrame {
+            transaction_sequence: self.dp_sequence_next(),
+            message,
+        };
+        let cluster =
+            device_profile::RESPONSE | u16::from(ClusterIdentifier::NodeDescriptorRequest);
+        let aps_header = ApplicationServiceHeader::new_data_header(
+            0,                        // destination
+            cluster,                  // cluster
+            0,                        // profile
+            0,                        // source
+            self.aps_sequence_next(), // counter
+            false,                    // acknowledge request
+            false,                    // security
+        );
+        let network_header = NetworkHeader::new_data_header(
+            2,                              // protocol version
+            DiscoverRoute::EnableDiscovery, // discovery route
+            true,                           // security
+            destination,                    // destination address
+            source.short,                   // source address
+            16,                             // radius
+            self.nwk_sequence_next(),       // network sequence number
+            None,                           // source route frame
+        );
+        let mut nwk_buffer = [0u8; 128];
+        let mut offset = 0;
+
+        log::info!("Build node descriptor 1");
+        let used = aps_header.pack(&mut nwk_buffer[offset..])?;
+        offset += used;
+        log::info!(
+            "Build node descriptor 2, {} {}",
+            offset,
+            nwk_buffer[offset..].len()
+        );
+        let used = device_profile_frame.pack(&mut nwk_buffer[offset..])?;
+        log::info!("Build node descriptor 3");
+        offset += used;
+        let used = security.encrypt_network_payload(
+            source.extended,
+            network_header,
+            &nwk_buffer[..offset],
+            buffer,
+        )?;
+        log::info!("Build node descriptor 4");
+        Ok(used)
+    }
+
+    pub fn build_active_endpoint_response<CB: CryptoBackend>(
+        &self,
+        source: &Identity,
+        destination: NetworkAddress,
+        request: &device_profile::ActiveEndpointRequest,
+        endpoints: &[u8],
+        buffer: &mut [u8],
+        security: &mut SecurityManager<CB>,
+    ) -> Result<usize, Error> {
+        let aer = if request.address == source.short {
+            device_profile::ActiveEndpointResponse::success_response(source.short, endpoints)
+        } else {
+            device_profile::ActiveEndpointResponse::failure_response(
+                device_profile::Status::InvalidRequestType,
+                source.short,
+            )
+        };
+        let message = DeviceProfileMessage::ActiveEndpointResponse(aer);
+        let device_profile_frame = DeviceProfileFrame {
+            transaction_sequence: self.dp_sequence_next(),
+            message,
+        };
+        let cluster =
+            device_profile::RESPONSE | u16::from(ClusterIdentifier::ActiveEndpointRequest);
+        let aps_header = ApplicationServiceHeader::new_data_header(
+            0,                        // destination
+            cluster,                  // cluster
+            0,                        // profile
+            0,                        // source
+            self.aps_sequence_next(), // counter
+            false,                    // acknowledge request
+            false,                    // security
+        );
+        let network_header = NetworkHeader::new_data_header(
+            2,                              // protocol version
+            DiscoverRoute::EnableDiscovery, // discovery route
+            true,                           // security
+            destination,                    // destination address
+            source.short,                   // source address
+            16,                             // radius
+            self.nwk_sequence_next(),       // network sequence number
+            None,                           // source route frame
+        );
+        let mut nwk_buffer = [0u8; 128];
+        let mut offset = 0;
+
+        log::info!("Build active endpoint response 1");
+        let used = aps_header.pack(&mut nwk_buffer[offset..])?;
+        offset += used;
+        log::info!("Build active endpoint response 2, {}", offset);
+        let used = device_profile_frame.pack(&mut nwk_buffer[offset..])?;
+        offset += used;
+        log::info!("Build active endpoint response 3, {}", offset);
+        let used = security.encrypt_network_payload(
+            source.extended,
+            network_header,
+            &nwk_buffer[..offset],
+            buffer,
+        )?;
+        log::info!("Build active endpoint response 3, {}", used);
+        Ok(used)
+    }
+
+    pub fn build_power_descriptor_response<CB: CryptoBackend>(
+        &self,
+        source: &Identity,
+        destination: NetworkAddress,
+        request: &device_profile::PowerDescriptorRequest,
+        buffer: &mut [u8],
+        security: &mut SecurityManager<CB>,
+    ) -> Result<usize, Error> {
+        let pdr = if request.address == source.short {
+            let descriptor = device_profile::NodePowerDescriptor::default();
+            device_profile::PowerDescriptorResponse {
+                status: device_profile::Status::Success,
+                address: destination,
+                descriptor,
+            }
+        } else {
+            device_profile::PowerDescriptorResponse::failure_response(
+                device_profile::Status::InvalidRequestType,
+                source.short,
+            )
+        };
+        let message = DeviceProfileMessage::PowerDescriptorResponse(pdr);
+        let device_profile_frame = DeviceProfileFrame {
+            transaction_sequence: self.dp_sequence_next(),
+            message,
+        };
+        let cluster =
+            device_profile::RESPONSE | u16::from(ClusterIdentifier::PowerDescriptorRequest);
+        let aps_header = ApplicationServiceHeader::new_data_header(
+            0,                        // destination
+            cluster,                  // cluster
+            0,                        // profile
+            0,                        // source
+            self.aps_sequence_next(), // counter
+            false,                    // acknowledge request
+            false,                    // security
+        );
+        let network_header = NetworkHeader::new_data_header(
+            2,                              // protocol version
+            DiscoverRoute::EnableDiscovery, // discovery route
+            true,                           // security
+            destination,                    // destination address
+            source.short,                   // source address
+            16,                             // radius
+            self.nwk_sequence_next(),       // network sequence number
+            None,                           // source route frame
+        );
+        let mut nwk_buffer = [0u8; 128];
+        let mut offset = 0;
+        let used = aps_header.pack(&mut nwk_buffer[offset..])?;
+        offset += used;
+        let used = device_profile_frame.pack(&mut nwk_buffer[offset..])?;
+        offset += used;
+        let used = security.encrypt_network_payload(
+            source.extended,
+            network_header,
+            &nwk_buffer[..offset],
+            buffer,
+        )?;
+        Ok(used)
+    }
+
+    pub fn build_simple_descriptor_response<CB: CryptoBackend>(
+        &self,
+        source: &Identity,
+        destination: NetworkAddress,
+        request: &device_profile::SimpleDescriptorRequest,
+        descriptor: Option<device_profile::SimpleDescriptor>,
+        buffer: &mut [u8],
+        security: &mut SecurityManager<CB>,
+    ) -> Result<usize, Error> {
+        let sdr = if request.address == source.short {
+            if let Some(descriptor) = descriptor {
+                device_profile::SimpleDescriptorResponse::success_response(destination, descriptor)
+            } else {
+                device_profile::SimpleDescriptorResponse::failure_response(
+                    device_profile::Status::NotActive,
+                    source.short,
+                )
+            }
+        } else {
+            device_profile::SimpleDescriptorResponse::failure_response(
+                device_profile::Status::InvalidRequestType,
+                source.short,
+            )
+        };
+        let message = DeviceProfileMessage::SimpleDescriptorResponse(sdr);
+        let device_profile_frame = DeviceProfileFrame {
+            transaction_sequence: self.dp_sequence_next(),
+            message,
+        };
+        let cluster =
+            device_profile::RESPONSE | u16::from(ClusterIdentifier::SimpleDescriptorRequest);
+        let aps_header = ApplicationServiceHeader::new_data_header(
+            0,                        // destination
+            cluster,                  // cluster
+            0,                        // profile
+            0,                        // source
+            self.aps_sequence_next(), // counter
+            false,                    // acknowledge request
+            false,                    // security
+        );
+        let network_header = NetworkHeader::new_data_header(
+            2,                              // protocol version
+            DiscoverRoute::EnableDiscovery, // discovery route
+            true,                           // security
+            destination,                    // destination address
+            source.short,                   // source address
+            16,                             // radius
+            self.nwk_sequence_next(),       // network sequence number
+            None,                           // source route frame
+        );
+        let mut nwk_buffer = [0u8; 128];
+        let mut offset = 0;
+        let used = aps_header.pack(&mut nwk_buffer[offset..])?;
+        offset += used;
+        let used = device_profile_frame.pack(&mut nwk_buffer[offset..])?;
+        offset += used;
+        let used = security.encrypt_network_payload(
+            source.extended,
             network_header,
             &nwk_buffer[..offset],
             buffer,

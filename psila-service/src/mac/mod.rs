@@ -62,8 +62,8 @@ impl MacService {
         self.state
     }
 
-    pub fn identity(&self) -> Identity {
-        self.identity
+    pub fn identity(&self) -> &Identity {
+        &self.identity
     }
 
     pub fn pan_identifier(&self) -> PanIdentifier {

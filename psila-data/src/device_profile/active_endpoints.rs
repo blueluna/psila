@@ -59,7 +59,7 @@ impl ActiveEndpointResponse {
             endpoints: eps,
         }
     }
-    pub fn error_response(address: NetworkAddress, status: Status) -> Self {
+    pub fn failure_response(status: Status, address: NetworkAddress) -> Self {
         assert!(status != Status::Success);
         let endpoints = [0u8; 32];
         Self {
@@ -193,9 +193,9 @@ mod tests {
 
     #[test]
     fn pack_active_endpoint_response_error() {
-        let response = ActiveEndpointResponse::error_response(
-            NetworkAddress::from(0xcdfe),
+        let response = ActiveEndpointResponse::failure_response(
             Status::InvalidRequestType,
+            NetworkAddress::from(0xcdfe),
         );
         let mut data = [0u8; 4];
         let used = response.pack(&mut data[..]).unwrap();

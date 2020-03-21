@@ -76,16 +76,27 @@ const USER_DESCRIPTOR: u8 = 0b0001_0000;
 /// Node descriptor
 #[derive(Clone, Debug, PartialEq)]
 pub struct NodeDescriptor {
+    /// Node device type
     pub device_type: DeviceType,
+    /// Node has a complex node descriptor
     pub complex_descriptor: bool,
+    /// Node has a user descriptor
     pub user_descriptor: bool,
+    /// Which frequency bands the node supports
     pub frequency_bands: BandFlags,
+    /// The MAC capabilities of the node
     pub mac_capability: CapabilityInformation,
+    /// Manufacturer code of the node
     pub manufacturer_code: u16,
+    /// Maximum size of a Network package
     pub maximum_buffer_size: u8,
+    /// Maximum size of a received application package
     pub maximum_incoming_transfer_size: u16,
+    /// Server mask field
     pub server_mask: ServerMask,
+    /// Maximum size of a sent application package
     pub maximum_outgoing_transfer_size: u16,
+    /// Descriptor capabilities
     pub descriptor_capability: DescriptorCapability,
 }
 
@@ -174,7 +185,7 @@ pub struct NodeDescriptorRequest {
 
 impl Pack<NodeDescriptorRequest, Error> for NodeDescriptorRequest {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
-        if data.len() != 2 {
+        if data.len() < 2 {
             return Err(Error::WrongNumberOfBytes);
         }
         self.address.pack(&mut data[0..2])?;
@@ -200,6 +211,17 @@ pub struct NodeDescriptorResponse {
     pub descriptor: NodeDescriptor,
 }
 
+impl NodeDescriptorResponse {
+    pub fn failure_response(status: Status, address: NetworkAddress) -> Self {
+        assert!(status != Status::Success);
+        NodeDescriptorResponse {
+            status,
+            address,
+            descriptor: NodeDescriptor::default(),
+        }
+    }
+}
+
 impl Pack<NodeDescriptorResponse, Error> for NodeDescriptorResponse {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
         let size = if self.status == Status::Success {
@@ -207,7 +229,7 @@ impl Pack<NodeDescriptorResponse, Error> for NodeDescriptorResponse {
         } else {
             3
         };
-        if data.len() != size {
+        if data.len() < size {
             return Err(Error::WrongNumberOfBytes);
         }
         data[0] = u8::from(self.status);

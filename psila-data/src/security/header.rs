@@ -187,7 +187,9 @@ impl Pack<SecurityHeader, Error> for SecurityHeader {
         if data.len() < length {
             return Err(Error::NotEnoughSpace);
         }
-        self.control.pack(&mut data[0..=0])?;
+        let mut control = self.control;
+        control.has_source_address = self.source.is_some();
+        control.pack(&mut data[0..=0])?;
         LittleEndian::write_u32(&mut data[1..5], self.counter);
         let mut offset = 5;
         if let Some(source) = self.source {

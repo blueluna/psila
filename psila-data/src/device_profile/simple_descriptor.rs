@@ -196,7 +196,7 @@ impl SimpleDescriptorResponse {
             descriptor,
         }
     }
-    pub fn failure_response(address: NetworkAddress, status: Status) -> Self {
+    pub fn failure_response(status: Status, address: NetworkAddress) -> Self {
         Self {
             status,
             address,
@@ -375,8 +375,8 @@ mod tests {
     #[test]
     fn pack_simple_descriptor_response_error() {
         let response = SimpleDescriptorResponse::failure_response(
-            NetworkAddress::from(0xfffe),
             Status::InvalidEndpoint,
+            NetworkAddress::from(0xfffe),
         );
         let mut data = [0u8; 4];
         let used = response.pack(&mut data[..]).unwrap();

@@ -123,6 +123,17 @@ pub struct PowerDescriptorResponse {
     pub descriptor: NodePowerDescriptor,
 }
 
+impl PowerDescriptorResponse {
+    pub fn failure_response(status: Status, address: NetworkAddress) -> Self {
+        assert!(status != Status::Success);
+        PowerDescriptorResponse {
+            status,
+            address,
+            descriptor: NodePowerDescriptor::default(),
+        }
+    }
+}
+
 impl Pack<PowerDescriptorResponse, Error> for PowerDescriptorResponse {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
         let size = if self.status == Status::Success { 5 } else { 3 };

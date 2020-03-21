@@ -120,6 +120,13 @@ impl std::fmt::Display for ShortAddress {
     }
 }
 
+#[cfg(feature = "core")]
+impl core::fmt::Display for ShortAddress {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:04x}", self.0)
+    }
+}
+
 /// 16-bit network address
 pub type NetworkAddress = ShortAddress;
 /// 16-bit personal area network (PAN) identifier

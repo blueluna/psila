@@ -42,6 +42,7 @@ pub struct PsilaService<'a, N: ArrayLength<u8>, CB> {
     capability: CapabilityInformation,
     tx_queue: Producer<'a, N>,
     state: Cell<NetworkState>,
+    identity: Identity,
 }
 
 impl<'a, N: ArrayLength<u8>, CB> PsilaService<'a, N, CB>
@@ -69,6 +70,7 @@ where
             capability,
             tx_queue,
             state: Cell::new(NetworkState::Orphan),
+            identity: Identity::default(),
         }
     }
 
@@ -136,6 +138,7 @@ where
                 }
                 if let mac::State::Associated = self.mac.state() {
                     if let NetworkState::Orphan = self.get_state() {
+                        self.identity = *self.mac.identity();
                         self.set_state(NetworkState::Associated);
                     }
                     self.handle_mac_frame(&frame)?;
@@ -197,11 +200,13 @@ where
         use psila_data::application_service::ApplicationServiceHeader;
         use psila_data::network::header::FrameType;
 
+        let nwk_header = header;
+
         match header.control.frame_type {
             FrameType::Data => {
                 let mut aps_payload = [0u8; PACKET_BUFFER_MAX];
-                let (header, used) = ApplicationServiceHeader::unpack(nwk_payload)?;
-                let aps_payload_length = if header.control.security {
+                let (aps_header, used) = ApplicationServiceHeader::unpack(nwk_payload)?;
+                let aps_payload_length = if aps_header.control.security {
                     self.security_manager
                         .decrypt_payload(nwk_payload, used, &mut aps_payload)?
                 } else {
@@ -211,7 +216,8 @@ where
                 };
                 if aps_payload_length > 0 {
                     self.handle_application_service_frame(
-                        &header,
+                        &nwk_header,
+                        &aps_header,
                         &aps_payload[..aps_payload_length],
                     )?;
                 }
@@ -233,40 +239,40 @@ where
         match Command::unpack(payload) {
             Ok((cmd, _used)) => match cmd {
                 Command::RouteRequest(_) => {
-                    log::info!("Network Route request");
+                    log::info!("> Network Route request");
                 }
                 Command::RouteReply(_) => {
-                    log::info!("Network Route reply");
+                    log::info!("> Network Route reply");
                 }
                 Command::NetworkStatus(_) => {
-                    log::info!("Network Network status");
+                    log::info!("> Network Network status");
                 }
                 Command::Leave(_) => {
-                    log::info!("Network Leave");
+                    log::info!("> Network Leave");
                 }
                 Command::RouteRecord(_) => {
-                    log::info!("Network Route record");
+                    log::info!("> Network Route record");
                 }
                 Command::RejoinRequest(_) => {
-                    log::info!("Network Rejoin request");
+                    log::info!("> Network Rejoin request");
                 }
                 Command::RejoinResponse(_) => {
-                    log::info!("Network Rejoin response");
+                    log::info!("> Network Rejoin response");
                 }
                 Command::LinkStatus(_) => {
-                    log::info!("Network Link Status");
+                    log::info!("> Network Link Status");
                 }
                 Command::NetworkReport(_) => {
-                    log::info!("Network Network report");
+                    log::info!("> Network Network report");
                 }
                 Command::NetworkUpdate(_) => {
-                    log::info!("Network Network update");
+                    log::info!("> Network Network update");
                 }
                 Command::EndDeviceTimeoutRequest(_) => {
-                    log::info!("ENetwork nd-device timeout request");
+                    log::info!("> Network End-device timeout request");
                 }
                 Command::EndDeviceTimeoutResponse(_) => {
-                    log::info!("Network End-device timeout response");
+                    log::info!("> Network End-device timeout response");
                 }
             },
             Err(_) => {
@@ -278,7 +284,8 @@ where
 
     fn handle_application_service_frame(
         &mut self,
-        header: &psila_data::application_service::ApplicationServiceHeader,
+        nwk_header: &psila_data::network::NetworkHeader,
+        aps_header: &psila_data::application_service::ApplicationServiceHeader,
         aps_payload: &[u8],
     ) -> Result<(), Error> {
         use psila_data::{
@@ -290,56 +297,99 @@ where
         };
         let mut buffer = [0u8; PACKET_BUFFER_MAX];
 
-        match header.control.frame_type {
+        if aps_header.control.acknowledge_request {
+            if aps_header.control.acknowledge_format {
+                log::info!("APS acknowledge request, compact ");
+            } else {
+                log::info!("APS acknowledge request, extended");
+            }
+            let mac_header = self.mac.build_data_header(
+                nwk_header.source_address, // destination address
+                false,                     // request acknowledge
+            );
+            let mac_header_len = mac_header.encode(&mut buffer);
+            let nwk_frame_size = self.application_service.build_acknowledge(
+                &self.identity,
+                nwk_header.source_address,
+                &aps_header,
+                &mut buffer[mac_header_len..],
+                &mut self.security_manager,
+            )?;
+            let frame_size = mac_header_len + nwk_frame_size;
+            match self.queue_packet(&buffer[..frame_size]) {
+                Ok(()) => {
+                    log::info!("< Queued acknowledge {}", frame_size);
+                }
+                Err(err) => {
+                    log::error!("< Failed to queue acknowledge, {:?}", err);
+                    return Err(err);
+                }
+            }
+        }
+
+        match aps_header.control.frame_type {
             FrameType::Data => {
-                if let (Some(cluster), Some(profile)) = (header.cluster, header.profile) {
-                    if let Ok(ProfileIdentifier::DeviceProfile) =
-                        ProfileIdentifier::try_from(profile)
-                    {
-                        use psila_data::device_profile::DeviceProfileFrame;
-                        match DeviceProfileFrame::unpack(aps_payload, cluster) {
-                            Ok((frame, _)) => {
-                                self.handle_device_profile(frame)?;
+                if let (Some(cluster), Some(profile)) = (aps_header.cluster, aps_header.profile) {
+                    if let Ok(profile_id) = ProfileIdentifier::try_from(profile) {
+                        match profile_id {
+                            ProfileIdentifier::DeviceProfile => {
+                                use psila_data::device_profile::DeviceProfileFrame;
+                                match DeviceProfileFrame::unpack(aps_payload, cluster) {
+                                    Ok((frame, _)) => {
+                                        self.handle_device_profile(nwk_header, aps_header, frame)?;
+                                    }
+                                    Err(err) => {
+                                        log::error!(
+                                            "Failed to parse device profile message, {:04x}, {:?}",
+                                            cluster,
+                                            err
+                                        );
+                                    }
+                                }
                             }
-                            Err(_) => {
-                                log::error!("Failed to parse device profile message");
+                            _ => {
+                                log::info!("Profile {:04x} {:?}", profile, profile_id);
                             }
                         }
+                    } else {
+                        log::info!("Unknown profile {:04x}", profile);
                     }
+                } else {
+                    log::info!("Application service data");
                 }
-                log::info!("Application service data");
-                // ...
             }
             FrameType::Command => {
                 // handle command
                 let (command, _used) = Command::unpack(aps_payload)?;
                 if let Command::TransportKey(cmd) = command {
                     if let TransportKey::StandardNetworkKey(key) = cmd {
-                        log::info!("Set network key");
+                        log::info!("> APS Set network key");
                         self.set_state(NetworkState::Secure);
                         self.security_manager.set_network_key(key);
                         let mac_header = self
                             .mac
                             .build_data_header(psila_data::NetworkAddress::broadcast(), false);
                         let mac_header_len = mac_header.encode(&mut buffer);
-                        let mwk_frame_size = self.application_service.build_device_announce(
-                            &self.mac.identity(),
+                        let nwk_frame_size = self.application_service.build_device_announce(
+                            &self.identity,
                             self.capability,
                             &mut buffer[mac_header_len..],
                             &mut self.security_manager,
                         )?;
-                        self.queue_packet(&buffer[..(mac_header_len + mwk_frame_size)])?;
+                        self.queue_packet(&buffer[..(mac_header_len + nwk_frame_size)])?;
+                    } else {
+                        log::info!("> APS command, {:?}", command.identifier());
                     }
                 } else {
-                    log::info!("Application service command");
+                    log::info!("> APS command, {:?}", command.identifier());
                 }
             }
             FrameType::InterPan => {
-                log::info!("Application service inter-PAN");
+                log::info!("> APS inter-PAN");
                 // Not supported yet
             }
             FrameType::Acknowledgement => {
-                log::info!("Application service acknowledge");
+                log::info!("> APS acknowledge");
                 // ...
             }
         }
@@ -348,61 +398,143 @@ where
 
     fn handle_device_profile(
         &mut self,
+        nwk_header: &psila_data::network::NetworkHeader,
+        _aps_header: &psila_data::application_service::ApplicationServiceHeader,
         frame: psila_data::device_profile::DeviceProfileFrame,
     ) -> Result<(), Error> {
         use psila_data::device_profile::DeviceProfileMessage;
+        let mut buffer = [0u8; PACKET_BUFFER_MAX];
 
         match frame.message {
             DeviceProfileMessage::NetworkAddressRequest(_req) => {
-                log::info!("Network address request");
+                log::info!("> DP Network address request");
             }
             DeviceProfileMessage::IeeeAddressRequest(_req) => {
-                log::info!("IEEE address request");
+                log::info!("> DP IEEE address request");
             }
-            DeviceProfileMessage::NodeDescriptorRequest(_req) => {
-                log::info!("Node descriptor request");
+            DeviceProfileMessage::NodeDescriptorRequest(req) => {
+                log::info!("> DP Node descriptor request, {}", req.address);
+                let mac_header = self.mac.build_data_header(
+                    nwk_header.source_address, // destination address
+                    false,                     // request acknowledge
+                );
+                let mac_header_len = mac_header.encode(&mut buffer);
+                let nwk_frame_size = self.application_service.build_node_descriptor_response(
+                    &self.identity,
+                    nwk_header.source_address,
+                    &req,
+                    self.capability,
+                    &mut buffer[mac_header_len..],
+                    &mut self.security_manager,
+                )?;
+                log::info!("< Queue response");
+                match self.queue_packet(&buffer[..(mac_header_len + nwk_frame_size)]) {
+                    Ok(()) => {
+                        log::info!("< Queued response");
+                    }
+                    Err(err) => {
+                        log::error!("< Failed to queue response, {:?}", err);
+                        return Err(err);
+                    }
+                }
             }
-            DeviceProfileMessage::PowerDescriptorRequest(_req) => {
-                log::info!("Power descriptor request");
+            DeviceProfileMessage::PowerDescriptorRequest(req) => {
+                log::info!("> DP Power descriptor request");
+                let mac_header = self.mac.build_data_header(
+                    nwk_header.source_address, // destination address
+                    false,                     // request acknowledge
+                );
+                let mac_header_len = mac_header.encode(&mut buffer);
+                let nwk_frame_size = self.application_service.build_power_descriptor_response(
+                    &self.identity,
+                    nwk_header.source_address,
+                    &req,
+                    &mut buffer[mac_header_len..],
+                    &mut self.security_manager,
+                )?;
+                self.queue_packet(&buffer[..(mac_header_len + nwk_frame_size)])?;
             }
-            DeviceProfileMessage::SimpleDescriptorRequest(_req) => {
-                log::info!("Simple descriptor request");
+            DeviceProfileMessage::SimpleDescriptorRequest(req) => {
+                log::info!("> DP Simple descriptor request {:02x}", req.endpoint);
+                let mac_header = self.mac.build_data_header(
+                    nwk_header.source_address, // destination address
+                    false,                     // request acknowledge
+                );
+                use psila_data::device_profile::SimpleDescriptor;
+                let descriptor = match req.endpoint {
+                    0x01 => {
+                        Some(SimpleDescriptor::new(
+                            req.endpoint,                                                     // endpoint
+                            u16::from(psila_data::common::ProfileIdentifier::HomeAutomation), // profile
+                            0x0100, // device, HA On-off light
+                            0,      // device version
+                            &[0x0000, 0x0006],
+                            &[],
+                        ))
+                    }
+                    _ => None,
+                };
+                let mac_header_len = mac_header.encode(&mut buffer);
+                let nwk_frame_size = self.application_service.build_simple_descriptor_response(
+                    &self.identity,
+                    nwk_header.source_address,
+                    &req,
+                    descriptor,
+                    &mut buffer[mac_header_len..],
+                    &mut self.security_manager,
+                )?;
+                self.queue_packet(&buffer[..(mac_header_len + nwk_frame_size)])?;
             }
-            DeviceProfileMessage::ActiveEndpointRequest(_req) => {
-                log::info!("Active endpoint request");
+            DeviceProfileMessage::ActiveEndpointRequest(req) => {
+                log::info!("> DP Active endpoint request, {}", req.address);
+                let mac_header = self.mac.build_data_header(
+                    nwk_header.source_address, // destination address
+                    false,                     // request acknowledge
+                );
+                let endpoints = [0x00, 0x01];
+                let mac_header_len = mac_header.encode(&mut buffer);
+                let nwk_frame_size = self.application_service.build_active_endpoint_response(
+                    &self.identity,
+                    nwk_header.source_address,
+                    &req,
+                    &endpoints,
+                    &mut buffer[mac_header_len..],
+                    &mut self.security_manager,
+                )?;
+                self.queue_packet(&buffer[..(mac_header_len + nwk_frame_size)])?;
             }
             DeviceProfileMessage::MatchDescriptorRequest(_req) => {
-                log::info!("Match descriptor request");
+                log::info!("> DP Match descriptor request");
             }
             DeviceProfileMessage::DeviceAnnounce(_req) => {
-                log::info!("Device announce");
+                log::info!("> DP Device announce");
             }
             DeviceProfileMessage::ManagementLinkQualityIndicatorRequest(_req) => {
-                log::info!("Link quality indicator request");
+                log::info!("> DP Link quality indicator request");
             }
             DeviceProfileMessage::NetworkAddressResponse(_rsp) => {
-                log::info!("Network address response");
+                log::info!("> DP Network address response");
             }
             DeviceProfileMessage::IeeeAddressResponse(_rsp) => {
-                log::info!("IEEE address response");
+                log::info!("> DP IEEE address response");
             }
             DeviceProfileMessage::NodeDescriptorResponse(_rsp) => {
-                log::info!("Node descriptor response");
+                log::info!("> DP Node descriptor response");
             }
             DeviceProfileMessage::PowerDescriptorResponse(_rsp) => {
-                log::info!("Power descriptor response");
+                log::info!("> DP Power descriptor response");
             }
             DeviceProfileMessage::SimpleDescriptorResponse(_rsp) => {
-                log::info!("Simple descriptor response");
+                log::info!("> DP Simple descriptor response");
             }
             DeviceProfileMessage::ActiveEndpointResponse(_rsp) => {
-                log::info!("Active endpoint response");
+                log::info!("> DP Active endpoint response");
             }
             DeviceProfileMessage::MatchDescriptorResponse(_rsp) => {
-                log::info!("Match desriptor response");
+                log::info!("> DP Match desriptor response");
             }
             DeviceProfileMessage::ManagementLinkQualityIndicatorResponse(_rsp) => {
-                log::info!("Link quality indicator response");
+                log::info!("> DP Link quality indicator response");
             }
         }
         Ok(())

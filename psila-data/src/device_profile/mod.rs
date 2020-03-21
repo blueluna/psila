@@ -23,7 +23,7 @@ use core::convert::TryFrom;
 use crate::error::Error;
 use crate::pack::Pack;
 
-const RESPONSE: u16 = 0x8000;
+pub const RESPONSE: u16 = 0x8000;
 
 // 2.4.2 Device Profile Overview
 extended_enum!(

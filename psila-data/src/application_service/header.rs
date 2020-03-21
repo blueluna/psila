@@ -139,6 +139,44 @@ impl ApplicationServiceHeader {
         }
     }
 
+    pub fn new_acknowledge_header(source: &ApplicationServiceHeader) -> Self {
+        if source.control.acknowledge_format {
+            ApplicationServiceHeader {
+                control: FrameControl {
+                    frame_type: FrameType::Acknowledgement,
+                    delivery_mode: DeliveryMode::Unicast,
+                    acknowledge_format: true,
+                    security: source.control.security,
+                    acknowledge_request: false,
+                    extended_header: false,
+                },
+                destination: None,
+                group: None,
+                cluster: None,
+                profile: None,
+                source: None,
+                counter: source.counter,
+            }
+        } else {
+            ApplicationServiceHeader {
+                control: FrameControl {
+                    frame_type: FrameType::Acknowledgement,
+                    delivery_mode: DeliveryMode::Unicast,
+                    acknowledge_format: false,
+                    security: source.control.security,
+                    acknowledge_request: false,
+                    extended_header: false,
+                },
+                destination: source.destination,
+                group: None,
+                cluster: source.cluster,
+                profile: source.profile,
+                source: source.source,
+                counter: source.counter,
+            }
+        }
+    }
+
     fn which_fields(control: FrameControl) -> (bool, bool, bool, bool, usize) {
         let (has_destination, has_group, has_cluster_profile, has_source) = match control.frame_type
         {
