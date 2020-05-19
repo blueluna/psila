@@ -38,6 +38,8 @@ pub enum Error {
     InvalidIntegrityCode,
     /// The message integrity code (MIC) check failed
     IntegrityCheckFailed,
+    /// Operation not available
+    OperationNotAvailable,
     /// Other error, probably a error code from the backend
     Other(u32),
 }
