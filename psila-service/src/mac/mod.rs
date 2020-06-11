@@ -1,5 +1,4 @@
 use core::cell::Cell;
-use log;
 
 pub use ieee802154::mac::{
     command::{AssociationStatus, CapabilityInformation, Command},

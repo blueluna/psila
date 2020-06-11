@@ -1,4 +1,3 @@
-use bitflags;
 use byteorder::{ByteOrder, LittleEndian};
 use core::convert::TryFrom;
 

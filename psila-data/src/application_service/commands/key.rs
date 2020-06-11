@@ -10,13 +10,13 @@ use crate::security::BLOCK_SIZE;
 use crate::Error;
 
 extended_enum!(
-    /// Key type used in key requests
-    RequestKeyType, u8,
-    /// Application link key
-    ApplicationLinkKey => 0x02,
-    /// Trust-center link key
-    TrustCenterLinkKey => 0x04,
-    );
+/// Key type used in key requests
+RequestKeyType, u8,
+/// Application link key
+ApplicationLinkKey => 0x02,
+/// Trust-center link key
+TrustCenterLinkKey => 0x04,
+);
 
 /// Request key command
 ///

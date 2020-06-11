@@ -14,9 +14,6 @@ use serialport::prelude::*;
 use slice_deque::SliceDeque;
 
 use serde_derive::Deserialize;
-use toml;
-
-use env_logger;
 
 use psila_data::common::key::Key;
 

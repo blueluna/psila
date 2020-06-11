@@ -5,8 +5,6 @@ use core::default::Default;
 use crate::pack::PackFixed;
 use crate::Error;
 
-use ieee802154;
-
 use byteorder::{ByteOrder, LittleEndian};
 
 /// Short address size
@@ -244,9 +242,8 @@ impl Default for ExtendedAddress {
     }
 }
 
-#[cfg(not(feature = "core"))]
-impl std::fmt::Display for ExtendedAddress {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for ExtendedAddress {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",

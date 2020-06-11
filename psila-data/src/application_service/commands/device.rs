@@ -7,12 +7,12 @@ use crate::pack::{Pack, PackFixed};
 use crate::Error;
 
 extended_enum!(
-    Status, u8,
-    SecuredRejoin => 0x00,
-    UnsecuredJoin => 0x01,
-    Left => 0x02,
-    TrustCenterRejoin => 0x03,
-    );
+Status, u8,
+SecuredRejoin => 0x00,
+UnsecuredJoin => 0x01,
+Left => 0x02,
+TrustCenterRejoin => 0x03,
+);
 
 /// Update device command
 ///

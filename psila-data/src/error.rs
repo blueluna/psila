@@ -2,8 +2,6 @@
 
 use core::convert::From;
 
-use psila_crypto;
-
 /// Errors
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Error {

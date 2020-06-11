@@ -1,5 +1,4 @@
 use crate::Error;
-use log;
 use psila_crypto::CryptoBackend;
 use psila_data::{
     application_service::commands::transport_key::NetworkKey,

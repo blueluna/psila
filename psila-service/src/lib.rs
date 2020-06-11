@@ -5,8 +5,6 @@
 use core::cell::Cell;
 use core::convert::TryFrom;
 
-use log;
-
 use bbqueue::{ArrayLength, Producer};
 
 use psila_data::{self, pack::Pack, CapabilityInformation, ExtendedAddress, Key};
@@ -86,6 +84,40 @@ where
     fn queue_packet(&mut self, data: &[u8]) -> Result<(), Error> {
         assert!(data.len() < (u8::max_value() as usize));
         let length = data.len() + 1;
+
+        if data.len() >= 32 {
+            log::info!("TX {} {:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+                data.len(),
+                data[0], data[1], data[2], data[3],
+                data[4], data[5], data[6], data[7],
+                data[8], data[9], data[10], data[11],
+                data[12], data[13], data[14], data[15],
+                data[16], data[17], data[18], data[19],
+                data[20], data[21], data[22], data[23],
+                data[24], data[25], data[26], data[27],
+                data[28], data[29], data[30], data[31]);
+        } else if data.len() >= 16 {
+            log::info!("TX {} {:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+                data.len(),
+                data[0], data[1], data[2], data[3],
+                data[4], data[5], data[6], data[7],
+                data[8], data[9], data[10], data[11],
+                data[12], data[13], data[14], data[15]);
+        } else if data.len() >= 8 {
+            log::info!(
+                "TX {} {:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+                data.len(),
+                data[0],
+                data[1],
+                data[2],
+                data[3],
+                data[4],
+                data[5],
+                data[6],
+                data[7]
+            );
+        }
+
         match self.tx_queue.grant_exact(length) {
             Ok(mut grant) => {
                 grant[0] = data.len() as u8;

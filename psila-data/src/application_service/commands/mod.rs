@@ -46,7 +46,7 @@ extended_enum!(
     /// Entity authentication ? command identifier
     EntityAuthenticationResponderMacAndData => 0x0d,
     /// Tunnel command identifier
-    /// 
+    ///
     /// Tunneling of application service frames
     Tunnel => 0x0e,
     /// Verify link-key command identifier

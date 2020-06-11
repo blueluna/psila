@@ -2,22 +2,20 @@
 
 use core::convert::TryFrom;
 
-use psila_crypto;
-
 use crate::pack::PackFixed;
 use crate::Error;
 
 extended_enum!(
-    // 4.4.3 Transport-Key Services
-    // Table 4.14 KeyType Parameter of the Transport-Key Primitive
-    KeyType, u8,
-    TrustCenterMasterKey => 0x00,
-    StandardNetworkKey => 0x01,
-    ApplicationMasterKey => 0x02,
-    ApplicationLinkKey => 0x03,
-    UniqueTrustCenterLinkKey => 0x04,
-    HighSecurityNetworkKey => 0x05,
-    );
+// 4.4.3 Transport-Key Services
+// Table 4.14 KeyType Parameter of the Transport-Key Primitive
+KeyType, u8,
+TrustCenterMasterKey => 0x00,
+StandardNetworkKey => 0x01,
+ApplicationMasterKey => 0x02,
+ApplicationLinkKey => 0x03,
+UniqueTrustCenterLinkKey => 0x04,
+HighSecurityNetworkKey => 0x05,
+);
 
 /// Key length
 pub use psila_crypto::KEY_SIZE;

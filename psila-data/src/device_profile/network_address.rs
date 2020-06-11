@@ -6,9 +6,9 @@ use crate::pack::{Pack, PackFixed};
 use crate::Error;
 
 extended_enum!(
-	RequestType, u8,
-	SingleDevice => 0x00,
-	Extended => 0x01,
+    RequestType, u8,
+    SingleDevice => 0x00,
+    Extended => 0x01,
 );
 
 // 2.4.3.1.1 NWK_addr_req

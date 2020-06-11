@@ -1,4 +1,4 @@
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 
 use crate::security::SecurityManager;
 use crate::{Error, Identity};
@@ -13,12 +13,11 @@ use psila_data::{
     CapabilityInformation, NetworkAddress,
 };
 
-use log;
-
 pub struct ApplicationServiceContext {
     aps_sequence: Cell<u8>,
     dp_sequence: Cell<u8>,
     nwk_sequence: Cell<u8>,
+    buffer: RefCell<[u8; 128]>,
 }
 
 impl Default for ApplicationServiceContext {
@@ -27,6 +26,7 @@ impl Default for ApplicationServiceContext {
             aps_sequence: Cell::new(0),
             dp_sequence: Cell::new(0),
             nwk_sequence: Cell::new(0),
+            buffer: RefCell::new([0u8; 128]),
         }
     }
 }
@@ -73,14 +73,11 @@ impl ApplicationServiceContext {
             self.nwk_sequence_next(),       // network sequence number
             None,                           // source route frame
         );
-        let mut nwk_buffer = [0u8; 128];
-        let mut offset = 0;
-        let used = aps_header.pack(&mut nwk_buffer[offset..])?;
-        offset += used;
+        let used = aps_header.pack(&mut self.buffer.borrow_mut()[..])?;
         let used = security.encrypt_network_payload(
             source.extended,
             network_header,
-            &nwk_buffer[..offset],
+            &self.buffer.borrow()[..used],
             buffer,
         )?;
         Ok(used)
@@ -122,16 +119,15 @@ impl ApplicationServiceContext {
             self.nwk_sequence_next(),       // network sequence number
             None,                           // source route frame
         );
-        let mut nwk_buffer = [0u8; 128];
         let mut offset = 0;
-        let used = aps_header.pack(&mut nwk_buffer[offset..])?;
+        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
         offset += used;
-        let used = device_profile_frame.pack(&mut nwk_buffer[offset..])?;
+        let used = device_profile_frame.pack(&mut self.buffer.borrow_mut()[offset..])?;
         offset += used;
         let used = security.encrypt_network_payload(
             identity.extended,
             network_header,
-            &nwk_buffer[..offset],
+            &self.buffer.borrow()[..offset],
             buffer,
         )?;
         Ok(used)
@@ -198,27 +194,19 @@ impl ApplicationServiceContext {
             self.nwk_sequence_next(),       // network sequence number
             None,                           // source route frame
         );
-        let mut nwk_buffer = [0u8; 128];
         let mut offset = 0;
 
-        log::info!("Build node descriptor 1");
-        let used = aps_header.pack(&mut nwk_buffer[offset..])?;
+        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
         offset += used;
-        log::info!(
-            "Build node descriptor 2, {} {}",
-            offset,
-            nwk_buffer[offset..].len()
-        );
-        let used = device_profile_frame.pack(&mut nwk_buffer[offset..])?;
-        log::info!("Build node descriptor 3");
+        let used = device_profile_frame.pack(&mut self.buffer.borrow_mut()[offset..])?;
         offset += used;
         let used = security.encrypt_network_payload(
             source.extended,
             network_header,
-            &nwk_buffer[..offset],
+            &self.buffer.borrow()[..offset],
             buffer,
         )?;
-        log::info!("Build node descriptor 4");
+        log::info!("Node descriptor response");
         Ok(used)
     }
 
@@ -265,23 +253,20 @@ impl ApplicationServiceContext {
             self.nwk_sequence_next(),       // network sequence number
             None,                           // source route frame
         );
-        let mut nwk_buffer = [0u8; 128];
         let mut offset = 0;
 
-        log::info!("Build active endpoint response 1");
-        let used = aps_header.pack(&mut nwk_buffer[offset..])?;
+        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
         offset += used;
-        log::info!("Build active endpoint response 2, {}", offset);
-        let used = device_profile_frame.pack(&mut nwk_buffer[offset..])?;
+        let used = device_profile_frame.pack(&mut self.buffer.borrow_mut()[offset..])?;
         offset += used;
-        log::info!("Build active endpoint response 3, {}", offset);
         let used = security.encrypt_network_payload(
             source.extended,
             network_header,
-            &nwk_buffer[..offset],
+            &self.buffer.borrow()[..offset],
             buffer,
         )?;
-        log::info!("Build active endpoint response 3, {}", used);
+
+        log::info!("Active endpint response");
         Ok(used)
     }
 
@@ -332,18 +317,18 @@ impl ApplicationServiceContext {
             self.nwk_sequence_next(),       // network sequence number
             None,                           // source route frame
         );
-        let mut nwk_buffer = [0u8; 128];
         let mut offset = 0;
-        let used = aps_header.pack(&mut nwk_buffer[offset..])?;
+        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
         offset += used;
-        let used = device_profile_frame.pack(&mut nwk_buffer[offset..])?;
+        let used = device_profile_frame.pack(&mut self.buffer.borrow_mut()[offset..])?;
         offset += used;
         let used = security.encrypt_network_payload(
             source.extended,
             network_header,
-            &nwk_buffer[..offset],
+            &self.buffer.borrow()[..offset],
             buffer,
         )?;
+        log::info!("Power descriptor response");
         Ok(used)
     }
 
@@ -397,18 +382,18 @@ impl ApplicationServiceContext {
             self.nwk_sequence_next(),       // network sequence number
             None,                           // source route frame
         );
-        let mut nwk_buffer = [0u8; 128];
         let mut offset = 0;
-        let used = aps_header.pack(&mut nwk_buffer[offset..])?;
+        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
         offset += used;
-        let used = device_profile_frame.pack(&mut nwk_buffer[offset..])?;
+        let used = device_profile_frame.pack(&mut self.buffer.borrow_mut()[offset..])?;
         offset += used;
         let used = security.encrypt_network_payload(
             source.extended,
             network_header,
-            &nwk_buffer[..offset],
+            &self.buffer.borrow()[..offset],
             buffer,
         )?;
+        log::info!("Simple descriptor response");
         Ok(used)
     }
 }
