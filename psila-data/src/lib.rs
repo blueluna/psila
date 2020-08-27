@@ -10,6 +10,9 @@
 extern crate bitflags;
 
 #[macro_use]
+extern crate hash32_derive;
+
+#[macro_use]
 mod utils;
 
 pub mod application_service; // APS
@@ -27,6 +30,7 @@ pub use common::address::{
 };
 pub use common::capability_information::CapabilityInformation;
 pub use common::key::Key;
+pub use common::link_quality_to_cost;
 pub use error::Error;
 
 pub use utils::clear;

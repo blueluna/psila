@@ -83,6 +83,7 @@ fn main() {
             loop {
                 match port.read(&mut data) {
                     Ok(rx_count) => {
+                        // println!("Received {}", rx_count);
                         buffer.extend_from_slice(&data[..rx_count]);
                         loop {
                             match esercom::com_decode_ex(buffer.as_slice(), &mut data, &mut work) {
@@ -139,7 +140,7 @@ fn main() {
                                         ),
                                     }
                                     let front = buffer.len() - used;
-                                    println!("Drop {} bytes {} left", used, front);
+                                    // println!("Drop {} bytes {} left", used, front);
                                     buffer.truncate_front(front);
                                 }
                                 Err(ref e) => {

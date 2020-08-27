@@ -275,7 +275,7 @@ impl MacService {
             if beacon.superframe_spec.pan_coordinator && beacon.superframe_spec.association_permit {
                 if let State::Scan = self.state {
                     log::info!(
-                        "mac: Beacon {:04x}:{:04x} *",
+                        "mac: Beacon {:04x}:{:04x} permit join",
                         u16::from(src_id),
                         u16::from(src_short)
                     );

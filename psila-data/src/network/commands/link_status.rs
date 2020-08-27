@@ -76,12 +76,26 @@ impl LinkStatus {
     pub fn entries(&self) -> &[LinkStatusEntry] {
         &self.entries[..self.num_entries as usize]
     }
+
+    pub fn new(devices: &[LinkStatusEntry]) -> Self {
+        let mut entries = [LinkStatusEntry::default(); 32];
+        let num_entries = devices.len();
+        let num_entries = if num_entries > 32 { 32 } else { num_entries };
+        entries[..num_entries].copy_from_slice(&devices[..num_entries]);
+        let num_entries = num_entries as u8;
+        Self {
+            first_frame: false,
+            last_frame: false,
+            num_entries,
+            entries,
+        }
+    }
 }
 
 impl Pack<LinkStatus, Error> for LinkStatus {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
-        assert!(self.entries.len() < 32);
-        if data.len() < (1 + (self.entries.len() * LINK_STATUS_ENTRY_SIZE)) {
+        assert!(self.num_entries <= 32);
+        if data.len() < (1 + ((self.num_entries as usize) * LINK_STATUS_ENTRY_SIZE)) {
             return Err(Error::WrongNumberOfBytes);
         }
         let mut offset = 1;

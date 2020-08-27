@@ -8,7 +8,7 @@ use psila_data::{
     device_profile::{
         self, ClusterIdentifier, DeviceAnnounce, DeviceProfileFrame, DeviceProfileMessage,
     },
-    network::{header::DiscoverRoute, NetworkHeader},
+    network::{self, header::DiscoverRoute, NetworkHeader},
     pack::Pack,
     CapabilityInformation, NetworkAddress,
 };
@@ -74,6 +74,34 @@ impl ApplicationServiceContext {
             None,                           // source route frame
         );
         let used = aps_header.pack(&mut self.buffer.borrow_mut()[..])?;
+        let used = security.encrypt_network_payload(
+            source.extended,
+            network_header,
+            &self.buffer.borrow()[..used],
+            buffer,
+        )?;
+        Ok(used)
+    }
+
+    pub fn build_network_command<CB: CryptoBackend>(
+        &self,
+        source: &Identity,
+        destination: NetworkAddress,
+        network_command: &network::Command,
+        buffer: &mut [u8],
+        security: &mut SecurityManager<CB>,
+    ) -> Result<usize, Error> {
+        let network_header = NetworkHeader::new_command_header(
+            2,                              // protocol version
+            DiscoverRoute::EnableDiscovery, // discovery route
+            true,                           // security
+            destination,                    // destination address
+            source.short,                   // source address
+            16,                             // radius
+            self.nwk_sequence_next(),       // network sequence number
+            None,                           // source route frame
+        );
+        let used = network_command.pack(&mut self.buffer.borrow_mut()[..])?;
         let used = security.encrypt_network_payload(
             source.extended,
             network_header,

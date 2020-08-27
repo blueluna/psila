@@ -10,6 +10,7 @@ bbqueue = "0.4"
 ieee802154 = { git = "https://github.com/braun-embedded/rust-ieee802.15.4.git", branch = "master" }
 psila-crypto = { path = "../psila-crypto" }
 psila-data = { path = "../psila-data" }
+heapless = { version = "0.5" }
 
 [dev-dependencies]
 psila-crypto-openssl = { path = "../psila-crypto-openssl" }

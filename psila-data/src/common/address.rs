@@ -17,7 +17,7 @@ pub const SHORT_ADDRESS_BROADCAST: u16 = 0xffff;
 pub const SHORT_ADDRESS_UNASSIGNED: u16 = 0xfffe;
 
 /// 16-bit short address
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, Hash32, PartialEq)]
 pub struct ShortAddress(u16);
 
 impl ShortAddress {
@@ -156,7 +156,7 @@ pub const EXTENDED_ADDRESS_SIZE: usize = 8;
 pub const EXTENDED_ADDRESS_BROADCAST: u64 = 0xffff_ffff_ffff_ffffu64;
 
 /// 64-bit extended IEEE address
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, Hash32, PartialEq)]
 pub struct ExtendedAddress(u64);
 
 impl ExtendedAddress {

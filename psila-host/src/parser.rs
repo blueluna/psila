@@ -249,7 +249,7 @@ impl Parser {
                             print!(" 24XXMHz");
                         }
                         print!(
-                            " {} {:04x} {} {} {}",
+                            " {} Manufacturer {:04x} Buffer Size {} Incoming {} Outgoing {}",
                             rsp.descriptor.mac_capability,
                             rsp.descriptor.manufacturer_code,
                             rsp.descriptor.maximum_buffer_size,
@@ -687,6 +687,17 @@ impl Parser {
             Ok((cmd, _used)) => match cmd {
                 Command::RouteRequest(rr) => {
                     print!("Route Request {:02x} Cost {}", rr.identifier, rr.path_cost);
+                    match rr.options.many_to_one {
+                        network::commands::ManyToOne::No => {
+                            print!(" One to one");
+                        }
+                        network::commands::ManyToOne::RouteRequestTableSupport => {
+                            print!(" Many to one, table");
+                        }
+                        network::commands::ManyToOne::NoRouteRequestTableSupport => {
+                            print!(" Many to one");
+                        }
+                    }
                     match rr.destination_address {
                         network::commands::AddressType::Singlecast(a) => {
                             print!(" Destination {}", a)

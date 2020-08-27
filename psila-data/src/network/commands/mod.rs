@@ -9,15 +9,15 @@ mod network_status;
 mod network_update;
 mod rejoin;
 mod route_record;
-mod route_reply;
-mod route_request;
+pub mod route_reply;
+pub mod route_request;
 
 use crate::pack::Pack;
 use crate::Error;
 
 pub use end_device::{EndDeviceTimeoutRequest, EndDeviceTimeoutResponse};
 pub use leave::Leave;
-pub use link_status::LinkStatus;
+pub use link_status::{LinkStatus, LinkStatusEntry};
 pub use network_report::NetworkReport;
 pub use network_status::{NetworkStatus, Status};
 pub use network_update::NetworkUpdate;

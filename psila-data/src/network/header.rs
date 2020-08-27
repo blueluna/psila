@@ -296,6 +296,38 @@ impl NetworkHeader {
             source_route_frame,
         }
     }
+
+    pub fn new_command_header(
+        protocol_version: u8,
+        discover_route: DiscoverRoute,
+        security: bool,
+        destination_address: NetworkAddress,
+        source_address: NetworkAddress,
+        radius: u8,
+        sequence_number: u8,
+        source_route_frame: Option<SourceRouteFrame>,
+    ) -> Self {
+        Self {
+            control: FrameControl {
+                frame_type: FrameType::Command,
+                protocol_version,
+                discover_route,
+                multicast: false,
+                security,
+                contains_source_route_frame: source_route_frame.is_some(),
+                contains_destination_ieee_address: false,
+                contains_source_ieee_address: false,
+            },
+            destination_address,
+            source_address,
+            radius,
+            sequence_number,
+            destination_ieee_address: None,
+            source_ieee_address: None,
+            multicast_control: None,
+            source_route_frame,
+        }
+    }
 }
 
 impl Pack<NetworkHeader, Error> for NetworkHeader {

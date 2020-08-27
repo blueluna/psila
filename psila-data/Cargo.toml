@@ -17,6 +17,8 @@ core = ["heapless"]
 log = "0.4.8"
 byteorder = { version = "1", default-features = false }
 bitflags = "1.0"
+hash32 = "0.1"
+hash32-derive = "0.1"
 heapless = { version = "0.5", optional = true }
 ieee802154 = { git = "https://github.com/braun-embedded/rust-ieee802.15.4.git", branch = "master" }
 psila-crypto = { path = "../psila-crypto" }

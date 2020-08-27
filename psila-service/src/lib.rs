@@ -2,12 +2,13 @@
 
 #![no_std]
 
-use core::cell::Cell;
 use core::convert::TryFrom;
 
 use bbqueue::{ArrayLength, Producer};
 
-use psila_data::{self, pack::Pack, CapabilityInformation, ExtendedAddress, Key};
+use heapless::{consts::U16, Vec};
+
+use psila_data::{self, pack::Pack, CapabilityInformation, ExtendedAddress, Key, NetworkAddress};
 
 use psila_crypto::CryptoBackend;
 
@@ -26,11 +27,39 @@ use mac::MacService;
 /// Max buffer size
 pub const PACKET_BUFFER_MAX: usize = 128;
 
-#[derive(Clone, Copy)]
+/// Link status reporting interval in microseconds
+pub const LINK_STATUS_INTERVAL: u32 = 60_000_000;
+
+#[derive(Clone, Copy, PartialEq)]
 pub enum NetworkState {
     Orphan,
     Associated,
     Secure,
+}
+
+// Also see 3.6.1.5 in the Zigbee specification
+pub struct NetworkDevice {
+    network_address: NetworkAddress,
+    extended_address: ExtendedAddress,
+    last_seen: u32,
+    device_type: psila_data::device_profile::link_quality::DeviceType,
+    relationship: psila_data::device_profile::link_quality::Relationship,
+    link_quality: u8,
+    outgoing_cost: u8,
+}
+
+impl Default for NetworkDevice {
+    fn default() -> Self {
+        Self {
+            network_address: NetworkAddress::default(),
+            extended_address: ExtendedAddress::default(),
+            last_seen: 0,
+            device_type: psila_data::device_profile::link_quality::DeviceType::Unknown,
+            relationship: psila_data::device_profile::link_quality::Relationship::NoneOfAbove,
+            link_quality: 0xff,
+            outgoing_cost: 0xff,
+        }
+    }
 }
 
 pub struct PsilaService<'a, N: ArrayLength<u8>, CB> {
@@ -39,8 +68,12 @@ pub struct PsilaService<'a, N: ArrayLength<u8>, CB> {
     security_manager: security::SecurityManager<CB>,
     capability: CapabilityInformation,
     tx_queue: Producer<'a, N>,
-    state: Cell<NetworkState>,
+    state: NetworkState,
     identity: Identity,
+    buffer: core::cell::RefCell<[u8; 128]>,
+    timestamp: u32,
+    next_link_status: u32,
+    known_devices: Vec<NetworkDevice, U16>,
 }
 
 impl<'a, N: ArrayLength<u8>, CB> PsilaService<'a, N, CB>
@@ -67,62 +100,38 @@ where
             security_manager: security::SecurityManager::new(crypto, default_link_key),
             capability,
             tx_queue,
-            state: Cell::new(NetworkState::Orphan),
+            state: NetworkState::Orphan,
             identity: Identity::default(),
+            buffer: core::cell::RefCell::new([0u8; 128]),
+            timestamp: 0,
+            next_link_status: 0,
+            known_devices: Vec::new(),
         }
     }
 
     pub fn get_state(&self) -> NetworkState {
-        self.state.get()
+        self.state
     }
 
-    fn set_state(&self, state: NetworkState) {
-        (*self).state.set(state);
+    fn set_state(&mut self, state: NetworkState) {
+        match (self.state, state) {
+            (NetworkState::Orphan, NetworkState::Secure) => {
+                self.next_link_status = self.timestamp.wrapping_add(LINK_STATUS_INTERVAL);
+            }
+            (_, _) => {}
+        }
+        self.state = state;
     }
 
     /// Push a packet onto the queue
-    fn queue_packet(&mut self, data: &[u8]) -> Result<(), Error> {
-        assert!(data.len() < (u8::max_value() as usize));
-        let length = data.len() + 1;
-
-        if data.len() >= 32 {
-            log::info!("TX {} {:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-                data.len(),
-                data[0], data[1], data[2], data[3],
-                data[4], data[5], data[6], data[7],
-                data[8], data[9], data[10], data[11],
-                data[12], data[13], data[14], data[15],
-                data[16], data[17], data[18], data[19],
-                data[20], data[21], data[22], data[23],
-                data[24], data[25], data[26], data[27],
-                data[28], data[29], data[30], data[31]);
-        } else if data.len() >= 16 {
-            log::info!("TX {} {:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-                data.len(),
-                data[0], data[1], data[2], data[3],
-                data[4], data[5], data[6], data[7],
-                data[8], data[9], data[10], data[11],
-                data[12], data[13], data[14], data[15]);
-        } else if data.len() >= 8 {
-            log::info!(
-                "TX {} {:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-                data.len(),
-                data[0],
-                data[1],
-                data[2],
-                data[3],
-                data[4],
-                data[5],
-                data[6],
-                data[7]
-            );
-        }
-
-        match self.tx_queue.grant_exact(length) {
+    fn queue_packet_from_buffer(&mut self, length: usize) -> Result<(), Error> {
+        assert!(length < PACKET_BUFFER_MAX);
+        let grant_size = length + 1;
+        match self.tx_queue.grant_exact(grant_size) {
             Ok(mut grant) => {
-                grant[0] = data.len() as u8;
-                grant[1..].copy_from_slice(&data);
-                grant.commit(length);
+                grant[0] = length as u8;
+                grant[1..].copy_from_slice(&self.buffer.borrow()[..length]);
+                grant.commit(grant_size);
                 Ok(())
             }
             Err(_) => Err(Error::NotEnoughSpace),
@@ -133,7 +142,6 @@ where
     /// ### Return
     /// true if the message was addressed to this device
     pub fn handle_acknowledge(&mut self, data: &[u8]) -> Result<bool, Error> {
-        let mut buffer = [0u8; PACKET_BUFFER_MAX];
         match mac::Frame::decode(data, false) {
             Ok(frame) => {
                 if !self.mac.destination_me_or_broadcast(&frame) {
@@ -142,10 +150,12 @@ where
                 if self.mac.requests_acknowledge(&frame) {
                     // If the frame is a data request frame, send an acknowledge with pending set
                     // Use the frame sequence number from the received frame in the acknowledge
-                    let packet_length =
-                        self.mac
-                            .build_acknowledge(frame.header.seq, false, &mut buffer);
-                    self.queue_packet(&buffer[..packet_length])?;
+                    let packet_length = self.mac.build_acknowledge(
+                        frame.header.seq,
+                        false,
+                        &mut self.buffer.borrow_mut()[..],
+                    );
+                    self.queue_packet_from_buffer(packet_length)?;
                 }
                 Ok(true)
             }
@@ -157,16 +167,18 @@ where
     /// ### Return
     /// A new timeout value that the timer shall be configured with, a timeout
     /// value of zero (0) shall be ignored
-    pub fn receive(&mut self, data: &[u8]) -> Result<u32, Error> {
-        let mut buffer = [0u8; PACKET_BUFFER_MAX];
+    pub fn receive(&mut self, data: &[u8], timestamp: u32) -> Result<u32, Error> {
+        self.timestamp = timestamp;
         match mac::Frame::decode(data, false) {
             Ok(frame) => {
                 if !self.mac.destination_me_or_broadcast(&frame) {
                     return Ok(0);
                 }
-                let (packet_length, timeout) = self.mac.handle_frame(&frame, &mut buffer)?;
+                let (packet_length, timeout) = self
+                    .mac
+                    .handle_frame(&frame, &mut self.buffer.borrow_mut()[..])?;
                 if packet_length > 0 {
-                    self.queue_packet(&buffer[..packet_length])?;
+                    self.queue_packet_from_buffer(packet_length)?;
                 }
                 if let mac::State::Associated = self.mac.state() {
                     if let NetworkState::Orphan = self.get_state() {
@@ -186,12 +198,24 @@ where
     /// A new timeout value that the timer shall be configured with, a timeout
     /// value of zero (0) shall be ignored
     pub fn timeout(&mut self) -> Result<u32, Error> {
-        let mut buffer = [0u8; PACKET_BUFFER_MAX];
-        let (packet_length, timeout) = self.mac.timeout(&mut buffer)?;
+        let (packet_length, timeout) = self.mac.timeout(&mut self.buffer.borrow_mut()[..])?;
         if packet_length > 0 {
-            self.queue_packet(&buffer[..packet_length])?;
+            self.queue_packet_from_buffer(packet_length)?;
         }
         Ok(timeout)
+    }
+
+    /// Update, call this method at ragular intervals
+    pub fn update(&mut self, timestamp: u32) -> Result<(), Error> {
+        self.timestamp = timestamp;
+        if self.get_state() != NetworkState::Secure {
+            return Ok(());
+        }
+        if timestamp > self.next_link_status {
+            let _ = self.queue_network_link_status();
+            self.next_link_status = self.timestamp.wrapping_add(LINK_STATUS_INTERVAL);
+        }
+        Ok(())
     }
 
     fn handle_mac_frame(&mut self, frame: &mac::Frame) -> Result<(), Error> {
@@ -256,7 +280,7 @@ where
             }
             FrameType::Command => {
                 // handle command
-                self.handle_network_command(nwk_payload)?;
+                self.handle_network_command(header, nwk_payload)?;
             }
             FrameType::InterPan => {
                 log::info!("Handle inter-PAN");
@@ -266,12 +290,68 @@ where
         Ok(())
     }
 
-    fn handle_network_command(&self, payload: &[u8]) -> Result<(), Error> {
+    fn handle_network_command(
+        &mut self,
+        nwk_header: &psila_data::network::NetworkHeader,
+        payload: &[u8],
+    ) -> Result<(), Error> {
         use psila_data::network::commands::Command;
+
         match Command::unpack(payload) {
             Ok((cmd, _used)) => match cmd {
-                Command::RouteRequest(_) => {
+                Command::RouteRequest(req) => {
+                    use psila_data::network::commands::AddressType;
                     log::info!("> Network Route request");
+                    let nwk_match = match req.destination_address {
+                        AddressType::Singlecast(address) => address == self.identity.short,
+                        AddressType::Multicast(_) => false,
+                    };
+                    let extended_match = match req.destination_ieee_address {
+                        Some(address) => address == self.identity.extended,
+                        None => false,
+                    };
+                    if nwk_match {
+                        log::info!("Match");
+                        let mac_header = self.mac.build_data_header(
+                            nwk_header.source_address, // destination address
+                            false,                     // request acknowledge
+                        );
+                        let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                        use psila_data::network::commands;
+                        let reply = commands::RouteReply {
+                            options: commands::route_reply::Options {
+                                orginator_ieee_address: false,
+                                multicast: false,
+                                responder_ieee_address: false,
+                            },
+                            identifier: req.identifier,
+                            orginator_address: nwk_header.source_address,
+                            responder_address: self.identity.short,
+                            path_cost: 1,
+                            orginator_ieee_address: None,
+                            responder_ieee_address: None,
+                        };
+                        let reply = Command::RouteReply(reply);
+                        let nwk_frame_size = self.application_service.build_network_command(
+                            &self.identity,
+                            nwk_header.source_address,
+                            &reply,
+                            &mut self.buffer.borrow_mut()[mac_header_len..],
+                            &mut self.security_manager,
+                        )?;
+                        let frame_size = mac_header_len + nwk_frame_size;
+                        match self.queue_packet_from_buffer(frame_size) {
+                            Ok(()) => {
+                                log::info!("< Queued route response {}", frame_size);
+                            }
+                            Err(err) => {
+                                log::error!("< Failed to queue route response, {:?}", err);
+                                return Err(err);
+                            }
+                        }
+                    } else if extended_match {
+                        log::info!("Extended match");
+                    }
                 }
                 Command::RouteReply(_) => {
                     log::info!("> Network Route reply");
@@ -327,28 +407,27 @@ where
             },
             common::ProfileIdentifier,
         };
-        let mut buffer = [0u8; PACKET_BUFFER_MAX];
 
         if aps_header.control.acknowledge_request {
             if aps_header.control.acknowledge_format {
                 log::info!("APS acknowledge request, compact ");
             } else {
-                log::info!("APS acknowledge request, extended");
+                log::info!("APS acknowledge request, extended ");
             }
             let mac_header = self.mac.build_data_header(
                 nwk_header.source_address, // destination address
                 false,                     // request acknowledge
             );
-            let mac_header_len = mac_header.encode(&mut buffer);
+            let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
             let nwk_frame_size = self.application_service.build_acknowledge(
                 &self.identity,
                 nwk_header.source_address,
                 &aps_header,
-                &mut buffer[mac_header_len..],
+                &mut self.buffer.borrow_mut()[mac_header_len..],
                 &mut self.security_manager,
             )?;
             let frame_size = mac_header_len + nwk_frame_size;
-            match self.queue_packet(&buffer[..frame_size]) {
+            match self.queue_packet_from_buffer(frame_size) {
                 Ok(()) => {
                     log::info!("< Queued acknowledge {}", frame_size);
                 }
@@ -400,15 +479,15 @@ where
                         self.security_manager.set_network_key(key);
                         let mac_header = self
                             .mac
-                            .build_data_header(psila_data::NetworkAddress::broadcast(), false);
-                        let mac_header_len = mac_header.encode(&mut buffer);
+                            .build_data_header(NetworkAddress::broadcast(), false);
+                        let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
                         let nwk_frame_size = self.application_service.build_device_announce(
                             &self.identity,
                             self.capability,
-                            &mut buffer[mac_header_len..],
+                            &mut self.buffer.borrow_mut()[mac_header_len..],
                             &mut self.security_manager,
                         )?;
-                        self.queue_packet(&buffer[..(mac_header_len + nwk_frame_size)])?;
+                        self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
                     } else {
                         log::info!("> APS command, {:?}", command.identifier());
                     }
@@ -435,7 +514,6 @@ where
         frame: psila_data::device_profile::DeviceProfileFrame,
     ) -> Result<(), Error> {
         use psila_data::device_profile::DeviceProfileMessage;
-        let mut buffer = [0u8; PACKET_BUFFER_MAX];
 
         match frame.message {
             DeviceProfileMessage::NetworkAddressRequest(_req) => {
@@ -450,17 +528,17 @@ where
                     nwk_header.source_address, // destination address
                     false,                     // request acknowledge
                 );
-                let mac_header_len = mac_header.encode(&mut buffer);
+                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
                 let nwk_frame_size = self.application_service.build_node_descriptor_response(
                     &self.identity,
                     nwk_header.source_address,
                     &req,
                     self.capability,
-                    &mut buffer[mac_header_len..],
+                    &mut self.buffer.borrow_mut()[mac_header_len..],
                     &mut self.security_manager,
                 )?;
                 log::info!("< Queue response");
-                match self.queue_packet(&buffer[..(mac_header_len + nwk_frame_size)]) {
+                match self.queue_packet_from_buffer(mac_header_len + nwk_frame_size) {
                     Ok(()) => {
                         log::info!("< Queued response");
                     }
@@ -476,15 +554,15 @@ where
                     nwk_header.source_address, // destination address
                     false,                     // request acknowledge
                 );
-                let mac_header_len = mac_header.encode(&mut buffer);
+                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
                 let nwk_frame_size = self.application_service.build_power_descriptor_response(
                     &self.identity,
                     nwk_header.source_address,
                     &req,
-                    &mut buffer[mac_header_len..],
+                    &mut self.buffer.borrow_mut()[mac_header_len..],
                     &mut self.security_manager,
                 )?;
-                self.queue_packet(&buffer[..(mac_header_len + nwk_frame_size)])?;
+                self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
             }
             DeviceProfileMessage::SimpleDescriptorRequest(req) => {
                 log::info!("> DP Simple descriptor request {:02x}", req.endpoint);
@@ -506,16 +584,16 @@ where
                     }
                     _ => None,
                 };
-                let mac_header_len = mac_header.encode(&mut buffer);
+                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
                 let nwk_frame_size = self.application_service.build_simple_descriptor_response(
                     &self.identity,
                     nwk_header.source_address,
                     &req,
                     descriptor,
-                    &mut buffer[mac_header_len..],
+                    &mut self.buffer.borrow_mut()[mac_header_len..],
                     &mut self.security_manager,
                 )?;
-                self.queue_packet(&buffer[..(mac_header_len + nwk_frame_size)])?;
+                self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
             }
             DeviceProfileMessage::ActiveEndpointRequest(req) => {
                 log::info!("> DP Active endpoint request, {}", req.address);
@@ -523,17 +601,17 @@ where
                     nwk_header.source_address, // destination address
                     false,                     // request acknowledge
                 );
-                let endpoints = [0x00, 0x01];
-                let mac_header_len = mac_header.encode(&mut buffer);
+                let endpoints = [0x01];
+                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
                 let nwk_frame_size = self.application_service.build_active_endpoint_response(
                     &self.identity,
                     nwk_header.source_address,
                     &req,
                     &endpoints,
-                    &mut buffer[mac_header_len..],
+                    &mut self.buffer.borrow_mut()[mac_header_len..],
                     &mut self.security_manager,
                 )?;
-                self.queue_packet(&buffer[..(mac_header_len + nwk_frame_size)])?;
+                self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
             }
             DeviceProfileMessage::MatchDescriptorRequest(_req) => {
                 log::info!("> DP Match descriptor request");
@@ -567,6 +645,52 @@ where
             }
             DeviceProfileMessage::ManagementLinkQualityIndicatorResponse(_rsp) => {
                 log::info!("> DP Link quality indicator response");
+            }
+        }
+        Ok(())
+    }
+
+    fn queue_network_link_status(&mut self) -> Result<(), Error> {
+        use psila_data::network::commands::{Command, LinkStatus, LinkStatusEntry};
+        let mac_header = self.mac.build_data_header(
+            NetworkAddress::broadcast(), // destination address
+            false,                       // request acknowledge
+        );
+        let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+        let mut entries = [LinkStatusEntry::default(); 32];
+        let mut num_entries = 0;
+        for device in self.known_devices.iter() {
+            if device.network_address.is_assigned()
+                && device.outgoing_cost < 0xff
+                && device.link_quality < 0xff
+            {
+                entries[num_entries].address = device.network_address;
+                entries[num_entries].incoming_cost =
+                    psila_data::link_quality_to_cost(device.link_quality);
+                entries[num_entries].outgoing_cost = device.outgoing_cost;
+                num_entries = num_entries + 1;
+            }
+            if num_entries >= 32 {
+                break;
+            }
+        }
+        let reply = LinkStatus::new(&entries[..num_entries]);
+        let reply = Command::LinkStatus(reply);
+        let nwk_frame_size = self.application_service.build_network_command(
+            &self.identity,
+            NetworkAddress::broadcast(),
+            &reply,
+            &mut self.buffer.borrow_mut()[mac_header_len..],
+            &mut self.security_manager,
+        )?;
+        let frame_size = mac_header_len + nwk_frame_size;
+        match self.queue_packet_from_buffer(frame_size) {
+            Ok(()) => {
+                log::info!("< Queued network link status {}", frame_size);
+            }
+            Err(err) => {
+                log::error!("< Failed to queue network link status, {:?}", err);
+                return Err(err);
             }
         }
         Ok(())
