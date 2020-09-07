@@ -584,6 +584,12 @@ impl Parser {
                     "{:?} {:?} ",
                     header.control.frame_type, header.control.delivery_mode,
                 );
+                if header.control.acknowledge_format {
+                    print!("AckCmd ");
+                }
+                else {
+                    print!("AckData ");
+                }
                 if header.control.security {
                     print!("Secure ");
                 }
