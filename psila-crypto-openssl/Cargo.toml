@@ -5,7 +5,6 @@ authors = ["Erik Svensson <erik.public@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-# log = "0.4.8"
 byteorder = { version = "1", default-features = false }
 openssl = { version = "0.10", features = ["vendored"] }
 psila-crypto = { path = "../psila-crypto" }

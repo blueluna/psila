@@ -14,7 +14,6 @@ default = []
 core = ["heapless"]
 
 [dependencies]
-log = "0.4.8"
 byteorder = { version = "1", default-features = false }
 bitflags = "1.0"
 hash32 = "0.1"
