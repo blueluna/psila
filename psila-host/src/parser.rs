@@ -586,8 +586,7 @@ impl Parser {
                 );
                 if header.control.acknowledge_format {
                     print!("AckCmd ");
-                }
-                else {
+                } else {
                     print!("AckData ");
                 }
                 if header.control.security {
