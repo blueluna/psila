@@ -371,7 +371,7 @@ impl ApplicationServiceContext {
     ) -> Result<usize, Error> {
         let sdr = if request.address == source.short {
             if let Some(descriptor) = descriptor {
-                device_profile::SimpleDescriptorResponse::success_response(destination, descriptor)
+                device_profile::SimpleDescriptorResponse::success_response(request.address, descriptor)
             } else {
                 device_profile::SimpleDescriptorResponse::failure_response(
                     device_profile::Status::NotActive,
