@@ -111,15 +111,20 @@ impl AddressResponse {
     pub fn len(&self) -> usize {
         if let Some(count) = self.num_devices {
             count as usize
+        } else {
+            0
         }
-        else { 0 }
     }
 
     pub fn devices(&self) -> &[NetworkAddress] {
         &self.devices[..self.len()]
     }
 
-    pub fn single_device_response(status: Status, extended_address: ExtendedAddress, network_address: NetworkAddress) -> Self {
+    pub fn single_device_response(
+        status: Status,
+        extended_address: ExtendedAddress,
+        network_address: NetworkAddress,
+    ) -> Self {
         Self {
             status,
             extended_address,
@@ -181,7 +186,11 @@ impl Pack<AddressResponse, Error> for AddressResponse {
             *device = NetworkAddress::unpack(&data[offset..offset + 2])?;
             offset += 2;
         }
-        let num_devices = if offset == 11 { None}  else { Some(num_devices as u8) };
+        let num_devices = if offset == 11 {
+            None
+        } else {
+            Some(num_devices as u8)
+        };
         Ok((
             Self {
                 status,

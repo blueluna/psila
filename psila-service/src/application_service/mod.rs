@@ -180,8 +180,7 @@ impl ApplicationServiceContext {
             transaction_sequence: self.dp_sequence_next(),
             message,
         };
-        let cluster =
-            device_profile::RESPONSE | u16::from(cluster);
+        let cluster = device_profile::RESPONSE | u16::from(cluster);
         let aps_header = ApplicationServiceHeader::new_data_header(
             0,                        // destination
             cluster,                  // cluster
@@ -230,7 +229,14 @@ impl ApplicationServiceContext {
         } else {
             device_profile::Status::DeviceNotFound
         };
-        self.build_address_response(status, ClusterIdentifier::NetworkAddressRequest, source, destination, buffer, security)
+        self.build_address_response(
+            status,
+            ClusterIdentifier::NetworkAddressRequest,
+            source,
+            destination,
+            buffer,
+            security,
+        )
     }
 
     pub fn build_extended_address_response<CB: CryptoBackend>(
@@ -246,7 +252,14 @@ impl ApplicationServiceContext {
         } else {
             device_profile::Status::DeviceNotFound
         };
-        self.build_address_response(status, ClusterIdentifier::ExtendedAddressRequest, source, destination, buffer, security)
+        self.build_address_response(
+            status,
+            ClusterIdentifier::ExtendedAddressRequest,
+            source,
+            destination,
+            buffer,
+            security,
+        )
     }
 
     pub fn build_node_descriptor_response<CB: CryptoBackend>(
