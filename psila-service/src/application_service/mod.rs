@@ -120,7 +120,7 @@ impl ApplicationServiceContext {
     ) -> Result<usize, Error> {
         let device_announce = DeviceAnnounce {
             network_address: identity.short,
-            ieee_address: identity.extended,
+            extended_address: identity.extended,
             capability,
         };
         let message = DeviceProfileMessage::DeviceAnnounce(device_announce);
@@ -159,6 +159,94 @@ impl ApplicationServiceContext {
             buffer,
         )?;
         Ok(used)
+    }
+
+    pub fn build_address_response<CB: CryptoBackend>(
+        &self,
+        status: device_profile::Status,
+        cluster: ClusterIdentifier,
+        source: &Identity,
+        destination: NetworkAddress,
+        buffer: &mut [u8],
+        security: &mut SecurityManager<CB>,
+    ) -> Result<usize, Error> {
+        let rsp = device_profile::AddressResponse::single_device_response(
+            status,
+            source.extended,
+            source.short,
+        );
+        let message = DeviceProfileMessage::NetworkAddressResponse(rsp);
+        let device_profile_frame = DeviceProfileFrame {
+            transaction_sequence: self.dp_sequence_next(),
+            message,
+        };
+        let cluster =
+            device_profile::RESPONSE | u16::from(cluster);
+        let aps_header = ApplicationServiceHeader::new_data_header(
+            0,                        // destination
+            cluster,                  // cluster
+            0,                        // profile
+            0,                        // source
+            self.aps_sequence_next(), // counter
+            false,                    // acknowledge request
+            false,                    // security
+        );
+        let network_header = NetworkHeader::new_data_header(
+            2,                              // protocol version
+            DiscoverRoute::EnableDiscovery, // discovery route
+            true,                           // security
+            destination,                    // destination address
+            source.short,                   // source address
+            16,                             // radius
+            self.nwk_sequence_next(),       // network sequence number
+            None,                           // source route frame
+        );
+        let mut offset = 0;
+
+        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
+        offset += used;
+        let used = device_profile_frame.pack(&mut self.buffer.borrow_mut()[offset..])?;
+        offset += used;
+        let used = security.encrypt_network_payload(
+            source.extended,
+            network_header,
+            &self.buffer.borrow()[..offset],
+            buffer,
+        )?;
+        log::info!("Network address response");
+        Ok(used)
+    }
+
+    pub fn build_network_address_response<CB: CryptoBackend>(
+        &self,
+        source: &Identity,
+        destination: NetworkAddress,
+        request: &device_profile::NetworkAddressRequest,
+        buffer: &mut [u8],
+        security: &mut SecurityManager<CB>,
+    ) -> Result<usize, Error> {
+        let status = if request.address == source.extended {
+            device_profile::Status::Success
+        } else {
+            device_profile::Status::DeviceNotFound
+        };
+        self.build_address_response(status, ClusterIdentifier::NetworkAddressRequest, source, destination, buffer, security)
+    }
+
+    pub fn build_extended_address_response<CB: CryptoBackend>(
+        &self,
+        source: &Identity,
+        destination: NetworkAddress,
+        request: &device_profile::ExtendedAddressRequest,
+        buffer: &mut [u8],
+        security: &mut SecurityManager<CB>,
+    ) -> Result<usize, Error> {
+        let status = if request.address == source.short {
+            device_profile::Status::Success
+        } else {
+            device_profile::Status::DeviceNotFound
+        };
+        self.build_address_response(status, ClusterIdentifier::ExtendedAddressRequest, source, destination, buffer, security)
     }
 
     pub fn build_node_descriptor_response<CB: CryptoBackend>(

@@ -9,8 +9,8 @@ use crate::{CapabilityInformation, ExtendedAddress, NetworkAddress};
 pub struct DeviceAnnounce {
     /// Network address of the device
     pub network_address: NetworkAddress,
-    /// IEEE address of the device
-    pub ieee_address: ExtendedAddress,
+    /// Extended (IEEE) address of the device
+    pub extended_address: ExtendedAddress,
     /// Device capabileties
     pub capability: CapabilityInformation,
 }
@@ -21,7 +21,7 @@ impl Pack<DeviceAnnounce, Error> for DeviceAnnounce {
             Err(Error::WrongNumberOfBytes)
         } else {
             self.network_address.pack(&mut data[0..2])?;
-            self.ieee_address.pack(&mut data[2..10])?;
+            self.extended_address.pack(&mut data[2..10])?;
             data[10] = self.capability.into();
             Ok(11)
         }
@@ -32,12 +32,12 @@ impl Pack<DeviceAnnounce, Error> for DeviceAnnounce {
             Err(Error::WrongNumberOfBytes)
         } else {
             let network_address = NetworkAddress::unpack(&data[0..2])?;
-            let ieee_address = ExtendedAddress::unpack(&data[2..10])?;
+            let extended_address = ExtendedAddress::unpack(&data[2..10])?;
             let capability = CapabilityInformation::from(data[10]);
             Ok((
                 Self {
                     network_address,
-                    ieee_address,
+                    extended_address,
                     capability,
                 },
                 11,
@@ -59,7 +59,7 @@ mod tests {
         assert_eq!(used, 11);
         assert_eq!(da.network_address, [0x7b, 0xc0]);
         assert_eq!(
-            da.ieee_address,
+            da.extended_address,
             [0x85, 0xae, 0x21, 0xfe, 0xff, 0x6f, 0x0d, 0x00]
         );
         assert_eq!(da.capability.alternate_pan_coordinator, false);
@@ -76,7 +76,7 @@ mod tests {
         assert_eq!(used, 11);
         assert_eq!(da.network_address, [0x6a, 0x6a]);
         assert_eq!(
-            da.ieee_address,
+            da.extended_address,
             [0xc1, 0xe9, 0x1f, 0x00, 0x00, 0xff, 0x0f, 0x00]
         );
         assert_eq!(da.capability.alternate_pan_coordinator, false);
@@ -92,7 +92,7 @@ mod tests {
         let mut data = [0xff; 32];
         let device_announce = DeviceAnnounce {
             network_address: NetworkAddress::new(0x8765),
-            ieee_address: ExtendedAddress::new(0xfedc_ba98_7654_3210),
+            extended_address: ExtendedAddress::new(0xfedc_ba98_7654_3210),
             capability: CapabilityInformation {
                 alternate_pan_coordinator: false,
                 router_capable: false,

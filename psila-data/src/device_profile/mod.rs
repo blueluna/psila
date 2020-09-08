@@ -13,7 +13,7 @@ pub use active_endpoints::{ActiveEndpointRequest, ActiveEndpointResponse};
 pub use device_announce::DeviceAnnounce;
 pub use link_quality::{DeviceType, ManagementLinkQualityIndicatorResponse};
 pub use match_descriptor::{MatchDescriptorRequest, MatchDescriptorResponse};
-pub use network_address::{AddressResponse, IeeeAddressRequest, NetworkAddressRequest};
+pub use network_address::{AddressResponse, ExtendedAddressRequest, NetworkAddressRequest};
 pub use node_descriptor::{NodeDescriptor, NodeDescriptorRequest, NodeDescriptorResponse};
 pub use power_descriptor::{NodePowerDescriptor, PowerDescriptorRequest, PowerDescriptorResponse};
 pub use simple_descriptor::{SimpleDescriptor, SimpleDescriptorRequest, SimpleDescriptorResponse};
@@ -31,8 +31,8 @@ extended_enum!(
     ClusterIdentifier, u16,
     /// Request the network address of another device
     NetworkAddressRequest => 0x0000,
-    /// Request the IEEE address of another device
-    IeeeAddressRequest => 0x0001,
+    /// Request the extended (IEEE) address of another device
+    ExtendedAddressRequest => 0x0001,
     /// Request the node descriptor of another device
     NodeDescriptorRequest => 0x0002,
     /// Request the power descriptor of another device
@@ -126,10 +126,10 @@ pub enum DeviceProfileMessage {
     NetworkAddressRequest(NetworkAddressRequest),
     /// Network address response
     NetworkAddressResponse(AddressResponse),
-    /// Request the IEEE address of another device
-    IeeeAddressRequest(IeeeAddressRequest),
-    /// IEEE address response
-    IeeeAddressResponse(AddressResponse),
+    /// Request the Extended (IEEE) address of another device
+    ExtendedAddressRequest(ExtendedAddressRequest),
+    /// Extended (IEEE) address response
+    ExtendedAddressResponse(AddressResponse),
     /// Request the node descriptor of another device
     NodeDescriptorRequest(NodeDescriptorRequest),
     /// Response to a node descriptor request
@@ -164,8 +164,8 @@ impl DeviceProfileMessage {
         match *self {
             DeviceProfileMessage::NetworkAddressRequest(ref m) => m.pack(data),
             DeviceProfileMessage::NetworkAddressResponse(ref m) => m.pack(data),
-            DeviceProfileMessage::IeeeAddressRequest(ref m) => m.pack(data),
-            DeviceProfileMessage::IeeeAddressResponse(ref m) => m.pack(data),
+            DeviceProfileMessage::ExtendedAddressRequest(ref m) => m.pack(data),
+            DeviceProfileMessage::ExtendedAddressResponse(ref m) => m.pack(data),
             DeviceProfileMessage::NodeDescriptorRequest(ref m) => m.pack(data),
             DeviceProfileMessage::NodeDescriptorResponse(ref m) => m.pack(data),
             DeviceProfileMessage::PowerDescriptorRequest(ref m) => m.pack(data),
@@ -194,9 +194,9 @@ impl DeviceProfileMessage {
                     let (rsp, used) = AddressResponse::unpack(&data)?;
                     Ok((DeviceProfileMessage::NetworkAddressResponse(rsp), used))
                 }
-                ClusterIdentifier::IeeeAddressRequest => {
+                ClusterIdentifier::ExtendedAddressRequest => {
                     let (rsp, used) = AddressResponse::unpack(&data)?;
-                    Ok((DeviceProfileMessage::IeeeAddressResponse(rsp), used))
+                    Ok((DeviceProfileMessage::ExtendedAddressResponse(rsp), used))
                 }
                 ClusterIdentifier::NodeDescriptorRequest => {
                     let (rsp, used) = NodeDescriptorResponse::unpack(&data)?;
@@ -234,9 +234,9 @@ impl DeviceProfileMessage {
                     let (req, used) = NetworkAddressRequest::unpack(&data)?;
                     Ok((DeviceProfileMessage::NetworkAddressRequest(req), used))
                 }
-                ClusterIdentifier::IeeeAddressRequest => {
-                    let (req, used) = IeeeAddressRequest::unpack(&data)?;
-                    Ok((DeviceProfileMessage::IeeeAddressRequest(req), used))
+                ClusterIdentifier::ExtendedAddressRequest => {
+                    let (req, used) = ExtendedAddressRequest::unpack(&data)?;
+                    Ok((DeviceProfileMessage::ExtendedAddressRequest(req), used))
                 }
                 ClusterIdentifier::NodeDescriptorRequest => {
                     let (req, used) = NodeDescriptorRequest::unpack(&data)?;
@@ -326,7 +326,7 @@ mod tests {
             DeviceProfileMessage::DeviceAnnounce(ref da) => {
                 assert_eq!(da.network_address, [0x6a, 0x6a]);
                 assert_eq!(
-                    da.ieee_address,
+                    da.extended_address,
                     [0xc1, 0xe9, 0x1f, 0x00, 0x00, 0xff, 0x0f, 0x00]
                 );
                 assert_eq!(da.capability.alternate_pan_coordinator, false);
@@ -365,7 +365,7 @@ mod tests {
 
         let device_announce = DeviceAnnounce {
             network_address: NetworkAddress::new(0x3289),
-            ieee_address: ExtendedAddress::new(0x0123_4567_89ab_cdef),
+            extended_address: ExtendedAddress::new(0x0123_4567_89ab_cdef),
             capability: CapabilityInformation {
                 alternate_pan_coordinator: false,
                 router_capable: false,

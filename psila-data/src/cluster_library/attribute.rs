@@ -116,8 +116,8 @@ extended_enum!(
     AttributeIdentifier => 0xe9,
     /// BACnet OID
     BuildingAutomationControlNetworkObjectIdentifier => 0xea,
-    /// 64-bit IEEE address
-    IeeeAddress => 0xf0,
+    /// 64-bit extended (IEEE) address
+    ExtendedAddress => 0xf0,
     /// 128-bit key
     Key128 => 0xf1,
     /// Unknown type
@@ -172,7 +172,7 @@ impl AttributeDataType {
             | AttributeDataType::Unsigned64
             | AttributeDataType::Signed64
             | AttributeDataType::FloatingPoint64
-            | AttributeDataType::IeeeAddress => Some(8),
+            | AttributeDataType::ExtendedAddress => Some(8),
             AttributeDataType::Key128 => Some(16),
             AttributeDataType::OctetString
             | AttributeDataType::CharacterString
@@ -283,8 +283,8 @@ pub enum AttributeValue {
     ClusterIdentifier(u16),
     /// 16-bit attribute identifier
     AttributeIdentifier(u16),
-    /// 64-bit IEEE address
-    IeeeAddress(u64),
+    /// 64-bit Extended (IEEE) address
+    ExtendedAddress(u64),
 }
 
 impl AttributeValue {
@@ -353,7 +353,7 @@ impl AttributeValue {
             AttributeValue::Data64(value)
             | AttributeValue::Bitmap64(value)
             | AttributeValue::Unsigned64(value)
-            | AttributeValue::IeeeAddress(value) => {
+            | AttributeValue::ExtendedAddress(value) => {
                 LittleEndian::write_u64(&mut data[0..8], *value);
                 8
             }
@@ -670,9 +670,9 @@ impl AttributeValue {
                 let value = LittleEndian::read_u16(&data[0..2]);
                 Ok((AttributeValue::ClusterIdentifier(value), 2))
             }
-            AttributeDataType::IeeeAddress => {
+            AttributeDataType::ExtendedAddress => {
                 let value = LittleEndian::read_u64(&data[0..8]);
-                Ok((AttributeValue::IeeeAddress(value), 8))
+                Ok((AttributeValue::ExtendedAddress(value), 8))
             }
             _ => Err(Error::UnsupportedAttributeValue),
         }
@@ -730,7 +730,7 @@ impl AttributeValue {
             AttributeValue::UtcTime(_) => AttributeDataType::UtcTime,
             AttributeValue::ClusterIdentifier(_) => AttributeDataType::ClusterIdentifier,
             AttributeValue::AttributeIdentifier(_) => AttributeDataType::AttributeIdentifier,
-            AttributeValue::IeeeAddress(_) => AttributeDataType::IeeeAddress,
+            AttributeValue::ExtendedAddress(_) => AttributeDataType::ExtendedAddress,
         }
     }
 
@@ -768,7 +768,7 @@ impl AttributeValue {
             AttributeValue::Unsigned40(v) => *v != [0xff; 5],
             AttributeValue::Unsigned48(v) => *v != [0xff; 6],
             AttributeValue::Unsigned56(v) => *v != [0xff; 7],
-            AttributeValue::Unsigned64(v) | AttributeValue::IeeeAddress(v) => {
+            AttributeValue::Unsigned64(v) | AttributeValue::ExtendedAddress(v) => {
                 *v != u64::max_value()
             }
             AttributeValue::Signed8(v) => *v != i8::min_value(),
@@ -878,7 +878,7 @@ impl std::fmt::Display for AttributeValue {
                 AttributeValue::ClusterIdentifier(v) | AttributeValue::AttributeIdentifier(v) => {
                     write!(f, "{:04x}", v)
                 }
-                AttributeValue::IeeeAddress(v) => write!(f, "{:08x}", v),
+                AttributeValue::ExtendedAddress(v) => write!(f, "{:08x}", v),
             }
         }
     }

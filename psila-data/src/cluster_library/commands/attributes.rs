@@ -620,7 +620,7 @@ mod tests {
         ));
         attributes.push((
             AttributeIdentifier::from(0x0101),
-            AttributeDataType::IeeeAddress,
+            AttributeDataType::ExtendedAddress,
         ));
         let cmd = DiscoverAttributesResponse {
             complete: true,

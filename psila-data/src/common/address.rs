@@ -150,9 +150,9 @@ impl PartialEq<ieee802154::mac::PanId> for PanIdentifier {
     }
 }
 
-/// Extended IEEE address size
+/// Extended (IEEE) address size
 pub const EXTENDED_ADDRESS_SIZE: usize = 8;
-/// Extended IEEE address, broadcast address
+/// Extended (IEEE) address, broadcast address
 pub const EXTENDED_ADDRESS_BROADCAST: u64 = 0xffff_ffff_ffff_ffffu64;
 
 /// 64-bit extended IEEE address

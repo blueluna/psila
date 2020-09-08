@@ -50,16 +50,16 @@ impl Pack<NetworkAddressRequest, Error> for NetworkAddressRequest {
 }
 
 // 2.4.3.1.2 IEEE_addr_req
-/// IEEE address request
-/// Requests the IEEE address for a remote device
+/// Extended (IEEE) address request
+/// Requests the extended address for a remote device
 #[derive(Clone, Debug, PartialEq)]
-pub struct IeeeAddressRequest {
+pub struct ExtendedAddressRequest {
     pub address: NetworkAddress,
     pub request_type: RequestType,
     pub start_index: u8,
 }
 
-impl Pack<IeeeAddressRequest, Error> for IeeeAddressRequest {
+impl Pack<ExtendedAddressRequest, Error> for ExtendedAddressRequest {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
         if data.len() != 4 {
             return Err(Error::WrongNumberOfBytes);
@@ -92,24 +92,42 @@ impl Pack<IeeeAddressRequest, Error> for IeeeAddressRequest {
 #[derive(Clone, Debug, PartialEq)]
 pub struct AddressResponse {
     pub status: Status,
-    pub ieee_address: ExtendedAddress,
+    pub extended_address: ExtendedAddress,
     pub network_address: NetworkAddress,
     pub start_index: u8,
-    num_devices: u8,
+    num_devices: Option<u8>,
     devices: [NetworkAddress; 32],
 }
 
 impl AddressResponse {
+    pub fn is_extended(&self) -> bool {
+        self.num_devices.is_some()
+    }
+
     pub fn is_empty(&self) -> bool {
-        self.num_devices == 0
+        self.len() == 0
     }
 
     pub fn len(&self) -> usize {
-        self.num_devices as usize
+        if let Some(count) = self.num_devices {
+            count as usize
+        }
+        else { 0 }
     }
 
     pub fn devices(&self) -> &[NetworkAddress] {
-        &self.devices[..self.num_devices as usize]
+        &self.devices[..self.len()]
+    }
+
+    pub fn single_device_response(status: Status, extended_address: ExtendedAddress, network_address: NetworkAddress) -> Self {
+        Self {
+            status,
+            extended_address,
+            network_address,
+            start_index: 0,
+            num_devices: None,
+            devices: [NetworkAddress::default(); 32],
+        }
     }
 }
 
@@ -119,14 +137,14 @@ impl Pack<AddressResponse, Error> for AddressResponse {
             return Err(Error::WrongNumberOfBytes);
         }
         data[0] = self.status.into();
-        self.ieee_address.pack(&mut data[1..9])?;
+        self.extended_address.pack(&mut data[1..9])?;
         self.network_address.pack(&mut data[9..11])?;
         let mut offset = 11;
-        if self.num_devices > 0 {
+        if let Some(count) = self.num_devices {
             if data.len() < 14 + self.len() * 2 {
                 return Err(Error::WrongNumberOfBytes);
             }
-            data[offset] = self.num_devices;
+            data[offset] = count;
             offset += 1;
             data[offset] = self.start_index;
             offset += 1;
@@ -143,7 +161,7 @@ impl Pack<AddressResponse, Error> for AddressResponse {
             return Err(Error::WrongNumberOfBytes);
         }
         let status = Status::try_from(data[0])?;
-        let ieee_address = ExtendedAddress::unpack(&data[1..9])?;
+        let extended_address = ExtendedAddress::unpack(&data[1..9])?;
         let network_address = NetworkAddress::unpack(&data[9..11])?;
         let mut offset = 11;
         let (num_devices, start_index) = if data.len() >= 13 {
@@ -155,21 +173,22 @@ impl Pack<AddressResponse, Error> for AddressResponse {
         } else {
             (0, 0)
         };
-        let mut devices = [NetworkAddress::default(); 32];
         if data.len() < offset + num_devices * 2 {
             return Err(Error::WrongNumberOfBytes);
         }
+        let mut devices = [NetworkAddress::default(); 32];
         for device in devices[..num_devices].iter_mut() {
             *device = NetworkAddress::unpack(&data[offset..offset + 2])?;
             offset += 2;
         }
+        let num_devices = if offset == 11 { None}  else { Some(num_devices as u8) };
         Ok((
             Self {
                 status,
-                ieee_address,
+                extended_address,
                 network_address,
                 start_index,
-                num_devices: num_devices as u8,
+                num_devices,
                 devices,
             },
             offset,

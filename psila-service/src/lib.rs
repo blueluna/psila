@@ -516,11 +516,37 @@ where
         use psila_data::device_profile::DeviceProfileMessage;
 
         match frame.message {
-            DeviceProfileMessage::NetworkAddressRequest(_req) => {
+            DeviceProfileMessage::NetworkAddressRequest(req) => {
                 log::info!("> DP Network address request");
+                let mac_header = self.mac.build_data_header(
+                    nwk_header.source_address, // destination address
+                    false,                     // request acknowledge
+                );
+                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                let nwk_frame_size = self.application_service.build_network_address_response(
+                    &self.identity,
+                    nwk_header.source_address,
+                    &req,
+                    &mut self.buffer.borrow_mut()[mac_header_len..],
+                    &mut self.security_manager,
+                )?;
+                self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
             }
-            DeviceProfileMessage::IeeeAddressRequest(_req) => {
-                log::info!("> DP IEEE address request");
+            DeviceProfileMessage::ExtendedAddressRequest(req) => {
+                log::info!("> DP Extended address request");
+                let mac_header = self.mac.build_data_header(
+                    nwk_header.source_address, // destination address
+                    false,                     // request acknowledge
+                );
+                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                let nwk_frame_size = self.application_service.build_extended_address_response(
+                    &self.identity,
+                    nwk_header.source_address,
+                    &req,
+                    &mut self.buffer.borrow_mut()[mac_header_len..],
+                    &mut self.security_manager,
+                )?;
+                self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
             }
             DeviceProfileMessage::NodeDescriptorRequest(req) => {
                 log::info!("> DP Node descriptor request, {}", req.address);
@@ -625,8 +651,8 @@ where
             DeviceProfileMessage::NetworkAddressResponse(_rsp) => {
                 log::info!("> DP Network address response");
             }
-            DeviceProfileMessage::IeeeAddressResponse(_rsp) => {
-                log::info!("> DP IEEE address response");
+            DeviceProfileMessage::ExtendedAddressResponse(_rsp) => {
+                log::info!("> DP Extended address response");
             }
             DeviceProfileMessage::NodeDescriptorResponse(_rsp) => {
                 log::info!("> DP Node descriptor response");

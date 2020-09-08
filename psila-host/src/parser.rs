@@ -183,7 +183,7 @@ impl Parser {
                     DeviceProfileMessage::NetworkAddressResponse(rsp) => {
                         print!(
                             "Network Address Response {:?} {} {}",
-                            rsp.status, rsp.network_address, rsp.ieee_address
+                            rsp.status, rsp.network_address, rsp.extended_address
                         );
                         if !rsp.is_empty() {
                             print!(" Start {}", rsp.start_index);
@@ -193,16 +193,16 @@ impl Parser {
                             }
                         }
                     }
-                    DeviceProfileMessage::IeeeAddressRequest(req) => {
+                    DeviceProfileMessage::ExtendedAddressRequest(req) => {
                         print!(
-                            "Network Address Request {} {:?} Start {}",
+                            "Extended Address Request {} {:?} Start {}",
                             req.address, req.request_type, req.start_index
                         );
                     }
-                    DeviceProfileMessage::IeeeAddressResponse(rsp) => {
+                    DeviceProfileMessage::ExtendedAddressResponse(rsp) => {
                         print!(
-                            "Network Address Response {:?} {} {}",
-                            rsp.status, rsp.network_address, rsp.ieee_address
+                            "Extended Address Response {:?} {} {}",
+                            rsp.status, rsp.network_address, rsp.extended_address
                         );
                         if !rsp.is_empty() {
                             print!(" Start {}", rsp.start_index);
@@ -398,7 +398,7 @@ impl Parser {
                     DeviceProfileMessage::DeviceAnnounce(da) => {
                         print!(
                             "Device Announce {} {} {}",
-                            da.network_address, da.ieee_address, da.capability
+                            da.network_address, da.extended_address, da.capability
                         );
                     }
                     DeviceProfileMessage::ManagementLinkQualityIndicatorRequest(start_index) => {
