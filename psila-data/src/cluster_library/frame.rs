@@ -1,9 +1,12 @@
 use core::convert::TryFrom;
+use core::ops::Not;
 
 use crate::error::Error;
 use crate::pack::{Pack, PackFixed};
 
 use byteorder::{ByteOrder, LittleEndian};
+
+use crate::cluster_library::GeneralCommandIdentifier;
 
 // ZCL, 2.4.1.1.1 Frame Type Sub-field
 /// Frame type field
@@ -54,6 +57,17 @@ impl From<Direction> for u8 {
         match value {
             Direction::ToServer => 0b0000_0000,
             Direction::ToClient => 0b0000_1000,
+        }
+    }
+}
+
+impl Not for Direction {
+    type Output = Direction;
+    /// Get `u8` from `Direction`
+    fn not(self) -> Self {
+        match self {
+            Direction::ToServer => Direction::ToClient,
+            Direction::ToClient => Direction::ToServer,
         }
     }
 }
@@ -116,6 +130,22 @@ pub struct ClusterLibraryHeader {
     pub transaction_sequence: u8,
     /// Command identifier
     pub command: u8,
+}
+
+impl ClusterLibraryHeader {
+    pub fn new_response(request: &ClusterLibraryHeader, command: GeneralCommandIdentifier) -> Self {
+        ClusterLibraryHeader {
+            control: FrameControl {
+                frame_type: FrameType::Global,
+                manufacturer_specific: false,
+                direction: !request.control.direction,
+                disable_default_response: false,
+            },
+            manufacturer: request.manufacturer,
+            transaction_sequence: request.transaction_sequence,
+            command: command.into(),
+        }
+    }
 }
 
 impl Pack<ClusterLibraryHeader, Error> for ClusterLibraryHeader {

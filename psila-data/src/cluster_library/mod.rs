@@ -6,7 +6,7 @@ use crate::common::address::ShortAddress;
 use crate::Error;
 
 mod attribute;
-mod commands;
+pub mod commands;
 mod frame;
 
 pub use attribute::{AttributeDataType, AttributeValue};

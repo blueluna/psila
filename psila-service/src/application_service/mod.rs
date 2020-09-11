@@ -5,6 +5,7 @@ use crate::{Error, Identity};
 use psila_crypto::CryptoBackend;
 use psila_data::{
     application_service::ApplicationServiceHeader,
+    cluster_library,
     device_profile::{
         self, ClusterIdentifier, DeviceAnnounce, DeviceProfileFrame, DeviceProfileMessage,
     },
@@ -526,6 +527,55 @@ impl ApplicationServiceContext {
             buffer,
         )?;
         log::info!("Simple descriptor response");
+        Ok(used)
+    }
+
+    pub fn build_cluster_library_response<CB: CryptoBackend>(
+        &self,
+        source: &Identity,
+        destination: NetworkAddress,
+        profile: u16,
+        cluster: u16,
+        ep_src: u8,
+        ep_dst: u8,
+        zcl_header: &cluster_library::ClusterLibraryHeader,
+        zcl_command: &cluster_library::Command,
+        buffer: &mut [u8],
+        security: &mut SecurityManager<CB>,
+    ) -> Result<usize, Error> {
+        let aps_header = ApplicationServiceHeader::new_data_header(
+            ep_src,                   // destination
+            cluster,                  // cluster
+            profile,                  // profile
+            ep_dst,                   // source
+            self.aps_sequence_next(), // counter
+            false,                    // acknowledge request
+            false,                    // security
+        );
+        let network_header = NetworkHeader::new_data_header(
+            2,                              // protocol version
+            DiscoverRoute::EnableDiscovery, // discovery route
+            true,                           // security
+            destination,                    // destination address
+            source.short,                   // source address
+            16,                             // radius
+            self.nwk_sequence_next(),       // network sequence number
+            None,                           // source route frame
+        );
+        let mut offset = 0;
+        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
+        offset += used;
+        let used = zcl_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
+        offset += used;
+        let (used, _) = zcl_command.pack(&mut self.buffer.borrow_mut()[offset..])?;
+        offset += used;
+        let used = security.encrypt_network_payload(
+            source.extended,
+            network_header,
+            &self.buffer.borrow()[..offset],
+            buffer,
+        )?;
+        log::info!("Cluster library response");
         Ok(used)
     }
 }

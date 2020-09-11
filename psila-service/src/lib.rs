@@ -13,11 +13,13 @@ use psila_data::{self, pack::Pack, CapabilityInformation, ExtendedAddress, Key, 
 use psila_crypto::CryptoBackend;
 
 mod application_service;
+mod cluster_library;
 mod error;
 mod identity;
 pub mod mac;
 mod security;
 
+pub use cluster_library::ClusterLibraryHandler;
 pub use error::Error;
 pub use identity::Identity;
 
@@ -62,7 +64,7 @@ impl Default for NetworkDevice {
     }
 }
 
-pub struct PsilaService<'a, N: ArrayLength<u8>, CB> {
+pub struct PsilaService<'a, N: ArrayLength<u8>, CB, CLH> {
     mac: MacService,
     application_service: ApplicationServiceContext,
     security_manager: security::SecurityManager<CB>,
@@ -74,17 +76,20 @@ pub struct PsilaService<'a, N: ArrayLength<u8>, CB> {
     timestamp: u32,
     next_link_status: u32,
     known_devices: Vec<NetworkDevice, U16>,
+    cluser_library_handler: CLH,
 }
 
-impl<'a, N: ArrayLength<u8>, CB> PsilaService<'a, N, CB>
+impl<'a, N: ArrayLength<u8>, CB, CLH> PsilaService<'a, N, CB, CLH>
 where
     CB: CryptoBackend,
+    CLH: ClusterLibraryHandler,
 {
     pub fn new(
         crypto: CB,
         tx_queue: Producer<'a, N>,
         address: ExtendedAddress,
         default_link_key: Key,
+        cluser_library_handler: CLH,
     ) -> Self {
         let capability = CapabilityInformation {
             alternate_pan_coordinator: false,
@@ -106,6 +111,7 @@ where
             timestamp: 0,
             next_link_status: 0,
             known_devices: Vec::new(),
+            cluser_library_handler,
         }
     }
 
@@ -400,12 +406,9 @@ where
         aps_header: &psila_data::application_service::ApplicationServiceHeader,
         aps_payload: &[u8],
     ) -> Result<(), Error> {
-        use psila_data::{
-            application_service::{
-                commands::{Command, TransportKey},
-                header::FrameType,
-            },
-            common::ProfileIdentifier,
+        use psila_data::application_service::{
+            commands::{Command, TransportKey},
+            header::FrameType,
         };
 
         if aps_header.control.acknowledge_request {
@@ -440,30 +443,36 @@ where
 
         match aps_header.control.frame_type {
             FrameType::Data => {
-                if let (Some(cluster), Some(profile)) = (aps_header.cluster, aps_header.profile) {
-                    if let Ok(profile_id) = ProfileIdentifier::try_from(profile) {
-                        match profile_id {
-                            ProfileIdentifier::DeviceProfile => {
-                                use psila_data::device_profile::DeviceProfileFrame;
-                                match DeviceProfileFrame::unpack(aps_payload, cluster) {
-                                    Ok((frame, _)) => {
-                                        self.handle_device_profile(nwk_header, aps_header, frame)?;
-                                    }
-                                    Err(err) => {
-                                        log::error!(
-                                            "Failed to parse device profile message, {:04x}, {:?}",
-                                            cluster,
-                                            err
-                                        );
-                                    }
-                                }
+                if let (Some(cluster), Some(profile), Some(ep_src), Some(ep_dst)) = (
+                    aps_header.cluster,
+                    aps_header.profile,
+                    aps_header.source,
+                    aps_header.destination,
+                ) {
+                    if profile == 0x0000 {
+                        use psila_data::device_profile::DeviceProfileFrame;
+                        match DeviceProfileFrame::unpack(aps_payload, cluster) {
+                            Ok((frame, _)) => {
+                                self.handle_device_profile(nwk_header, aps_header, frame)?;
                             }
-                            _ => {
-                                log::info!("Profile {:04x} {:?}", profile, profile_id);
+                            Err(err) => {
+                                log::error!(
+                                    "Failed to parse device profile message, {:04x}, {:?}",
+                                    cluster,
+                                    err
+                                );
                             }
                         }
                     } else {
-                        log::info!("Unknown profile {:04x}", profile);
+                        self.handle_cluster_library(
+                            nwk_header,
+                            aps_header,
+                            profile,
+                            cluster,
+                            ep_src,
+                            ep_dst,
+                            aps_payload,
+                        )?;
                     }
                 } else {
                     log::info!("Application service data");
@@ -676,6 +685,164 @@ where
         Ok(())
     }
 
+    fn handle_cluster_library(
+        &mut self,
+        nwk_header: &psila_data::network::NetworkHeader,
+        aps_header: &psila_data::application_service::ApplicationServiceHeader,
+        profile: u16,
+        cluster: u16,
+        ep_src: u8,
+        ep_dst: u8,
+        payload: &[u8],
+    ) -> Result<(), Error> {
+        use psila_data::cluster_library::{
+            self, commands, ClusterLibraryHeader, Command, FrameType,
+        };
+
+        match ClusterLibraryHeader::unpack(payload) {
+            Ok((header, used)) => {
+                let response = if header.control.frame_type == FrameType::Global {
+                    if let Ok(command) =
+                        cluster_library::GeneralCommandIdentifier::try_from(header.command)
+                    {
+                        self.handle_general_cluster_command(
+                            profile,
+                            cluster,
+                            command,
+                            &payload[used..],
+                        )?
+                    } else {
+                        log::error!(
+                            "Unknown general command. Profile {:04x} Cluster {:04x} Command {:04x}",
+                            profile,
+                            cluster,
+                            header.command
+                        );
+                        None
+                    }
+                } else {
+                    let status =
+                        match self
+                            .cluser_library_handler
+                            .run(profile, cluster, header.command)
+                        {
+                            Ok(_) => psila_data::cluster_library::ClusterLibraryStatus::Success,
+                            Err(status) => status,
+                        };
+                    if header.control.disable_default_response {
+                        None
+                    } else {
+                        Some(Command::DefaultResponse(commands::DefaultResponse {
+                            command: header.command,
+                            status,
+                        }))
+                    }
+                };
+                if let Some(response) = response {
+                    log::info!("> ZCL response");
+                    let zcl_header =
+                        psila_data::cluster_library::ClusterLibraryHeader::new_response(
+                            &header,
+                            response.command_identifier(),
+                        );
+                    let mac_header = self.mac.build_data_header(
+                        nwk_header.source_address, // destination address
+                        false,                     // request acknowledge
+                    );
+                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let nwk_frame_size = self.application_service.build_cluster_library_response(
+                        &self.identity,
+                        nwk_header.source_address,
+                        profile,
+                        cluster,
+                        ep_src,
+                        ep_dst,
+                        &zcl_header,
+                        &response,
+                        &mut self.buffer.borrow_mut()[mac_header_len..],
+                        &mut self.security_manager,
+                    )?;
+                    self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
+                }
+            }
+            Err(_) => {
+                log::error!("Failed to parse ZCL {:04x} {:04x}", profile, cluster);
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_general_cluster_command(
+        &mut self,
+        profile: u16,
+        cluster: u16,
+        command_identifier: psila_data::cluster_library::GeneralCommandIdentifier,
+        payload: &[u8],
+    ) -> Result<Option<psila_data::cluster_library::Command>, Error> {
+        use psila_data::cluster_library::{commands, Command};
+        if let Ok((command, _used)) = Command::unpack(payload, command_identifier) {
+            let response = match command {
+                Command::ReadAttributes(command) => {
+                    let mut response = commands::ReadAttributesResponse::new();
+                    for attribute in command.attributes {
+                        let attribute_status = match self.cluser_library_handler.read_attribute(
+                            profile,
+                            cluster,
+                            attribute.into(),
+                        ) {
+                            Ok(value) => commands::AttributeStatus::from_value(attribute, value),
+                            Err(status) => {
+                                commands::AttributeStatus::from_status(attribute, status)
+                            }
+                        };
+                        response.attributes.push(attribute_status);
+                    }
+                    Some(Command::ReadAttributesResponse(response))
+                }
+                Command::WriteAttributes(command) | Command::WriteAttributesUndivided(command) => {
+                    let mut response = commands::WriteAttributesResponse::new();
+                    for attribute in command.attributes {
+                        let status = match self.cluser_library_handler.write_attribute(
+                            profile,
+                            cluster,
+                            attribute.identifier.into(),
+                            attribute.value,
+                        ) {
+                            Ok(_) => psila_data::cluster_library::ClusterLibraryStatus::Success,
+                            Err(status) => status,
+                        };
+                        let status = commands::WriteAttributeStatus {
+                            status,
+                            identifier: attribute.identifier,
+                        };
+                        response.attributes.push(status);
+                    }
+                    Some(Command::WriteAttributesResponse(response))
+                }
+                Command::WriteAttributesNoResponse(command) => {
+                    for attribute in command.attributes {
+                        let _ = self.cluser_library_handler.write_attribute(
+                            profile,
+                            cluster,
+                            attribute.identifier.into(),
+                            attribute.value,
+                        );
+                    }
+                    None
+                }
+                _ => {
+                    log::warn!(
+                        "Ignored general command {:02x}",
+                        u8::from(command_identifier)
+                    );
+                    None
+                }
+            };
+            return Ok(response);
+        }
+        Ok(None)
+    }
+
     fn queue_network_link_status(&mut self) -> Result<(), Error> {
         use psila_data::network::commands::{Command, LinkStatus, LinkStatusEntry};
         let mac_header = self.mac.build_data_header(
@@ -728,6 +895,37 @@ mod tests {
     use super::*;
     use bbqueue::{consts::U512, BBBuffer};
     use psila_crypto_openssl::OpenSslBackend;
+    use psila_data::cluster_library::{AttributeValue, ClusterLibraryStatus};
+
+    struct BasicClusterLibraryHandler {}
+
+    impl ClusterLibraryHandler for BasicClusterLibraryHandler {
+        fn read_attribute(
+            &self,
+            _profile: u16,
+            _cluster: u16,
+            _attribute: u16,
+        ) -> Result<AttributeValue, ClusterLibraryStatus> {
+            Err(ClusterLibraryStatus::UnsupportedAttribute)
+        }
+        fn write_attribute(
+            &mut self,
+            _profile: u16,
+            _cluster: u16,
+            _attribute: u16,
+            _value: AttributeValue,
+        ) -> Result<(), ClusterLibraryStatus> {
+            Err(ClusterLibraryStatus::UnsupportedAttribute)
+        }
+        fn run(
+            &mut self,
+            _profile: u16,
+            _cluster: u16,
+            _command: u8,
+        ) -> Result<(), ClusterLibraryStatus> {
+            Err(ClusterLibraryStatus::UnsupportedClusterCommand)
+        }
+    }
 
     #[test]
     fn build_beacon_request() {
@@ -739,12 +937,14 @@ mod tests {
         let address = psila_data::ExtendedAddress::new(0x8899_aabb_ccdd_eeff);
         let tx_queue: BBBuffer<U512> = BBBuffer::new();
         let (tx_producer, mut tx_consumer) = tx_queue.try_split().unwrap();
+        let cluser_library_handler = BasicClusterLibraryHandler {};
 
         let mut service = PsilaService::new(
             crypto_backend,
             tx_producer,
             address,
             DEFAULT_LINK_KEY.into(),
+            cluser_library_handler,
         );
 
         let timeout = service.timeout().unwrap();

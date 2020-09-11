@@ -53,6 +53,23 @@ pub struct AttributeStatus {
     pub value: Option<AttributeValue>,
 }
 
+impl AttributeStatus {
+    pub fn from_value(identifier: AttributeIdentifier, value: AttributeValue) -> Self {
+        Self {
+            identifier,
+            status: ClusterLibraryStatus::Success,
+            value: Some(value),
+        }
+    }
+    pub fn from_status(identifier: AttributeIdentifier, status: ClusterLibraryStatus) -> Self {
+        Self {
+            identifier,
+            status,
+            value: None,
+        }
+    }
+}
+
 impl Pack<AttributeStatus, Error> for AttributeStatus {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
         if data.len() < 3 {
@@ -114,6 +131,14 @@ pub type AttributeStatusVec = heapless::Vec<AttributeStatus, heapless::consts::U
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReadAttributesResponse {
     pub attributes: AttributeStatusVec,
+}
+
+impl ReadAttributesResponse {
+    pub fn new() -> Self {
+        Self {
+            attributes: AttributeStatusVec::new(),
+        }
+    }
 }
 
 impl Pack<ReadAttributesResponse, Error> for ReadAttributesResponse {
@@ -238,6 +263,14 @@ pub type WriteAttributeStatusVec = heapless::Vec<WriteAttributeStatus, heapless:
 #[derive(Clone, Debug, PartialEq)]
 pub struct WriteAttributesResponse {
     pub attributes: WriteAttributeStatusVec,
+}
+
+impl WriteAttributesResponse {
+    pub fn new() -> Self {
+        Self {
+            attributes: WriteAttributeStatusVec::new(),
+        }
+    }
 }
 
 impl Pack<WriteAttributesResponse, Error> for WriteAttributesResponse {

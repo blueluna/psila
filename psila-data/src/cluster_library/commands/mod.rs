@@ -6,11 +6,12 @@ use core::convert::TryFrom;
 use crate::pack::Pack;
 use crate::Error;
 
-use attributes::{
-    DiscoverAttributes, DiscoverAttributesResponse, ReadAttributes, ReadAttributesResponse,
-    ReportAttributes, WriteAttributes, WriteAttributesResponse,
+pub use attributes::{
+    AttributeStatus, DiscoverAttributes, DiscoverAttributesResponse, ReadAttributes,
+    ReadAttributesResponse, ReportAttributes, WriteAttributeStatus, WriteAttributes,
+    WriteAttributesResponse,
 };
-use default_response::DefaultResponse;
+pub use default_response::DefaultResponse;
 
 extended_enum!(
     /// Cluster library general command identifiers
@@ -70,90 +71,32 @@ pub enum Command {
 
 impl Command {
     pub fn pack(&self, data: &mut [u8]) -> Result<(usize, GeneralCommandIdentifier), Error> {
-        match self {
-            Command::ReadAttributes(cmd) => {
-                let used = cmd.pack(data)?;
-                Ok((used, GeneralCommandIdentifier::ReadAttributes))
-            }
-            Command::ReadAttributesResponse(cmd) => {
-                let used = cmd.pack(data)?;
-                Ok((used, GeneralCommandIdentifier::ReadAttributesResponse))
-            }
-            Command::WriteAttributes(cmd) => {
-                let used = cmd.pack(data)?;
-                Ok((used, GeneralCommandIdentifier::WriteAttributes))
-            }
-            Command::WriteAttributesUndivided(cmd) => {
-                let used = cmd.pack(data)?;
-                Ok((used, GeneralCommandIdentifier::WriteAttributesUndivided))
-            }
-            Command::WriteAttributesResponse(cmd) => {
-                let used = cmd.pack(data)?;
-                Ok((used, GeneralCommandIdentifier::WriteAttributesResponse))
-            }
-            Command::WriteAttributesNoResponse(cmd) => {
-                let used = cmd.pack(data)?;
-                Ok((used, GeneralCommandIdentifier::WriteAttributesNoResponse))
-            }
-            Command::ConfigureReporting => Ok((0, GeneralCommandIdentifier::ConfigureReporting)),
-            Command::ConfigureReportingResponse => {
-                Ok((0, GeneralCommandIdentifier::ConfigureReportingResponse))
-            }
-            Command::ReadReportingConfiguration => {
-                Ok((0, GeneralCommandIdentifier::ReadReportingConfiguration))
-            }
-            Command::ReadReportingConfigurationResponse => Ok((
-                0,
-                GeneralCommandIdentifier::ReadReportingConfigurationResponse,
-            )),
-            Command::ReportAttributes(cmd) => {
-                let used = cmd.pack(data)?;
-                Ok((used, GeneralCommandIdentifier::ReportAttributes))
-            }
-            Command::DefaultResponse(cmd) => {
-                let used = cmd.pack(data)?;
-                Ok((used, GeneralCommandIdentifier::DefaultResponse))
-            }
-            Command::DiscoverAttributes(cmd) => {
-                let used = cmd.pack(data)?;
-                Ok((used, GeneralCommandIdentifier::DiscoverAttributes))
-            }
-            Command::DiscoverAttributesResponse(cmd) => {
-                let used = cmd.pack(data)?;
-                Ok((used, GeneralCommandIdentifier::DiscoverAttributesResponse))
-            }
-            Command::ReadAttributesStructured => {
-                Ok((0, GeneralCommandIdentifier::ReadAttributesStructured))
-            }
-            Command::WriteAttributesStructured => {
-                Ok((0, GeneralCommandIdentifier::WriteAttributesStructured))
-            }
-            Command::WriteAttributesStructuredResponse => Ok((
-                0,
-                GeneralCommandIdentifier::WriteAttributesStructuredResponse,
-            )),
-            Command::DiscoverCommandsReceived => {
-                Ok((0, GeneralCommandIdentifier::DiscoverCommandsReceived))
-            }
-            Command::DiscoverCommandsReceivedResponse => Ok((
-                0,
-                GeneralCommandIdentifier::DiscoverCommandsReceivedResponse,
-            )),
-            Command::DiscoverCommandsGenerated => {
-                Ok((0, GeneralCommandIdentifier::DiscoverCommandsGenerated))
-            }
-            Command::DiscoverCommandsGeneratedResponse => Ok((
-                0,
-                GeneralCommandIdentifier::DiscoverCommandsGeneratedResponse,
-            )),
-            Command::DiscoverAttributesExtended => {
-                Ok((0, GeneralCommandIdentifier::DiscoverAttributesExtended))
-            }
-            Command::DiscoverAttributesExtendedResponse => Ok((
-                0,
-                GeneralCommandIdentifier::DiscoverAttributesExtendedResponse,
-            )),
-        }
+        let used = match self {
+            Command::ReadAttributes(cmd) => cmd.pack(data)?,
+            Command::ReadAttributesResponse(cmd) => cmd.pack(data)?,
+            Command::WriteAttributes(cmd) => cmd.pack(data)?,
+            Command::WriteAttributesUndivided(cmd) => cmd.pack(data)?,
+            Command::WriteAttributesResponse(cmd) => cmd.pack(data)?,
+            Command::WriteAttributesNoResponse(cmd) => cmd.pack(data)?,
+            Command::ConfigureReporting => 0,
+            Command::ConfigureReportingResponse => 0,
+            Command::ReadReportingConfiguration => 0,
+            Command::ReadReportingConfigurationResponse => 0,
+            Command::ReportAttributes(cmd) => cmd.pack(data)?,
+            Command::DefaultResponse(cmd) => cmd.pack(data)?,
+            Command::DiscoverAttributes(cmd) => cmd.pack(data)?,
+            Command::DiscoverAttributesResponse(cmd) => cmd.pack(data)?,
+            Command::ReadAttributesStructured => 0,
+            Command::WriteAttributesStructured => 0,
+            Command::WriteAttributesStructuredResponse => 0,
+            Command::DiscoverCommandsReceived => 0,
+            Command::DiscoverCommandsReceivedResponse => 0,
+            Command::DiscoverCommandsGenerated => 0,
+            Command::DiscoverCommandsGeneratedResponse => 0,
+            Command::DiscoverAttributesExtended => 0,
+            Command::DiscoverAttributesExtendedResponse => 0,
+        };
+        Ok((used, self.command_identifier()))
     }
 
     pub fn unpack(data: &[u8], command: GeneralCommandIdentifier) -> Result<(Self, usize), Error> {
@@ -234,6 +177,63 @@ impl Command {
             }
             GeneralCommandIdentifier::DiscoverAttributesExtendedResponse => {
                 Ok((Command::DiscoverAttributesExtendedResponse, 0))
+            }
+        }
+    }
+
+    pub fn command_identifier(&self) -> GeneralCommandIdentifier {
+        match self {
+            Command::ReadAttributes(_) => GeneralCommandIdentifier::ReadAttributes,
+            Command::ReadAttributesResponse(_) => GeneralCommandIdentifier::ReadAttributesResponse,
+            Command::WriteAttributes(_) => GeneralCommandIdentifier::WriteAttributes,
+            Command::WriteAttributesUndivided(_) => {
+                GeneralCommandIdentifier::WriteAttributesUndivided
+            }
+            Command::WriteAttributesResponse(_) => {
+                GeneralCommandIdentifier::WriteAttributesResponse
+            }
+            Command::WriteAttributesNoResponse(_) => {
+                GeneralCommandIdentifier::WriteAttributesNoResponse
+            }
+            Command::ConfigureReporting => GeneralCommandIdentifier::ConfigureReporting,
+            Command::ConfigureReportingResponse => {
+                GeneralCommandIdentifier::ConfigureReportingResponse
+            }
+            Command::ReadReportingConfiguration => {
+                GeneralCommandIdentifier::ReadReportingConfiguration
+            }
+            Command::ReadReportingConfigurationResponse => {
+                GeneralCommandIdentifier::ReadReportingConfigurationResponse
+            }
+            Command::ReportAttributes(_) => GeneralCommandIdentifier::ReportAttributes,
+            Command::DefaultResponse(_) => GeneralCommandIdentifier::DefaultResponse,
+            Command::DiscoverAttributes(_) => GeneralCommandIdentifier::DiscoverAttributes,
+            Command::DiscoverAttributesResponse(_) => {
+                GeneralCommandIdentifier::DiscoverAttributesResponse
+            }
+            Command::ReadAttributesStructured => GeneralCommandIdentifier::ReadAttributesStructured,
+            Command::WriteAttributesStructured => {
+                GeneralCommandIdentifier::WriteAttributesStructured
+            }
+            Command::WriteAttributesStructuredResponse => {
+                GeneralCommandIdentifier::WriteAttributesStructuredResponse
+            }
+            Command::DiscoverCommandsReceived => GeneralCommandIdentifier::DiscoverCommandsReceived,
+            Command::DiscoverCommandsReceivedResponse => {
+                GeneralCommandIdentifier::DiscoverCommandsReceivedResponse
+            }
+            Command::DiscoverCommandsGenerated => {
+                GeneralCommandIdentifier::DiscoverCommandsGenerated
+            }
+            Command::DiscoverCommandsGeneratedResponse => {
+                GeneralCommandIdentifier::DiscoverCommandsGeneratedResponse
+            }
+
+            Command::DiscoverAttributesExtended => {
+                GeneralCommandIdentifier::DiscoverAttributesExtended
+            }
+            Command::DiscoverAttributesExtendedResponse => {
+                GeneralCommandIdentifier::DiscoverAttributesExtendedResponse
             }
         }
     }
