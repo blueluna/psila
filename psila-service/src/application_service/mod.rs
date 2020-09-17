@@ -6,9 +6,7 @@ use psila_crypto::CryptoBackend;
 use psila_data::{
     application_service::ApplicationServiceHeader,
     cluster_library,
-    device_profile::{
-        self, ClusterIdentifier, DeviceAnnounce, DeviceProfileFrame, DeviceProfileMessage,
-    },
+    device_profile::{self, ClusterIdentifier, DeviceAnnounce},
     network::{self, header::DiscoverRoute, NetworkHeader},
     pack::Pack,
     CapabilityInformation, NetworkAddress,
@@ -124,11 +122,6 @@ impl ApplicationServiceContext {
             extended_address: identity.extended,
             capability,
         };
-        let message = DeviceProfileMessage::DeviceAnnounce(device_announce);
-        let device_profile_frame = DeviceProfileFrame {
-            transaction_sequence: self.dp_sequence_next(),
-            message,
-        };
         let aps_header = ApplicationServiceHeader::new_data_header(
             0,                                        // destination
             ClusterIdentifier::DeviceAnnounce.into(), // cluster
@@ -149,10 +142,15 @@ impl ApplicationServiceContext {
             None,                           // source route frame
         );
         let mut offset = 0;
-        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
-        let used = device_profile_frame.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
+        {
+            let work_buffer = &mut self.buffer.borrow_mut()[offset..];
+            let used = aps_header.pack(&mut work_buffer[offset..])?;
+            offset += used;
+            work_buffer[offset] = self.dp_sequence_next();
+            offset += 1;
+            let used = device_announce.pack(&mut work_buffer[offset..])?;
+            offset += used;
+        }
         let used = security.encrypt_network_payload(
             identity.extended,
             network_header,
@@ -165,6 +163,7 @@ impl ApplicationServiceContext {
     pub fn build_address_response<CB: CryptoBackend>(
         &self,
         status: device_profile::Status,
+        dp_sequence: u8,
         cluster: ClusterIdentifier,
         source: &Identity,
         destination: NetworkAddress,
@@ -176,11 +175,6 @@ impl ApplicationServiceContext {
             source.extended,
             source.short,
         );
-        let message = DeviceProfileMessage::NetworkAddressResponse(rsp);
-        let device_profile_frame = DeviceProfileFrame {
-            transaction_sequence: self.dp_sequence_next(),
-            message,
-        };
         let cluster = device_profile::RESPONSE | u16::from(cluster);
         let aps_header = ApplicationServiceHeader::new_data_header(
             0,                        // destination
@@ -202,18 +196,21 @@ impl ApplicationServiceContext {
             None,                           // source route frame
         );
         let mut offset = 0;
-
-        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
-        let used = device_profile_frame.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
+        {
+            let work_buffer = &mut self.buffer.borrow_mut()[offset..];
+            let used = aps_header.pack(&mut work_buffer[offset..])?;
+            offset += used;
+            work_buffer[offset] = dp_sequence;
+            offset += 1;
+            let used = rsp.pack(&mut work_buffer[offset..])?;
+            offset += used;
+        }
         let used = security.encrypt_network_payload(
             source.extended,
             network_header,
             &self.buffer.borrow()[..offset],
             buffer,
         )?;
-        log::info!("Network address response");
         Ok(used)
     }
 
@@ -221,17 +218,14 @@ impl ApplicationServiceContext {
         &self,
         source: &Identity,
         destination: NetworkAddress,
-        request: &device_profile::NetworkAddressRequest,
+        dp_sequence: u8,
+        status: device_profile::Status,
         buffer: &mut [u8],
         security: &mut SecurityManager<CB>,
     ) -> Result<usize, Error> {
-        let status = if request.address == source.extended {
-            device_profile::Status::Success
-        } else {
-            device_profile::Status::DeviceNotFound
-        };
         self.build_address_response(
             status,
+            dp_sequence,
             ClusterIdentifier::NetworkAddressRequest,
             source,
             destination,
@@ -244,17 +238,14 @@ impl ApplicationServiceContext {
         &self,
         source: &Identity,
         destination: NetworkAddress,
-        request: &device_profile::ExtendedAddressRequest,
+        dp_sequence: u8,
+        status: device_profile::Status,
         buffer: &mut [u8],
         security: &mut SecurityManager<CB>,
     ) -> Result<usize, Error> {
-        let status = if request.address == source.short {
-            device_profile::Status::Success
-        } else {
-            device_profile::Status::DeviceNotFound
-        };
         self.build_address_response(
             status,
+            dp_sequence,
             ClusterIdentifier::ExtendedAddressRequest,
             source,
             destination,
@@ -269,6 +260,7 @@ impl ApplicationServiceContext {
         destination: NetworkAddress,
         request: &device_profile::NodeDescriptorRequest,
         capability: CapabilityInformation,
+        dp_sequence: u8,
         buffer: &mut [u8],
         security: &mut SecurityManager<CB>,
     ) -> Result<usize, Error> {
@@ -298,11 +290,6 @@ impl ApplicationServiceContext {
                 source.short,
             )
         };
-        let message = DeviceProfileMessage::NodeDescriptorResponse(ndr);
-        let device_profile_frame = DeviceProfileFrame {
-            transaction_sequence: self.dp_sequence_next(),
-            message,
-        };
         let cluster =
             device_profile::RESPONSE | u16::from(ClusterIdentifier::NodeDescriptorRequest);
         let aps_header = ApplicationServiceHeader::new_data_header(
@@ -325,18 +312,21 @@ impl ApplicationServiceContext {
             None,                           // source route frame
         );
         let mut offset = 0;
-
-        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
-        let used = device_profile_frame.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
+        {
+            let work_buffer = &mut self.buffer.borrow_mut();
+            let used = aps_header.pack(&mut work_buffer[offset..])?;
+            offset += used;
+            work_buffer[offset] = dp_sequence;
+            offset += 1;
+            let used = ndr.pack(&mut work_buffer[offset..])?;
+            offset += used;
+        }
         let used = security.encrypt_network_payload(
             source.extended,
             network_header,
             &self.buffer.borrow()[..offset],
             buffer,
         )?;
-        log::info!("Node descriptor response");
         Ok(used)
     }
 
@@ -346,6 +336,7 @@ impl ApplicationServiceContext {
         destination: NetworkAddress,
         request: &device_profile::ActiveEndpointRequest,
         endpoints: &[u8],
+        dp_sequence: u8,
         buffer: &mut [u8],
         security: &mut SecurityManager<CB>,
     ) -> Result<usize, Error> {
@@ -356,11 +347,6 @@ impl ApplicationServiceContext {
                 device_profile::Status::InvalidRequestType,
                 source.short,
             )
-        };
-        let message = DeviceProfileMessage::ActiveEndpointResponse(aer);
-        let device_profile_frame = DeviceProfileFrame {
-            transaction_sequence: self.dp_sequence_next(),
-            message,
         };
         let cluster =
             device_profile::RESPONSE | u16::from(ClusterIdentifier::ActiveEndpointRequest);
@@ -384,19 +370,21 @@ impl ApplicationServiceContext {
             None,                           // source route frame
         );
         let mut offset = 0;
-
-        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
-        let used = device_profile_frame.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
+        {
+            let work_buffer = &mut self.buffer.borrow_mut();
+            let used = aps_header.pack(&mut work_buffer[offset..])?;
+            offset += used;
+            work_buffer[offset] = dp_sequence;
+            offset += 1;
+            let used = aer.pack(&mut work_buffer[offset..])?;
+            offset += used;
+        }
         let used = security.encrypt_network_payload(
             source.extended,
             network_header,
             &self.buffer.borrow()[..offset],
             buffer,
         )?;
-
-        log::info!("Active endpint response");
         Ok(used)
     }
 
@@ -405,6 +393,7 @@ impl ApplicationServiceContext {
         source: &Identity,
         destination: NetworkAddress,
         request: &device_profile::PowerDescriptorRequest,
+        dp_sequence: u8,
         buffer: &mut [u8],
         security: &mut SecurityManager<CB>,
     ) -> Result<usize, Error> {
@@ -420,11 +409,6 @@ impl ApplicationServiceContext {
                 device_profile::Status::InvalidRequestType,
                 source.short,
             )
-        };
-        let message = DeviceProfileMessage::PowerDescriptorResponse(pdr);
-        let device_profile_frame = DeviceProfileFrame {
-            transaction_sequence: self.dp_sequence_next(),
-            message,
         };
         let cluster =
             device_profile::RESPONSE | u16::from(ClusterIdentifier::PowerDescriptorRequest);
@@ -448,17 +432,21 @@ impl ApplicationServiceContext {
             None,                           // source route frame
         );
         let mut offset = 0;
-        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
-        let used = device_profile_frame.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
+        {
+            let work_buffer = &mut self.buffer.borrow_mut();
+            let used = aps_header.pack(&mut work_buffer[offset..])?;
+            offset += used;
+            work_buffer[offset] = dp_sequence;
+            offset += 1;
+            let used = pdr.pack(&mut work_buffer[offset..])?;
+            offset += used;
+        }
         let used = security.encrypt_network_payload(
             source.extended,
             network_header,
             &self.buffer.borrow()[..offset],
             buffer,
         )?;
-        log::info!("Power descriptor response");
         Ok(used)
     }
 
@@ -468,6 +456,7 @@ impl ApplicationServiceContext {
         destination: NetworkAddress,
         request: &device_profile::SimpleDescriptorRequest,
         descriptor: Option<device_profile::SimpleDescriptor>,
+        dp_sequence: u8,
         buffer: &mut [u8],
         security: &mut SecurityManager<CB>,
     ) -> Result<usize, Error> {
@@ -488,11 +477,6 @@ impl ApplicationServiceContext {
                 device_profile::Status::InvalidRequestType,
                 source.short,
             )
-        };
-        let message = DeviceProfileMessage::SimpleDescriptorResponse(sdr);
-        let device_profile_frame = DeviceProfileFrame {
-            transaction_sequence: self.dp_sequence_next(),
-            message,
         };
         let cluster =
             device_profile::RESPONSE | u16::from(ClusterIdentifier::SimpleDescriptorRequest);
@@ -516,17 +500,21 @@ impl ApplicationServiceContext {
             None,                           // source route frame
         );
         let mut offset = 0;
-        let used = aps_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
-        let used = device_profile_frame.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
+        {
+            let work_buffer = &mut self.buffer.borrow_mut();
+            let used = aps_header.pack(&mut work_buffer[offset..])?;
+            offset += used;
+            work_buffer[offset] = dp_sequence;
+            offset += 1;
+            let used = sdr.pack(&mut work_buffer[offset..])?;
+            offset += used;
+        }
         let used = security.encrypt_network_payload(
             source.extended,
             network_header,
             &self.buffer.borrow()[..offset],
             buffer,
         )?;
-        log::info!("Simple descriptor response");
         Ok(used)
     }
 
@@ -539,7 +527,7 @@ impl ApplicationServiceContext {
         ep_src: u8,
         ep_dst: u8,
         zcl_header: &cluster_library::ClusterLibraryHeader,
-        zcl_command: &cluster_library::Command,
+        zcl_data: &[u8],
         buffer: &mut [u8],
         security: &mut SecurityManager<CB>,
     ) -> Result<usize, Error> {
@@ -567,15 +555,14 @@ impl ApplicationServiceContext {
         offset += used;
         let used = zcl_header.pack(&mut self.buffer.borrow_mut()[offset..])?;
         offset += used;
-        let (used, _) = zcl_command.pack(&mut self.buffer.borrow_mut()[offset..])?;
-        offset += used;
+        self.buffer.borrow_mut()[offset..offset + zcl_data.len()].copy_from_slice(zcl_data);
+        offset += zcl_data.len();
         let used = security.encrypt_network_payload(
             source.extended,
             network_header,
             &self.buffer.borrow()[..offset],
             buffer,
         )?;
-        log::info!("Cluster library response");
         Ok(used)
     }
 }

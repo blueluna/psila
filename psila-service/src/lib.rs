@@ -2,13 +2,21 @@
 
 #![no_std]
 
+use core::convert::From;
 use core::convert::TryFrom;
 
 use bbqueue::{ArrayLength, Producer};
 
 use heapless::{consts::U16, Vec};
 
-use psila_data::{self, pack::Pack, CapabilityInformation, ExtendedAddress, Key, NetworkAddress};
+use psila_data::{
+    self,
+    cluster_library::{
+        AttributeDataType, AttributeIdentifier, ClusterLibraryStatus, GeneralCommandIdentifier,
+    },
+    pack::Pack,
+    CapabilityInformation, ExtendedAddress, Key, NetworkAddress,
+};
 
 use psila_crypto::CryptoBackend;
 
@@ -31,6 +39,8 @@ pub const PACKET_BUFFER_MAX: usize = 128;
 
 /// Link status reporting interval in microseconds
 pub const LINK_STATUS_INTERVAL: u32 = 60_000_000;
+
+use psila_data::pack::PackFixed;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum NetworkState {
@@ -72,7 +82,8 @@ pub struct PsilaService<'a, N: ArrayLength<u8>, CB, CLH> {
     tx_queue: Producer<'a, N>,
     state: NetworkState,
     identity: Identity,
-    buffer: core::cell::RefCell<[u8; 128]>,
+    buffer: core::cell::RefCell<[u8; PACKET_BUFFER_MAX]>,
+    scratch: core::cell::RefCell<[u8; PACKET_BUFFER_MAX]>,
     timestamp: u32,
     next_link_status: u32,
     known_devices: Vec<NetworkDevice, U16>,
@@ -108,6 +119,7 @@ where
             state: NetworkState::Orphan,
             identity: Identity::default(),
             buffer: core::cell::RefCell::new([0u8; 128]),
+            scratch: core::cell::RefCell::new([0u8; 128]),
             timestamp: 0,
             next_link_status: 0,
             known_devices: Vec::new(),
@@ -450,23 +462,10 @@ where
                     aps_header.destination,
                 ) {
                     if profile == 0x0000 {
-                        use psila_data::device_profile::DeviceProfileFrame;
-                        match DeviceProfileFrame::unpack(aps_payload, cluster) {
-                            Ok((frame, _)) => {
-                                self.handle_device_profile(nwk_header, aps_header, frame)?;
-                            }
-                            Err(err) => {
-                                log::error!(
-                                    "Failed to parse device profile message, {:04x}, {:?}",
-                                    cluster,
-                                    err
-                                );
-                            }
-                        }
+                        self.handle_device_profile(nwk_header, cluster, aps_payload)?;
                     } else {
                         self.handle_cluster_library(
                             nwk_header,
-                            aps_header,
                             profile,
                             cluster,
                             ep_src,
@@ -519,167 +518,193 @@ where
     fn handle_device_profile(
         &mut self,
         nwk_header: &psila_data::network::NetworkHeader,
-        _aps_header: &psila_data::application_service::ApplicationServiceHeader,
-        frame: psila_data::device_profile::DeviceProfileFrame,
+        cluster: u16,
+        aps_payload: &[u8],
     ) -> Result<(), Error> {
-        use psila_data::device_profile::DeviceProfileMessage;
-
-        match frame.message {
-            DeviceProfileMessage::NetworkAddressRequest(req) => {
-                log::info!("> DP Network address request");
-                let mac_header = self.mac.build_data_header(
-                    nwk_header.source_address, // destination address
-                    false,                     // request acknowledge
-                );
-                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
-                let nwk_frame_size = self.application_service.build_network_address_response(
-                    &self.identity,
-                    nwk_header.source_address,
-                    &req,
-                    &mut self.buffer.borrow_mut()[mac_header_len..],
-                    &mut self.security_manager,
-                )?;
-                self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
-            }
-            DeviceProfileMessage::ExtendedAddressRequest(req) => {
-                log::info!("> DP Extended address request");
-                let mac_header = self.mac.build_data_header(
-                    nwk_header.source_address, // destination address
-                    false,                     // request acknowledge
-                );
-                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
-                let nwk_frame_size = self.application_service.build_extended_address_response(
-                    &self.identity,
-                    nwk_header.source_address,
-                    &req,
-                    &mut self.buffer.borrow_mut()[mac_header_len..],
-                    &mut self.security_manager,
-                )?;
-                self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
-            }
-            DeviceProfileMessage::NodeDescriptorRequest(req) => {
-                log::info!("> DP Node descriptor request, {}", req.address);
-                let mac_header = self.mac.build_data_header(
-                    nwk_header.source_address, // destination address
-                    false,                     // request acknowledge
-                );
-                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
-                let nwk_frame_size = self.application_service.build_node_descriptor_response(
-                    &self.identity,
-                    nwk_header.source_address,
-                    &req,
-                    self.capability,
-                    &mut self.buffer.borrow_mut()[mac_header_len..],
-                    &mut self.security_manager,
-                )?;
-                log::info!("< Queue response");
-                match self.queue_packet_from_buffer(mac_header_len + nwk_frame_size) {
-                    Ok(()) => {
-                        log::info!("< Queued response");
-                    }
-                    Err(err) => {
-                        log::error!("< Failed to queue response, {:?}", err);
-                        return Err(err);
-                    }
+        use psila_data::device_profile;
+        let sequence = aps_payload[0];
+        let payload = &aps_payload[1..];
+        let response = cluster & device_profile::RESPONSE == device_profile::RESPONSE;
+        if response {
+            match device_profile::ClusterIdentifier::try_from(cluster & !device_profile::RESPONSE) {
+                Ok(device_profile::ClusterIdentifier::NetworkAddressRequest) => {
+                    log::info!("> DP Network address response");
+                }
+                Ok(device_profile::ClusterIdentifier::ExtendedAddressRequest) => {
+                    log::info!("> DP Extended address response");
+                }
+                Ok(device_profile::ClusterIdentifier::NodeDescriptorRequest) => {
+                    log::info!("> DP Node descriptor response");
+                }
+                Ok(device_profile::ClusterIdentifier::PowerDescriptorRequest) => {
+                    log::info!("> DP Power descriptor response");
+                }
+                Ok(device_profile::ClusterIdentifier::SimpleDescriptorRequest) => {
+                    log::info!("> DP Simple descriptor response");
+                }
+                Ok(device_profile::ClusterIdentifier::ActiveEndpointRequest) => {
+                    log::info!("> DP Active endpoint response");
+                }
+                Ok(device_profile::ClusterIdentifier::MatchDescriptorRequest) => {
+                    log::info!("> DP Match descriptor response");
+                }
+                Ok(device_profile::ClusterIdentifier::DeviceAnnounce) => {
+                    log::info!("> DP Device announce (response)");
+                }
+                Ok(device_profile::ClusterIdentifier::ManagementLinkQualityIndicatorRequest) => {
+                    log::info!("> DP Link quality indicator response");
+                }
+                Ok(_) => {}
+                Err(_) => {
+                    log::info!("> DP Invalid cluster {:04x}", cluster);
                 }
             }
-            DeviceProfileMessage::PowerDescriptorRequest(req) => {
-                log::info!("> DP Power descriptor request");
-                let mac_header = self.mac.build_data_header(
-                    nwk_header.source_address, // destination address
-                    false,                     // request acknowledge
-                );
-                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
-                let nwk_frame_size = self.application_service.build_power_descriptor_response(
-                    &self.identity,
-                    nwk_header.source_address,
-                    &req,
-                    &mut self.buffer.borrow_mut()[mac_header_len..],
-                    &mut self.security_manager,
-                )?;
-                self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
-            }
-            DeviceProfileMessage::SimpleDescriptorRequest(req) => {
-                log::info!("> DP Simple descriptor request {:02x}", req.endpoint);
-                let mac_header = self.mac.build_data_header(
-                    nwk_header.source_address, // destination address
-                    false,                     // request acknowledge
-                );
-                use psila_data::device_profile::SimpleDescriptor;
-                let descriptor = match req.endpoint {
-                    0x01 => {
-                        Some(SimpleDescriptor::new(
-                            req.endpoint,                                                     // endpoint
-                            u16::from(psila_data::common::ProfileIdentifier::HomeAutomation), // profile
-                            0x0100, // device, HA On-off light
-                            0,      // device version
-                            &[0x0000, 0x0006],
-                            &[],
-                        ))
-                    }
-                    _ => None,
-                };
-                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
-                let nwk_frame_size = self.application_service.build_simple_descriptor_response(
-                    &self.identity,
-                    nwk_header.source_address,
-                    &req,
-                    descriptor,
-                    &mut self.buffer.borrow_mut()[mac_header_len..],
-                    &mut self.security_manager,
-                )?;
-                self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
-            }
-            DeviceProfileMessage::ActiveEndpointRequest(req) => {
-                log::info!("> DP Active endpoint request, {}", req.address);
-                let mac_header = self.mac.build_data_header(
-                    nwk_header.source_address, // destination address
-                    false,                     // request acknowledge
-                );
-                let endpoints = [0x01];
-                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
-                let nwk_frame_size = self.application_service.build_active_endpoint_response(
-                    &self.identity,
-                    nwk_header.source_address,
-                    &req,
-                    &endpoints,
-                    &mut self.buffer.borrow_mut()[mac_header_len..],
-                    &mut self.security_manager,
-                )?;
-                self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
-            }
-            DeviceProfileMessage::MatchDescriptorRequest(_req) => {
-                log::info!("> DP Match descriptor request");
-            }
-            DeviceProfileMessage::DeviceAnnounce(_req) => {
-                log::info!("> DP Device announce");
-            }
-            DeviceProfileMessage::ManagementLinkQualityIndicatorRequest(_req) => {
-                log::info!("> DP Link quality indicator request");
-            }
-            DeviceProfileMessage::NetworkAddressResponse(_rsp) => {
-                log::info!("> DP Network address response");
-            }
-            DeviceProfileMessage::ExtendedAddressResponse(_rsp) => {
-                log::info!("> DP Extended address response");
-            }
-            DeviceProfileMessage::NodeDescriptorResponse(_rsp) => {
-                log::info!("> DP Node descriptor response");
-            }
-            DeviceProfileMessage::PowerDescriptorResponse(_rsp) => {
-                log::info!("> DP Power descriptor response");
-            }
-            DeviceProfileMessage::SimpleDescriptorResponse(_rsp) => {
-                log::info!("> DP Simple descriptor response");
-            }
-            DeviceProfileMessage::ActiveEndpointResponse(_rsp) => {
-                log::info!("> DP Active endpoint response");
-            }
-            DeviceProfileMessage::MatchDescriptorResponse(_rsp) => {
-                log::info!("> DP Match desriptor response");
-            }
-            DeviceProfileMessage::ManagementLinkQualityIndicatorResponse(_rsp) => {
-                log::info!("> DP Link quality indicator response");
+        } else {
+            match device_profile::ClusterIdentifier::try_from(cluster & !device_profile::RESPONSE) {
+                Ok(device_profile::ClusterIdentifier::NetworkAddressRequest) => {
+                    let (req, _used) = device_profile::NetworkAddressRequest::unpack(payload)?;
+                    let status = if req.address == self.identity.extended {
+                        device_profile::Status::Success
+                    } else {
+                        device_profile::Status::DeviceNotFound
+                    };
+                    let mac_header = self.mac.build_data_header(
+                        nwk_header.source_address, // destination address
+                        false,                     // request acknowledge
+                    );
+                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let nwk_frame_size = self.application_service.build_network_address_response(
+                        &self.identity,
+                        nwk_header.source_address,
+                        sequence,
+                        status,
+                        &mut self.buffer.borrow_mut()[mac_header_len..],
+                        &mut self.security_manager,
+                    )?;
+                    self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
+                }
+                Ok(device_profile::ClusterIdentifier::ExtendedAddressRequest) => {
+                    let (req, _used) = device_profile::ExtendedAddressRequest::unpack(payload)?;
+                    let status = if req.address == self.identity.short {
+                        device_profile::Status::Success
+                    } else {
+                        device_profile::Status::DeviceNotFound
+                    };
+                    let mac_header = self.mac.build_data_header(
+                        nwk_header.source_address, // destination address
+                        false,                     // request acknowledge
+                    );
+                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let nwk_frame_size = self.application_service.build_extended_address_response(
+                        &self.identity,
+                        nwk_header.source_address,
+                        sequence,
+                        status,
+                        &mut self.buffer.borrow_mut()[mac_header_len..],
+                        &mut self.security_manager,
+                    )?;
+                    self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
+                }
+                Ok(device_profile::ClusterIdentifier::NodeDescriptorRequest) => {
+                    let (req, _used) = device_profile::NodeDescriptorRequest::unpack(payload)?;
+                    let mac_header = self.mac.build_data_header(
+                        nwk_header.source_address, // destination address
+                        false,                     // request acknowledge
+                    );
+                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let nwk_frame_size = self.application_service.build_node_descriptor_response(
+                        &self.identity,
+                        nwk_header.source_address,
+                        &req,
+                        self.capability,
+                        sequence,
+                        &mut self.buffer.borrow_mut()[mac_header_len..],
+                        &mut self.security_manager,
+                    )?;
+                    self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
+                }
+                Ok(device_profile::ClusterIdentifier::PowerDescriptorRequest) => {
+                    let (req, _used) = device_profile::PowerDescriptorRequest::unpack(payload)?;
+                    let mac_header = self.mac.build_data_header(
+                        nwk_header.source_address, // destination address
+                        false,                     // request acknowledge
+                    );
+                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let nwk_frame_size = self.application_service.build_power_descriptor_response(
+                        &self.identity,
+                        nwk_header.source_address,
+                        &req,
+                        sequence,
+                        &mut self.buffer.borrow_mut()[mac_header_len..],
+                        &mut self.security_manager,
+                    )?;
+                    self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
+                }
+                Ok(device_profile::ClusterIdentifier::SimpleDescriptorRequest) => {
+                    let (req, _used) = device_profile::SimpleDescriptorRequest::unpack(payload)?;
+                    let mac_header = self.mac.build_data_header(
+                        nwk_header.source_address, // destination address
+                        false,                     // request acknowledge
+                    );
+                    use psila_data::device_profile::SimpleDescriptor;
+                    let descriptor = match req.endpoint {
+                        0x01 => {
+                            Some(SimpleDescriptor::new(
+                                req.endpoint,                                                     // endpoint
+                                u16::from(psila_data::common::ProfileIdentifier::HomeAutomation), // profile
+                                0x0100, // device, HA On-off light
+                                0,      // device version
+                                &[0x0000, 0x0006],
+                                &[],
+                            ))
+                        }
+                        _ => None,
+                    };
+                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let nwk_frame_size =
+                        self.application_service.build_simple_descriptor_response(
+                            &self.identity,
+                            nwk_header.source_address,
+                            &req,
+                            descriptor,
+                            sequence,
+                            &mut self.buffer.borrow_mut()[mac_header_len..],
+                            &mut self.security_manager,
+                        )?;
+                    self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
+                }
+                Ok(device_profile::ClusterIdentifier::ActiveEndpointRequest) => {
+                    let (req, _used) = device_profile::ActiveEndpointRequest::unpack(payload)?;
+                    let mac_header = self.mac.build_data_header(
+                        nwk_header.source_address, // destination address
+                        false,                     // request acknowledge
+                    );
+                    let endpoints = [0x01];
+                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let nwk_frame_size = self.application_service.build_active_endpoint_response(
+                        &self.identity,
+                        nwk_header.source_address,
+                        &req,
+                        &endpoints,
+                        sequence,
+                        &mut self.buffer.borrow_mut()[mac_header_len..],
+                        &mut self.security_manager,
+                    )?;
+                    self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
+                }
+                Ok(device_profile::ClusterIdentifier::MatchDescriptorRequest) => {
+                    log::info!("> DP Match descriptor request");
+                }
+                Ok(device_profile::ClusterIdentifier::DeviceAnnounce) => {
+                    log::info!("> DP Device announce");
+                }
+                Ok(device_profile::ClusterIdentifier::ManagementLinkQualityIndicatorRequest) => {
+                    log::info!("> DP Link quality indicator request");
+                }
+                Ok(_) => {}
+                Err(_) => {
+                    log::warn!("> DP Invalid cluster {:04x}", cluster);
+                }
             }
         }
         Ok(())
@@ -688,62 +713,61 @@ where
     fn handle_cluster_library(
         &mut self,
         nwk_header: &psila_data::network::NetworkHeader,
-        aps_header: &psila_data::application_service::ApplicationServiceHeader,
         profile: u16,
         cluster: u16,
         ep_src: u8,
         ep_dst: u8,
         payload: &[u8],
     ) -> Result<(), Error> {
-        use psila_data::cluster_library::{
-            self, commands, ClusterLibraryHeader, Command, FrameType,
-        };
+        use psila_data::cluster_library::{self, commands, ClusterLibraryHeader, FrameType};
 
         match ClusterLibraryHeader::unpack(payload) {
             Ok((header, used)) => {
-                let response = if header.control.frame_type == FrameType::Global {
-                    if let Ok(command) =
-                        cluster_library::GeneralCommandIdentifier::try_from(header.command)
-                    {
-                        self.handle_general_cluster_command(
-                            profile,
-                            cluster,
-                            command,
-                            &payload[used..],
-                        )?
-                    } else {
-                        log::error!(
+                let (response_command, response_size) =
+                    if header.control.frame_type == FrameType::Global {
+                        if let Ok(command) =
+                            cluster_library::GeneralCommandIdentifier::try_from(header.command)
+                        {
+                            self.handle_general_cluster_command(
+                                profile,
+                                cluster,
+                                command,
+                                &payload[used..],
+                            )?
+                        } else {
+                            log::error!(
                             "Unknown general command. Profile {:04x} Cluster {:04x} Command {:04x}",
                             profile,
                             cluster,
                             header.command
                         );
-                        None
-                    }
-                } else {
-                    let status =
-                        match self
-                            .cluser_library_handler
-                            .run(profile, cluster, header.command)
-                        {
-                            Ok(_) => psila_data::cluster_library::ClusterLibraryStatus::Success,
-                            Err(status) => status,
-                        };
-                    if header.control.disable_default_response {
-                        None
+                            (GeneralCommandIdentifier::DefaultResponse, 0)
+                        }
                     } else {
-                        Some(Command::DefaultResponse(commands::DefaultResponse {
-                            command: header.command,
-                            status,
-                        }))
-                    }
-                };
-                if let Some(response) = response {
-                    log::info!("> ZCL response");
+                        let status =
+                            match self
+                                .cluser_library_handler
+                                .run(profile, cluster, header.command)
+                            {
+                                Ok(_) => psila_data::cluster_library::ClusterLibraryStatus::Success,
+                                Err(status) => status,
+                            };
+                        if header.control.disable_default_response {
+                            (GeneralCommandIdentifier::DefaultResponse, 0)
+                        } else {
+                            let command = commands::DefaultResponse {
+                                command: header.command,
+                                status,
+                            };
+                            let used = command.pack(&mut self.scratch.borrow_mut()[..])?;
+                            (GeneralCommandIdentifier::DefaultResponse, used)
+                        }
+                    };
+                if response_size > 0 {
                     let zcl_header =
                         psila_data::cluster_library::ClusterLibraryHeader::new_response(
                             &header,
-                            response.command_identifier(),
+                            response_command,
                         );
                     let mac_header = self.mac.build_data_header(
                         nwk_header.source_address, // destination address
@@ -758,7 +782,7 @@ where
                         ep_src,
                         ep_dst,
                         &zcl_header,
-                        &response,
+                        &self.scratch.borrow()[..response_size],
                         &mut self.buffer.borrow_mut()[mac_header_len..],
                         &mut self.security_manager,
                     )?;
@@ -776,71 +800,82 @@ where
         &mut self,
         profile: u16,
         cluster: u16,
-        command_identifier: psila_data::cluster_library::GeneralCommandIdentifier,
+        command_identifier: GeneralCommandIdentifier,
         payload: &[u8],
-    ) -> Result<Option<psila_data::cluster_library::Command>, Error> {
-        use psila_data::cluster_library::{commands, Command};
-        if let Ok((command, _used)) = Command::unpack(payload, command_identifier) {
-            let response = match command {
-                Command::ReadAttributes(command) => {
-                    let mut response = commands::ReadAttributesResponse::new();
-                    for attribute in command.attributes {
-                        let attribute_status = match self.cluser_library_handler.read_attribute(
-                            profile,
-                            cluster,
-                            attribute.into(),
-                        ) {
-                            Ok(value) => commands::AttributeStatus::from_value(attribute, value),
-                            Err(status) => {
-                                commands::AttributeStatus::from_status(attribute, status)
-                            }
-                        };
-                        response.attributes.push(attribute_status);
-                    }
-                    Some(Command::ReadAttributesResponse(response))
+    ) -> Result<(GeneralCommandIdentifier, usize), Error> {
+        let response_data = &mut self.scratch.borrow_mut()[..];
+        let (command, used) = match command_identifier {
+            GeneralCommandIdentifier::ReadAttributes => {
+                const HDR_SIZE: usize = 3;
+                let mut offset = 0;
+                for ref chunk in payload.chunks_exact(2) {
+                    let identifier = AttributeIdentifier::unpack(chunk)?;
+                    let _ = identifier.pack(&mut response_data[offset..offset + 2])?;
+                    response_data[offset + 2] = ClusterLibraryStatus::Success.into();
+                    let used = match self.cluser_library_handler.read_attribute(
+                        profile,
+                        cluster,
+                        identifier.into(),
+                        &mut response_data[offset + HDR_SIZE + 1..],
+                    ) {
+                        Ok((attribut_type, used)) => {
+                            response_data[offset + HDR_SIZE] = attribut_type.into();
+                            used + 1
+                        }
+                        Err(status) => {
+                            log::warn!("Read attribute status {:02x}", u8::from(status));
+                            response_data[offset + 2] = status.into();
+                            0
+                        }
+                    };
+                    offset += used + HDR_SIZE;
                 }
-                Command::WriteAttributes(command) | Command::WriteAttributesUndivided(command) => {
-                    let mut response = commands::WriteAttributesResponse::new();
-                    for attribute in command.attributes {
+                (GeneralCommandIdentifier::ReadAttributesResponse, offset)
+            }
+            GeneralCommandIdentifier::WriteAttributes => {
+                let mut in_offset = 0;
+                let mut out_offset = 0;
+                while in_offset < payload.len() {
+                    let identifier =
+                        AttributeIdentifier::unpack(&payload[in_offset..in_offset + 2])?;
+                    let data_type = AttributeDataType::try_from(payload[in_offset + 2])?;
+                    in_offset += 3;
+                    let (data_size, used) = data_type.get_size(&payload[in_offset..]);
+                    if let Some(data_size) = data_size {
+                        in_offset += used;
                         let status = match self.cluser_library_handler.write_attribute(
                             profile,
                             cluster,
-                            attribute.identifier.into(),
-                            attribute.value,
+                            identifier.into(),
+                            data_type,
+                            &payload[in_offset..in_offset + data_size],
                         ) {
                             Ok(_) => psila_data::cluster_library::ClusterLibraryStatus::Success,
                             Err(status) => status,
                         };
-                        let status = commands::WriteAttributeStatus {
-                            status,
-                            identifier: attribute.identifier,
-                        };
-                        response.attributes.push(status);
+                        in_offset += data_size;
+                        let _ = identifier.pack(&mut response_data[out_offset..out_offset + 2])?;
+                        response_data[out_offset + 2] = status.into();
+                        out_offset += 3;
+                    } else {
+                        log::warn!("Unsupported data type {:02x}", u8::from(data_type));
+                        break;
                     }
-                    Some(Command::WriteAttributesResponse(response))
                 }
-                Command::WriteAttributesNoResponse(command) => {
-                    for attribute in command.attributes {
-                        let _ = self.cluser_library_handler.write_attribute(
-                            profile,
-                            cluster,
-                            attribute.identifier.into(),
-                            attribute.value,
-                        );
-                    }
-                    None
-                }
-                _ => {
-                    log::warn!(
-                        "Ignored general command {:02x}",
-                        u8::from(command_identifier)
-                    );
-                    None
-                }
-            };
-            return Ok(response);
-        }
-        Ok(None)
+                (
+                    GeneralCommandIdentifier::WriteAttributesResponse,
+                    out_offset,
+                )
+            }
+            _ => {
+                log::warn!(
+                    "Ignored general command {:02x}",
+                    u8::from(command_identifier)
+                );
+                (GeneralCommandIdentifier::DefaultResponse, 0)
+            }
+        };
+        Ok((command, used))
     }
 
     fn queue_network_link_status(&mut self) -> Result<(), Error> {
@@ -895,7 +930,7 @@ mod tests {
     use super::*;
     use bbqueue::{consts::U512, BBBuffer};
     use psila_crypto_openssl::OpenSslBackend;
-    use psila_data::cluster_library::{AttributeValue, ClusterLibraryStatus};
+    use psila_data::cluster_library::ClusterLibraryStatus;
 
     struct BasicClusterLibraryHandler {}
 
@@ -905,7 +940,8 @@ mod tests {
             _profile: u16,
             _cluster: u16,
             _attribute: u16,
-        ) -> Result<AttributeValue, ClusterLibraryStatus> {
+            _value: &mut [u8],
+        ) -> Result<(AttributeDataType, usize), ClusterLibraryStatus> {
             Err(ClusterLibraryStatus::UnsupportedAttribute)
         }
         fn write_attribute(
@@ -913,7 +949,8 @@ mod tests {
             _profile: u16,
             _cluster: u16,
             _attribute: u16,
-            _value: AttributeValue,
+            _value_type: AttributeDataType,
+            _value_data: &[u8],
         ) -> Result<(), ClusterLibraryStatus> {
             Err(ClusterLibraryStatus::UnsupportedAttribute)
         }

@@ -125,7 +125,7 @@ extended_enum!(
 );
 
 impl AttributeDataType {
-    pub fn num_octets(self) -> Option<usize> {
+    pub fn data_size(self) -> Option<usize> {
         match self {
             AttributeDataType::None | AttributeDataType::Unknown => Some(0),
             AttributeDataType::Data8
@@ -182,6 +182,81 @@ impl AttributeDataType {
             | AttributeDataType::Structure
             | AttributeDataType::Set
             | AttributeDataType::Bag => None,
+        }
+    }
+    pub fn size_octets(self) -> Option<usize> {
+        match self {
+            AttributeDataType::None
+            | AttributeDataType::Unknown
+            | AttributeDataType::Data8
+            | AttributeDataType::Boolean
+            | AttributeDataType::Bitmap8
+            | AttributeDataType::Unsigned8
+            | AttributeDataType::Signed8
+            | AttributeDataType::Enumeration8
+            | AttributeDataType::Data16
+            | AttributeDataType::Bitmap16
+            | AttributeDataType::Unsigned16
+            | AttributeDataType::Signed16
+            | AttributeDataType::Enumeration16
+            | AttributeDataType::FloatingPoint16
+            | AttributeDataType::ClusterIdentifier
+            | AttributeDataType::AttributeIdentifier
+            | AttributeDataType::Data24
+            | AttributeDataType::Bitmap24
+            | AttributeDataType::Unsigned24
+            | AttributeDataType::Signed24
+            | AttributeDataType::Data32
+            | AttributeDataType::Bitmap32
+            | AttributeDataType::Unsigned32
+            | AttributeDataType::Signed32
+            | AttributeDataType::FloatingPoint32
+            | AttributeDataType::TimeOfDay
+            | AttributeDataType::Date
+            | AttributeDataType::UtcTime
+            | AttributeDataType::BuildingAutomationControlNetworkObjectIdentifier
+            | AttributeDataType::Data40
+            | AttributeDataType::Bitmap40
+            | AttributeDataType::Unsigned40
+            | AttributeDataType::Signed40
+            | AttributeDataType::Data48
+            | AttributeDataType::Bitmap48
+            | AttributeDataType::Unsigned48
+            | AttributeDataType::Signed48
+            | AttributeDataType::Data56
+            | AttributeDataType::Bitmap56
+            | AttributeDataType::Unsigned56
+            | AttributeDataType::Signed56
+            | AttributeDataType::Data64
+            | AttributeDataType::Bitmap64
+            | AttributeDataType::Unsigned64
+            | AttributeDataType::Signed64
+            | AttributeDataType::FloatingPoint64
+            | AttributeDataType::ExtendedAddress
+            | AttributeDataType::Key128 => None,
+            AttributeDataType::OctetString | AttributeDataType::CharacterString => Some(1),
+            AttributeDataType::LongOctetString | AttributeDataType::LongCharacterString => Some(2),
+            AttributeDataType::Array
+            | AttributeDataType::Structure
+            | AttributeDataType::Set
+            | AttributeDataType::Bag => None,
+        }
+    }
+
+    pub fn get_size(self, data: &[u8]) -> (Option<usize>, usize) {
+        match (self.data_size(), self.size_octets()) {
+            (Some(size), _) => (Some(size), 0),
+            (None, Some(size)) => {
+                if data.len() < size {
+                    return (None, 0);
+                }
+                match size {
+                    1 => (Some(data[0] as usize), size),
+                    2 => (Some(LittleEndian::read_u16(&data[0..2]) as usize), size),
+                    _ => (None, 0),
+                }
+            }
+            (None, None) => (None, 0),
         }
     }
 }
@@ -290,7 +365,7 @@ pub enum AttributeValue {
 impl AttributeValue {
     pub fn pack(&self, data: &mut [u8]) -> Result<(usize, AttributeDataType), Error> {
         let data_type = self.data_type();
-        if let Some(num_octets) = data_type.num_octets() {
+        if let Some(num_octets) = data_type.data_size() {
             if data.len() < num_octets {
                 return Err(Error::WrongNumberOfBytes);
             }
@@ -422,7 +497,7 @@ impl AttributeValue {
     }
 
     pub fn unpack(data: &[u8], data_type: AttributeDataType) -> Result<(Self, usize), Error> {
-        if let Some(num_octets) = data_type.num_octets() {
+        if let Some(num_octets) = data_type.data_size() {
             if data.len() < num_octets {
                 return Err(Error::WrongNumberOfBytes);
             }
