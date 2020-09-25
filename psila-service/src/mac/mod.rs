@@ -274,8 +274,8 @@ impl MacService {
         if let FrameContent::Beacon(beacon) = &frame.content {
             if beacon.superframe_spec.pan_coordinator && beacon.superframe_spec.association_permit {
                 if let State::Scan = self.state {
-                    log::info!(
-                        "mac: Beacon {:04x}:{:04x} permit join",
+                    defmt::info!(
+                        "mac: Beacon {:u16}:{:u16} permit join",
                         u16::from(src_id),
                         u16::from(src_short)
                     );
@@ -284,8 +284,8 @@ impl MacService {
                     self.state = State::Associate;
                 }
             } else {
-                log::info!(
-                    "mac: Beacon {:04x}:{:04x}",
+                defmt::info!(
+                    "mac: Beacon {:u16}:{:u16}",
                     u16::from(src_id),
                     u16::from(src_short)
                 );
@@ -303,12 +303,12 @@ impl MacService {
         let pan_id = if let Some(pan_id) = header.source.pan_id() {
             pan_id.into()
         } else {
-            log::warn!("Invalid PAN indetifier");
+            defmt::warn!("Invalid PAN indetifier");
             return Err(Error::InvalidPanIdentifier);
         };
         if pan_id != self.pan_identifier {
-            log::warn!(
-                "Invalid PAN indetifier {:04x} != {:04x}",
+            defmt::warn!(
+                "Invalid PAN indetifier {:u16} != {:u16}",
                 u16::from(pan_id),
                 u16::from(self.pan_identifier)
             );
@@ -316,8 +316,8 @@ impl MacService {
         }
         match (self.state, status) {
             (State::QueryAssociationStatus, AssociationStatus::Successful) => {
-                log::info!(
-                    "mac: Association Response, Success, {:04x}:{:04x}",
+                defmt::info!(
+                    "mac: Association Response, Success, {:u16}:{:u16}",
                     u16::from(pan_id),
                     address.0
                 );
@@ -326,8 +326,8 @@ impl MacService {
                 self.state = State::Associated;
             }
             (State::QueryAssociationStatus, _) => {
-                log::info!(
-                    "mac: Association Response {:04x} {:02x}",
+                defmt::info!(
+                    "mac: Association Response {:u16} {:u8}",
                     u16::from(pan_id),
                     u8::from(status)
                 );
@@ -336,8 +336,8 @@ impl MacService {
                 self.state = State::Orphan;
             }
             (_, AssociationStatus::Successful) => {
-                log::info!(
-                    "mac: Association Response, Success, {:04x}:{:04x}, Bad state",
+                defmt::info!(
+                    "mac: Association Response, Success, {:u16}:{:u16}, Bad state",
                     u16::from(pan_id),
                     address.0
                 );
@@ -366,14 +366,14 @@ impl MacService {
         buffer: &mut [u8],
     ) -> Result<(usize, u32), Error> {
         if frame.header.seq == self.sequence.get() {
-            log::info!("mac: Acknowledge {}", frame.header.seq);
+            defmt::info!("mac: Acknowledge {:u8}", frame.header.seq);
             if let State::Associate = self.state {
                 self.state = State::QueryAssociationStatus;
-                log::info!("mac: Send data request");
+                defmt::info!("mac: Send data request");
                 return self.build_data_request(self.coordinator.short, buffer);
             }
         } else {
-            log::warn!("mac: Acknowledge, unknown sequence {}", frame.header.seq);
+            defmt::warn!("mac: Acknowledge, unknown sequence {:u8}", frame.header.seq);
         }
         Ok((0, 0))
     }
@@ -395,17 +395,17 @@ impl MacService {
         match self.state {
             State::Orphan => {
                 self.state = State::Scan;
-                log::info!("mac: Send beacon request");
+                defmt::info!("mac: Send beacon request");
                 self.build_beacon_request(buffer)
             }
             State::Scan | State::QueryAssociationStatus => {
-                log::info!("mac: Association failed, retry");
+                defmt::info!("mac: Association failed, retry");
                 self.state = State::Orphan;
                 Ok((0, 28_000_000))
             }
             State::Associate => {
                 // Send a association request
-                log::info!("mac: Send association request");
+                defmt::info!("mac: Send association request");
                 self.build_association_request(self.pan_identifier, self.coordinator.short, buffer)
             }
             State::Associated => Ok((0, 0)),

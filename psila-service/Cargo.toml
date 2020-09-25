@@ -5,12 +5,15 @@ authors = ["Erik Svensson <erik.public@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-log = "0.4.8"
 bbqueue = "0.4"
 ieee802154 = "0.3"
 psila-crypto = { path = "../psila-crypto" }
 psila-data = { path = "../psila-data" }
 heapless = { version = "0.5" }
+
+[dependencies.defmt]
+git = "https://github.com/knurling-rs/defmt"
+branch = "main"
 
 [dev-dependencies]
 psila-crypto-openssl = { path = "../psila-crypto-openssl" }
@@ -18,3 +21,9 @@ psila-crypto-openssl = { path = "../psila-crypto-openssl" }
 [features]
 default = []
 core = ["psila-data/core"]
+defmt-default = []
+defmt-trace = []
+defmt-debug = []
+defmt-info = []
+defmt-warn = []
+defmt-error = []

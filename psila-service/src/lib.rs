@@ -257,7 +257,7 @@ where
                 }
             }
             mac::FrameType::Beacon => {
-                log::info!("Handle network beacon");
+                defmt::info!("Handle network beacon");
                 let _ = BeaconInformation::unpack(frame.payload)?;
             }
             _ => (),
@@ -301,7 +301,7 @@ where
                 self.handle_network_command(header, nwk_payload)?;
             }
             FrameType::InterPan => {
-                log::info!("Handle inter-PAN");
+                defmt::info!("Handle inter-PAN");
                 // Not supported yet
             }
         }
@@ -319,7 +319,7 @@ where
             Ok((cmd, _used)) => match cmd {
                 Command::RouteRequest(req) => {
                     use psila_data::network::commands::AddressType;
-                    log::info!("> Network Route request");
+                    defmt::info!("> Network Route request");
                     let nwk_match = match req.destination_address {
                         AddressType::Singlecast(address) => address == self.identity.short,
                         AddressType::Multicast(_) => false,
@@ -329,7 +329,7 @@ where
                         None => false,
                     };
                     if nwk_match {
-                        log::info!("Match");
+                        defmt::info!("Match");
                         let mac_header = self.mac.build_data_header(
                             nwk_header.source_address, // destination address
                             false,                     // request acknowledge
@@ -360,53 +360,53 @@ where
                         let frame_size = mac_header_len + nwk_frame_size;
                         match self.queue_packet_from_buffer(frame_size) {
                             Ok(()) => {
-                                log::info!("< Queued route response {}", frame_size);
+                                defmt::info!("< Queued route response {:usize}", frame_size);
                             }
                             Err(err) => {
-                                log::error!("< Failed to queue route response, {:?}", err);
+                                defmt::error!("< Failed to queue route response");
                                 return Err(err);
                             }
                         }
                     } else if extended_match {
-                        log::info!("Extended match");
+                        defmt::info!("Extended match");
                     }
                 }
                 Command::RouteReply(_) => {
-                    log::info!("> Network Route reply");
+                    defmt::info!("> Network Route reply");
                 }
                 Command::NetworkStatus(_) => {
-                    log::info!("> Network Network status");
+                    defmt::info!("> Network Network status");
                 }
                 Command::Leave(_) => {
-                    log::info!("> Network Leave");
+                    defmt::info!("> Network Leave");
                 }
                 Command::RouteRecord(_) => {
-                    log::info!("> Network Route record");
+                    defmt::info!("> Network Route record");
                 }
                 Command::RejoinRequest(_) => {
-                    log::info!("> Network Rejoin request");
+                    defmt::info!("> Network Rejoin request");
                 }
                 Command::RejoinResponse(_) => {
-                    log::info!("> Network Rejoin response");
+                    defmt::info!("> Network Rejoin response");
                 }
                 Command::LinkStatus(_) => {
-                    log::info!("> Network Link Status");
+                    defmt::info!("> Network Link Status");
                 }
                 Command::NetworkReport(_) => {
-                    log::info!("> Network Network report");
+                    defmt::info!("> Network Network report");
                 }
                 Command::NetworkUpdate(_) => {
-                    log::info!("> Network Network update");
+                    defmt::info!("> Network Network update");
                 }
                 Command::EndDeviceTimeoutRequest(_) => {
-                    log::info!("> Network End-device timeout request");
+                    defmt::info!("> Network End-device timeout request");
                 }
                 Command::EndDeviceTimeoutResponse(_) => {
-                    log::info!("> Network End-device timeout response");
+                    defmt::info!("> Network End-device timeout response");
                 }
             },
             Err(_) => {
-                log::warn!("Failed to decode network command");
+                defmt::warn!("Failed to decode network command");
             }
         }
         Ok(())
@@ -425,9 +425,9 @@ where
 
         if aps_header.control.acknowledge_request {
             if aps_header.control.acknowledge_format {
-                log::info!("APS acknowledge request, compact ");
+                defmt::info!("APS acknowledge request, compact ");
             } else {
-                log::info!("APS acknowledge request, extended ");
+                defmt::info!("APS acknowledge request, extended ");
             }
             let mac_header = self.mac.build_data_header(
                 nwk_header.source_address, // destination address
@@ -444,10 +444,10 @@ where
             let frame_size = mac_header_len + nwk_frame_size;
             match self.queue_packet_from_buffer(frame_size) {
                 Ok(()) => {
-                    log::info!("< Queued acknowledge {}", frame_size);
+                    defmt::info!("< Queued acknowledge {:usize}", frame_size);
                 }
                 Err(err) => {
-                    log::error!("< Failed to queue acknowledge, {:?}", err);
+                    defmt::error!("< Failed to queue acknowledge");
                     return Err(err);
                 }
             }
@@ -474,7 +474,7 @@ where
                         )?;
                     }
                 } else {
-                    log::info!("Application service data");
+                    defmt::info!("Application service data");
                 }
             }
             FrameType::Command => {
@@ -482,7 +482,7 @@ where
                 let (command, _used) = Command::unpack(aps_payload)?;
                 if let Command::TransportKey(cmd) = command {
                     if let TransportKey::StandardNetworkKey(key) = cmd {
-                        log::info!("> APS Set network key");
+                        defmt::info!("> APS Set network key");
                         self.set_state(NetworkState::Secure);
                         self.security_manager.set_network_key(key);
                         let mac_header = self
@@ -497,18 +497,18 @@ where
                         )?;
                         self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
                     } else {
-                        log::info!("> APS command, {:?}", command.identifier());
+                        defmt::info!("> APS command, {:u8}", u8::from(command.identifier()));
                     }
                 } else {
-                    log::info!("> APS command, {:?}", command.identifier());
+                    defmt::info!("> APS command, {:u8}", u8::from(command.identifier()));
                 }
             }
             FrameType::InterPan => {
-                log::info!("> APS inter-PAN");
+                defmt::info!("> APS inter-PAN");
                 // Not supported yet
             }
             FrameType::Acknowledgement => {
-                log::info!("> APS acknowledge");
+                defmt::info!("> APS acknowledge");
                 // ...
             }
         }
@@ -528,35 +528,35 @@ where
         if response {
             match device_profile::ClusterIdentifier::try_from(cluster & !device_profile::RESPONSE) {
                 Ok(device_profile::ClusterIdentifier::NetworkAddressRequest) => {
-                    log::info!("> DP Network address response");
+                    defmt::info!("> DP Network address response");
                 }
                 Ok(device_profile::ClusterIdentifier::ExtendedAddressRequest) => {
-                    log::info!("> DP Extended address response");
+                    defmt::info!("> DP Extended address response");
                 }
                 Ok(device_profile::ClusterIdentifier::NodeDescriptorRequest) => {
-                    log::info!("> DP Node descriptor response");
+                    defmt::info!("> DP Node descriptor response");
                 }
                 Ok(device_profile::ClusterIdentifier::PowerDescriptorRequest) => {
-                    log::info!("> DP Power descriptor response");
+                    defmt::info!("> DP Power descriptor response");
                 }
                 Ok(device_profile::ClusterIdentifier::SimpleDescriptorRequest) => {
-                    log::info!("> DP Simple descriptor response");
+                    defmt::info!("> DP Simple descriptor response");
                 }
                 Ok(device_profile::ClusterIdentifier::ActiveEndpointRequest) => {
-                    log::info!("> DP Active endpoint response");
+                    defmt::info!("> DP Active endpoint response");
                 }
                 Ok(device_profile::ClusterIdentifier::MatchDescriptorRequest) => {
-                    log::info!("> DP Match descriptor response");
+                    defmt::info!("> DP Match descriptor response");
                 }
                 Ok(device_profile::ClusterIdentifier::DeviceAnnounce) => {
-                    log::info!("> DP Device announce (response)");
+                    defmt::info!("> DP Device announce (response)");
                 }
                 Ok(device_profile::ClusterIdentifier::ManagementLinkQualityIndicatorRequest) => {
-                    log::info!("> DP Link quality indicator response");
+                    defmt::info!("> DP Link quality indicator response");
                 }
                 Ok(_) => {}
                 Err(_) => {
-                    log::info!("> DP Invalid cluster {:04x}", cluster);
+                    defmt::info!("> DP Invalid cluster {:u16}", cluster);
                 }
             }
         } else {
@@ -693,17 +693,17 @@ where
                     self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
                 }
                 Ok(device_profile::ClusterIdentifier::MatchDescriptorRequest) => {
-                    log::info!("> DP Match descriptor request");
+                    defmt::info!("> DP Match descriptor request");
                 }
                 Ok(device_profile::ClusterIdentifier::DeviceAnnounce) => {
-                    log::info!("> DP Device announce");
+                    defmt::info!("> DP Device announce");
                 }
                 Ok(device_profile::ClusterIdentifier::ManagementLinkQualityIndicatorRequest) => {
-                    log::info!("> DP Link quality indicator request");
+                    defmt::info!("> DP Link quality indicator request");
                 }
                 Ok(_) => {}
                 Err(_) => {
-                    log::warn!("> DP Invalid cluster {:04x}", cluster);
+                    defmt::warn!("> DP Invalid cluster {:u16}", cluster);
                 }
             }
         }
@@ -735,8 +735,8 @@ where
                                 &payload[used..],
                             )?
                         } else {
-                            log::error!(
-                            "Unknown general command. Profile {:04x} Cluster {:04x} Command {:04x}",
+                            defmt::error!(
+                            "Unknown general command. Profile {:u16} Cluster {:u16} Command {:u8}",
                             profile,
                             cluster,
                             header.command
@@ -790,7 +790,7 @@ where
                 }
             }
             Err(_) => {
-                log::error!("Failed to parse ZCL {:04x} {:04x}", profile, cluster);
+                defmt::error!("Failed to parse ZCL {:u16} {:u16}", profile, cluster);
             }
         }
         Ok(())
@@ -823,7 +823,7 @@ where
                             used + 1
                         }
                         Err(status) => {
-                            log::warn!("Read attribute status {:02x}", u8::from(status));
+                            defmt::warn!("Read attribute status {:u8}", u8::from(status));
                             response_data[offset + 2] = status.into();
                             0
                         }
@@ -858,7 +858,7 @@ where
                         response_data[out_offset + 2] = status.into();
                         out_offset += 3;
                     } else {
-                        log::warn!("Unsupported data type {:02x}", u8::from(data_type));
+                        defmt::warn!("Unsupported data type {:u8}", u8::from(data_type));
                         break;
                     }
                 }
@@ -868,8 +868,8 @@ where
                 )
             }
             _ => {
-                log::warn!(
-                    "Ignored general command {:02x}",
+                defmt::warn!(
+                    "Ignored general command {:u8}",
                     u8::from(command_identifier)
                 );
                 (GeneralCommandIdentifier::DefaultResponse, 0)
@@ -914,10 +914,10 @@ where
         let frame_size = mac_header_len + nwk_frame_size;
         match self.queue_packet_from_buffer(frame_size) {
             Ok(()) => {
-                log::info!("< Queued network link status {}", frame_size);
+                defmt::info!("< Queued network link status {:usize}", frame_size);
             }
             Err(err) => {
-                log::error!("< Failed to queue network link status, {:?}", err);
+                defmt::error!("< Failed to queue network link status");
                 return Err(err);
             }
         }
