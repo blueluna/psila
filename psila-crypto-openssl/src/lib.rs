@@ -384,10 +384,9 @@ impl CryptoBackend for OpenSslBackend {
         {
             clear(&mut buffer);
             let mut encrypted = [0u8; 256];
-            let mut offset = 0;
 
             buffer[..message.len()].copy_from_slice(message);
-            offset += message_blocks * BLOCK_SIZE;
+            let offset = message_blocks * BLOCK_SIZE;
 
             let mut block = [0u8; BLOCK_SIZE];
             block[0] = Self::make_flag(0, 0, LENGTH_FIELD_LENGTH);
