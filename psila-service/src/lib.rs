@@ -313,100 +313,95 @@ where
         nwk_header: &psila_data::network::NetworkHeader,
         payload: &[u8],
     ) -> Result<(), Error> {
-        use psila_data::network::commands::Command;
+        use psila_data::network::commands;
 
-        match Command::unpack(payload) {
-            Ok((cmd, _used)) => match cmd {
-                Command::RouteRequest(req) => {
-                    use psila_data::network::commands::AddressType;
-                    defmt::info!("> Network Route request");
-                    let nwk_match = match req.destination_address {
-                        AddressType::Singlecast(address) => address == self.identity.short,
-                        AddressType::Multicast(_) => false,
+        let command_identifier = commands::CommandIdentifier::try_from(payload[0])?;
+
+        match command_identifier {
+            commands::CommandIdentifier::RouteRequest => {
+                defmt::info!("> Network Route request");
+                let (req, _) = commands::RouteRequest::unpack(&payload[1..])?;
+                let nwk_match = match req.destination_address {
+                    commands::AddressType::Singlecast(address) => address == self.identity.short,
+                    commands::AddressType::Multicast(_) => false,
+                };
+                let extended_match = match req.destination_ieee_address {
+                    Some(address) => address == self.identity.extended,
+                    None => false,
+                };
+                if nwk_match {
+                    let mac_header = self.mac.build_data_header(
+                        nwk_header.source_address, // destination address
+                        false,                     // request acknowledge
+                    );
+                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let reply = commands::RouteReply {
+                        options: commands::route_reply::Options {
+                            orginator_ieee_address: false,
+                            multicast: false,
+                            responder_ieee_address: false,
+                        },
+                        identifier: req.identifier,
+                        orginator_address: nwk_header.source_address,
+                        responder_address: self.identity.short,
+                        path_cost: 1,
+                        orginator_ieee_address: None,
+                        responder_ieee_address: None,
                     };
-                    let extended_match = match req.destination_ieee_address {
-                        Some(address) => address == self.identity.extended,
-                        None => false,
-                    };
-                    if nwk_match {
-                        defmt::info!("Match");
-                        let mac_header = self.mac.build_data_header(
-                            nwk_header.source_address, // destination address
-                            false,                     // request acknowledge
-                        );
-                        let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
-                        use psila_data::network::commands;
-                        let reply = commands::RouteReply {
-                            options: commands::route_reply::Options {
-                                orginator_ieee_address: false,
-                                multicast: false,
-                                responder_ieee_address: false,
-                            },
-                            identifier: req.identifier,
-                            orginator_address: nwk_header.source_address,
-                            responder_address: self.identity.short,
-                            path_cost: 1,
-                            orginator_ieee_address: None,
-                            responder_ieee_address: None,
-                        };
-                        let reply = Command::RouteReply(reply);
-                        let nwk_frame_size = self.application_service.build_network_command(
-                            &self.identity,
-                            nwk_header.source_address,
-                            &reply,
-                            &mut self.buffer.borrow_mut()[mac_header_len..],
-                            &mut self.security_manager,
-                        )?;
-                        let frame_size = mac_header_len + nwk_frame_size;
-                        match self.queue_packet_from_buffer(frame_size) {
-                            Ok(()) => {
-                                defmt::info!("< Queued route response {:usize}", frame_size);
-                            }
-                            Err(err) => {
-                                defmt::error!("< Failed to queue route response");
-                                return Err(err);
-                            }
+                    let reply = commands::Command::RouteReply(reply);
+                    let nwk_frame_size = self.application_service.build_network_command(
+                        &self.identity,
+                        nwk_header.source_address,
+                        &reply,
+                        &mut self.buffer.borrow_mut()[mac_header_len..],
+                        &mut self.security_manager,
+                    )?;
+                    let frame_size = mac_header_len + nwk_frame_size;
+                    match self.queue_packet_from_buffer(frame_size) {
+                        Ok(()) => {
+                            defmt::info!("< Queued route response {:usize}", frame_size);
                         }
-                    } else if extended_match {
-                        defmt::info!("Extended match");
+                        Err(err) => {
+                            defmt::error!("< Failed to queue route response");
+                            return Err(err);
+                        }
                     }
+                } else if extended_match {
+                    defmt::info!("Extended match");
                 }
-                Command::RouteReply(_) => {
-                    defmt::info!("> Network Route reply");
-                }
-                Command::NetworkStatus(_) => {
-                    defmt::info!("> Network Network status");
-                }
-                Command::Leave(_) => {
-                    defmt::info!("> Network Leave");
-                }
-                Command::RouteRecord(_) => {
-                    defmt::info!("> Network Route record");
-                }
-                Command::RejoinRequest(_) => {
-                    defmt::info!("> Network Rejoin request");
-                }
-                Command::RejoinResponse(_) => {
-                    defmt::info!("> Network Rejoin response");
-                }
-                Command::LinkStatus(_) => {
-                    defmt::info!("> Network Link Status");
-                }
-                Command::NetworkReport(_) => {
-                    defmt::info!("> Network Network report");
-                }
-                Command::NetworkUpdate(_) => {
-                    defmt::info!("> Network Network update");
-                }
-                Command::EndDeviceTimeoutRequest(_) => {
-                    defmt::info!("> Network End-device timeout request");
-                }
-                Command::EndDeviceTimeoutResponse(_) => {
-                    defmt::info!("> Network End-device timeout response");
-                }
-            },
-            Err(_) => {
-                defmt::warn!("Failed to decode network command");
+            }
+            commands::CommandIdentifier::RouteReply => {
+                defmt::info!("> Network Route reply");
+            }
+            commands::CommandIdentifier::NetworkStatus => {
+                defmt::info!("> Network Network status");
+            }
+            commands::CommandIdentifier::Leave => {
+                defmt::info!("> Network Leave");
+            }
+            commands::CommandIdentifier::RouteRecord => {
+                defmt::info!("> Network Route record");
+            }
+            commands::CommandIdentifier::RejoinRequest => {
+                defmt::info!("> Network Rejoin request");
+            }
+            commands::CommandIdentifier::RejoinResponse => {
+                defmt::info!("> Network Rejoin response");
+            }
+            commands::CommandIdentifier::LinkStatus => {
+                // defmt::info!("> Network Link Status");
+            }
+            commands::CommandIdentifier::NetworkReport => {
+                defmt::info!("> Network Network report");
+            }
+            commands::CommandIdentifier::NetworkUpdate => {
+                defmt::info!("> Network Network update");
+            }
+            commands::CommandIdentifier::EndDeviceTimeoutRequest => {
+                defmt::info!("> Network End-device timeout request");
+            }
+            commands::CommandIdentifier::EndDeviceTimeoutResponse => {
+                defmt::info!("> Network End-device timeout response");
             }
         }
         Ok(())
@@ -418,40 +413,9 @@ where
         aps_header: &psila_data::application_service::ApplicationServiceHeader,
         aps_payload: &[u8],
     ) -> Result<(), Error> {
-        use psila_data::application_service::{
-            commands::{Command, TransportKey},
-            header::FrameType,
-        };
+        use psila_data::application_service::header::FrameType;
 
-        if aps_header.control.acknowledge_request {
-            if aps_header.control.acknowledge_format {
-                defmt::info!("APS acknowledge request, compact ");
-            } else {
-                defmt::info!("APS acknowledge request, extended ");
-            }
-            let mac_header = self.mac.build_data_header(
-                nwk_header.source_address, // destination address
-                false,                     // request acknowledge
-            );
-            let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
-            let nwk_frame_size = self.application_service.build_acknowledge(
-                &self.identity,
-                nwk_header.source_address,
-                &aps_header,
-                &mut self.buffer.borrow_mut()[mac_header_len..],
-                &mut self.security_manager,
-            )?;
-            let frame_size = mac_header_len + nwk_frame_size;
-            match self.queue_packet_from_buffer(frame_size) {
-                Ok(()) => {
-                    defmt::info!("< Queued acknowledge {:usize}", frame_size);
-                }
-                Err(err) => {
-                    defmt::error!("< Failed to queue acknowledge");
-                    return Err(err);
-                }
-            }
-        }
+        self.handle_application_service_acknowledge(nwk_header, aps_header)?;
 
         match aps_header.control.frame_type {
             FrameType::Data => {
@@ -479,29 +443,7 @@ where
             }
             FrameType::Command => {
                 // handle command
-                let (command, _used) = Command::unpack(aps_payload)?;
-                if let Command::TransportKey(cmd) = command {
-                    if let TransportKey::StandardNetworkKey(key) = cmd {
-                        defmt::info!("> APS Set network key");
-                        self.set_state(NetworkState::Secure);
-                        self.security_manager.set_network_key(key);
-                        let mac_header = self
-                            .mac
-                            .build_data_header(NetworkAddress::broadcast(), false);
-                        let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
-                        let nwk_frame_size = self.application_service.build_device_announce(
-                            &self.identity,
-                            self.capability,
-                            &mut self.buffer.borrow_mut()[mac_header_len..],
-                            &mut self.security_manager,
-                        )?;
-                        self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
-                    } else {
-                        defmt::info!("> APS command, {:u8}", u8::from(command.identifier()));
-                    }
-                } else {
-                    defmt::info!("> APS command, {:u8}", u8::from(command.identifier()));
-                }
+                self.handle_application_service_command(aps_payload)?;
             }
             FrameType::InterPan => {
                 defmt::info!("> APS inter-PAN");
@@ -510,6 +452,75 @@ where
             FrameType::Acknowledgement => {
                 defmt::info!("> APS acknowledge");
                 // ...
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_application_service_command(&mut self, aps_payload: &[u8]) -> Result<(), Error> {
+        use psila_data::{
+            application_service::commands::{transport_key::NetworkKey, CommandIdentifier},
+            common::key::KeyType,
+        };
+        // handle command
+        let command_identifier = CommandIdentifier::try_from(aps_payload[0])?;
+        if command_identifier == CommandIdentifier::TransportKey {
+            let key_type = KeyType::try_from(aps_payload[1])?;
+            if key_type == KeyType::StandardNetworkKey {
+                let key = NetworkKey::unpack(&aps_payload[2..])?;
+                defmt::info!("> APS Set network key");
+                self.set_state(NetworkState::Secure);
+                self.security_manager.set_network_key(key);
+                let mac_header = self
+                    .mac
+                    .build_data_header(NetworkAddress::broadcast(), false);
+                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                let nwk_frame_size = self.application_service.build_device_announce(
+                    &self.identity,
+                    self.capability,
+                    &mut self.buffer.borrow_mut()[mac_header_len..],
+                    &mut self.security_manager,
+                )?;
+                self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
+            }
+        } else {
+            defmt::info!("> APS command, {:u8}", u8::from(command_identifier));
+        }
+        Ok(())
+    }
+
+    fn handle_application_service_acknowledge(
+        &mut self,
+        nwk_header: &psila_data::network::NetworkHeader,
+        aps_header: &psila_data::application_service::ApplicationServiceHeader,
+    ) -> Result<(), Error> {
+        if aps_header.control.acknowledge_request {
+            if aps_header.control.acknowledge_format {
+                defmt::info!("APS acknowledge request, compact");
+            } else {
+                defmt::info!("APS acknowledge request, extended");
+            }
+            let mac_header = self.mac.build_data_header(
+                nwk_header.source_address, // destination address
+                false,                     // request acknowledge
+            );
+            let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+            let nwk_frame_size = self.application_service.build_acknowledge(
+                &self.identity,
+                nwk_header.source_address,
+                &aps_header,
+                &mut self.buffer.borrow_mut()[mac_header_len..],
+                &mut self.security_manager,
+            )?;
+            let frame_size = mac_header_len + nwk_frame_size;
+            match self.queue_packet_from_buffer(frame_size) {
+                Ok(()) => {
+                    defmt::info!("< Queued acknowledge {:usize}", frame_size);
+                }
+                Err(err) => {
+                    defmt::error!("< Failed to queue acknowledge");
+                    return Err(err);
+                }
             }
         }
         Ok(())
@@ -804,31 +815,31 @@ where
         payload: &[u8],
     ) -> Result<(GeneralCommandIdentifier, usize), Error> {
         let response_data = &mut self.scratch.borrow_mut()[..];
+
         let (command, used) = match command_identifier {
             GeneralCommandIdentifier::ReadAttributes => {
-                const HDR_SIZE: usize = 3;
                 let mut offset = 0;
                 for ref chunk in payload.chunks_exact(2) {
                     let identifier = AttributeIdentifier::unpack(chunk)?;
                     let _ = identifier.pack(&mut response_data[offset..offset + 2])?;
-                    response_data[offset + 2] = ClusterLibraryStatus::Success.into();
+                    offset += 2;
                     let used = match self.cluser_library_handler.read_attribute(
                         profile,
                         cluster,
                         identifier.into(),
-                        &mut response_data[offset + HDR_SIZE + 1..],
+                        &mut response_data[offset + 2..],
                     ) {
                         Ok((attribut_type, used)) => {
-                            response_data[offset + HDR_SIZE] = attribut_type.into();
-                            used + 1
+                            response_data[offset] = ClusterLibraryStatus::Success.into();
+                            response_data[offset + 1] = attribut_type.into();
+                            used + 2
                         }
                         Err(status) => {
-                            defmt::warn!("Read attribute status {:u8}", u8::from(status));
-                            response_data[offset + 2] = status.into();
-                            0
+                            response_data[offset] = status.into();
+                            1
                         }
                     };
-                    offset += used + HDR_SIZE;
+                    offset += used;
                 }
                 (GeneralCommandIdentifier::ReadAttributesResponse, offset)
             }
