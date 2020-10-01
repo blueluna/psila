@@ -14,7 +14,7 @@ pub struct TrustCenterKey {
     pub source: ExtendedAddress,
 }
 
-const TRUST_CENTER_KEY_SIZE: usize = KEY_SIZE + EXTENDED_ADDRESS_SIZE + EXTENDED_ADDRESS_SIZE;
+pub const TRUST_CENTER_KEY_SIZE: usize = KEY_SIZE + EXTENDED_ADDRESS_SIZE + EXTENDED_ADDRESS_SIZE;
 
 impl PackFixed<TrustCenterKey, Error> for TrustCenterKey {
     fn pack(&self, data: &mut [u8]) -> Result<(), Error> {
@@ -60,7 +60,7 @@ pub struct NetworkKey {
     pub source: ExtendedAddress,
 }
 
-const NETWORK_KEY_SIZE: usize = KEY_SIZE + 1 + EXTENDED_ADDRESS_SIZE + EXTENDED_ADDRESS_SIZE;
+pub const NETWORK_KEY_SIZE: usize = KEY_SIZE + 1 + EXTENDED_ADDRESS_SIZE + EXTENDED_ADDRESS_SIZE;
 
 impl PackFixed<NetworkKey, Error> for NetworkKey {
     fn pack(&self, data: &mut [u8]) -> Result<(), Error> {
@@ -108,7 +108,7 @@ pub struct ApplicationKey {
     pub initiator: bool,
 }
 
-const APPLICATION_KEY_SIZE: usize = KEY_SIZE + EXTENDED_ADDRESS_SIZE + 1;
+pub const APPLICATION_KEY_SIZE: usize = KEY_SIZE + EXTENDED_ADDRESS_SIZE + 1;
 
 impl PackFixed<ApplicationKey, Error> for ApplicationKey {
     fn pack(&self, data: &mut [u8]) -> Result<(), Error> {
