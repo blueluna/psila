@@ -14,6 +14,7 @@ pub mod route_request;
 
 use crate::pack::Pack;
 use crate::Error;
+use core::convert::TryFrom;
 
 pub use end_device::{EndDeviceTimeoutRequest, EndDeviceTimeoutResponse};
 pub use leave::Leave;
@@ -25,6 +26,35 @@ pub use rejoin::{RejoinRequest, RejoinResponse};
 pub use route_record::RouteRecord;
 pub use route_reply::RouteReply;
 pub use route_request::{AddressType, ManyToOne, RouteRequest};
+
+extended_enum!(
+    /// Network command identifiers
+    CommandIdentifier, u8,
+    /// Key establishment stage one command identifier
+    RouteRequest => 0x01,
+    /// Key establishment stage two command identifier
+    RouteReply => 0x02,
+    /// Key establishment stage three command identifier
+    NetworkStatus => 0x03,
+    /// Key establishment stage four command identifier
+    Leave => 0x04,
+    /// Transport-key command identifier
+    RouteRecord => 0x05,
+    /// Update device command identifier
+    RejoinRequest => 0x06,
+    /// Remove device command identifier
+    RejoinResponse => 0x07,
+    /// Request key command identifier
+    LinkStatus => 0x08,
+    /// Switch key command identifier
+    NetworkReport => 0x09,
+    /// Entity authentication challenge initiation command identifier
+    NetworkUpdate => 0x0a,
+    /// Entity authentication challenge response command identifier
+    EndDeviceTimeoutRequest => 0x0b,
+    /// Entity authentication ? command identifier
+    EndDeviceTimeoutResponse => 0x0c,
+);
 
 /// Network Commands
 ///
