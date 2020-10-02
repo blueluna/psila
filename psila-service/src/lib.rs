@@ -976,6 +976,7 @@ mod tests {
             _profile: u16,
             _cluster: u16,
             _command: u8,
+            _arguments: &[u8],
         ) -> Result<(), ClusterLibraryStatus> {
             Err(ClusterLibraryStatus::UnsupportedClusterCommand)
         }
