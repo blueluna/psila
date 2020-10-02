@@ -19,5 +19,11 @@ pub trait ClusterLibraryHandler {
         value: &[u8],
     ) -> Result<(), ClusterLibraryStatus>;
     /// Run command
-    fn run(&mut self, profile: u16, cluster: u16, command: u8) -> Result<(), ClusterLibraryStatus>;
+    fn run(
+        &mut self,
+        profile: u16,
+        cluster: u16,
+        command: u8,
+        arguments: &[u8],
+    ) -> Result<(), ClusterLibraryStatus>;
 }

@@ -663,9 +663,14 @@ where
                             Some(SimpleDescriptor::new(
                                 req.endpoint,                                                     // endpoint
                                 u16::from(psila_data::common::ProfileIdentifier::HomeAutomation), // profile
-                                0x0100, // device, HA On-off light
+                                0x0102, // device, Color Dimmable Light
                                 0,      // device version
-                                &[0x0000, 0x0006],
+                                &[
+                                    0x0000, // Basic
+                                    0x0006, // On/Off
+                                    0x0008, // Level Control
+                                    0x0300, // Color Control
+                                ],
                                 &[],
                             ))
                         }
@@ -755,14 +760,15 @@ where
                             (GeneralCommandIdentifier::DefaultResponse, 0)
                         }
                     } else {
-                        let status =
-                            match self
-                                .cluser_library_handler
-                                .run(profile, cluster, header.command)
-                            {
-                                Ok(_) => psila_data::cluster_library::ClusterLibraryStatus::Success,
-                                Err(status) => status,
-                            };
+                        let status = match self.cluser_library_handler.run(
+                            profile,
+                            cluster,
+                            header.command,
+                            &payload[used..],
+                        ) {
+                            Ok(_) => psila_data::cluster_library::ClusterLibraryStatus::Success,
+                            Err(status) => status,
+                        };
                         if header.control.disable_default_response {
                             (GeneralCommandIdentifier::DefaultResponse, 0)
                         } else {
