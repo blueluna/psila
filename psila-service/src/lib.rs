@@ -657,25 +657,9 @@ where
                         nwk_header.source_address, // destination address
                         false,                     // request acknowledge
                     );
-                    use psila_data::device_profile::SimpleDescriptor;
-                    let descriptor = match req.endpoint {
-                        0x01 => {
-                            Some(SimpleDescriptor::new(
-                                req.endpoint,                                                     // endpoint
-                                u16::from(psila_data::common::ProfileIdentifier::HomeAutomation), // profile
-                                0x0102, // device, Color Dimmable Light
-                                0,      // device version
-                                &[
-                                    0x0000, // Basic
-                                    0x0006, // On/Off
-                                    0x0008, // Level Control
-                                    0x0300, // Color Control
-                                ],
-                                &[],
-                            ))
-                        }
-                        _ => None,
-                    };
+                    let descriptor = self
+                        .cluser_library_handler
+                        .get_simple_desciptor(req.endpoint);
                     let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
                     let nwk_frame_size =
                         self.application_service.build_simple_descriptor_response(
@@ -695,7 +679,7 @@ where
                         nwk_header.source_address, // destination address
                         false,                     // request acknowledge
                     );
-                    let endpoints = [0x01];
+                    let endpoints = self.cluser_library_handler.active_endpoints();
                     let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
                     let nwk_frame_size = self.application_service.build_active_endpoint_response(
                         &self.identity,
@@ -747,6 +731,7 @@ where
                             self.handle_general_cluster_command(
                                 profile,
                                 cluster,
+                                ep_dst,
                                 command,
                                 &payload[used..],
                             )?
@@ -763,6 +748,7 @@ where
                         let status = match self.cluser_library_handler.run(
                             profile,
                             cluster,
+                            ep_dst,
                             header.command,
                             &payload[used..],
                         ) {
@@ -817,6 +803,7 @@ where
         &mut self,
         profile: u16,
         cluster: u16,
+        endpoint: u8,
         command_identifier: GeneralCommandIdentifier,
         payload: &[u8],
     ) -> Result<(GeneralCommandIdentifier, usize), Error> {
@@ -832,6 +819,7 @@ where
                     let used = match self.cluser_library_handler.read_attribute(
                         profile,
                         cluster,
+                        endpoint,
                         identifier.into(),
                         &mut response_data[offset + 2..],
                     ) {
@@ -863,6 +851,7 @@ where
                         let status = match self.cluser_library_handler.write_attribute(
                             profile,
                             cluster,
+                            endpoint,
                             identifier.into(),
                             data_type,
                             &payload[in_offset..in_offset + data_size],
@@ -947,15 +936,22 @@ mod tests {
     use super::*;
     use bbqueue::{consts::U512, BBBuffer};
     use psila_crypto_openssl::OpenSslBackend;
-    use psila_data::cluster_library::ClusterLibraryStatus;
+    use psila_data::{cluster_library::ClusterLibraryStatus, device_profile::SimpleDescriptor};
 
     struct BasicClusterLibraryHandler {}
 
     impl ClusterLibraryHandler for BasicClusterLibraryHandler {
+        fn active_endpoints(&self) -> &[u8] {
+            &[0x01]
+        }
+        fn get_simple_desciptor(&self, _endpoint: u8) -> Option<SimpleDescriptor> {
+            None
+        }
         fn read_attribute(
             &self,
             _profile: u16,
             _cluster: u16,
+            _endpoint: u8,
             _attribute: u16,
             _value: &mut [u8],
         ) -> Result<(AttributeDataType, usize), ClusterLibraryStatus> {
@@ -965,6 +961,7 @@ mod tests {
             &mut self,
             _profile: u16,
             _cluster: u16,
+            _endpoint: u8,
             _attribute: u16,
             _value_type: AttributeDataType,
             _value_data: &[u8],
@@ -975,6 +972,7 @@ mod tests {
             &mut self,
             _profile: u16,
             _cluster: u16,
+            _endpoint: u8,
             _command: u8,
             _arguments: &[u8],
         ) -> Result<(), ClusterLibraryStatus> {

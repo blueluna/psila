@@ -6,6 +6,8 @@ use crate::device_profile::Status;
 use crate::pack::{Pack, PackFixed};
 use crate::Error;
 
+const CLUSTER_COUNT_MAX: usize = 16;
+
 // 2.3.2.5 Simple Descriptor
 /// Simple descriptor for a node endpoint
 #[derive(Clone, Debug, PartialEq)]
@@ -15,11 +17,11 @@ pub struct SimpleDescriptor {
     pub device: u16,
     pub device_version: u8,
     /// Server clusters implemented by the device
-    pub input_cluster_count: u8,
-    pub input_clusters: [u16; 32],
+    input_cluster_count: u8,
+    input_clusters: [u16; CLUSTER_COUNT_MAX],
     /// Client clusters implemented by the device
-    pub output_cluster_count: u8,
-    pub output_clusters: [u16; 32],
+    output_cluster_count: u8,
+    output_clusters: [u16; CLUSTER_COUNT_MAX],
 }
 
 impl SimpleDescriptor {
@@ -41,9 +43,9 @@ impl SimpleDescriptor {
         } else {
             output_clusters.len()
         };
-        let mut ic = [0u16; 32];
+        let mut ic = [0u16; CLUSTER_COUNT_MAX];
         ic[..icc].copy_from_slice(&input_clusters[..icc]);
-        let mut oc = [0u16; 32];
+        let mut oc = [0u16; CLUSTER_COUNT_MAX];
         oc[..occ].copy_from_slice(&output_clusters[..occ]);
         Self {
             endpoint,
@@ -57,12 +59,23 @@ impl SimpleDescriptor {
         }
     }
 
+    #[inline]
+    pub fn input_cluster_count(&self) -> usize {
+        self.input_cluster_count as usize
+    }
+
     pub fn input_clusters(&self) -> &[u16] {
-        let count = self.input_cluster_count as usize;
+        let count = self.input_cluster_count();
         &self.input_clusters[..count]
     }
+
+    #[inline]
+    pub fn output_cluster_count(&self) -> usize {
+        self.output_cluster_count as usize
+    }
+
     pub fn output_clusters(&self) -> &[u16] {
-        let count = self.output_cluster_count as usize;
+        let count = self.output_cluster_count();
         &self.output_clusters[..count]
     }
 }
@@ -105,7 +118,7 @@ impl Pack<SimpleDescriptor, Error> for SimpleDescriptor {
         let input_cluster_count = data[6];
         let count = input_cluster_count as usize;
         let mut offset = 7;
-        let mut input_clusters = [0u16; 32];
+        let mut input_clusters = [0u16; CLUSTER_COUNT_MAX];
         for cluster in &mut input_clusters[..count] {
             *cluster = LittleEndian::read_u16(&data[offset..offset + 2]);
             offset += 2;
@@ -113,7 +126,7 @@ impl Pack<SimpleDescriptor, Error> for SimpleDescriptor {
         let output_cluster_count = data[offset];
         let count = output_cluster_count as usize;
         offset += 1;
-        let mut output_clusters = [0u16; 32];
+        let mut output_clusters = [0u16; CLUSTER_COUNT_MAX];
         for cluster in &mut output_clusters[..count] {
             *cluster = LittleEndian::read_u16(&data[offset..offset + 2]);
             offset += 2;
@@ -142,9 +155,9 @@ impl Default for SimpleDescriptor {
             device: 0,
             device_version: 0,
             input_cluster_count: 0,
-            input_clusters: [0; 32],
+            input_clusters: [0; CLUSTER_COUNT_MAX],
             output_cluster_count: 0,
-            output_clusters: [0; 32],
+            output_clusters: [0; CLUSTER_COUNT_MAX],
         }
     }
 }
@@ -266,13 +279,13 @@ mod tests {
         assert_eq!(descriptor.profile, 0x0123);
         assert_eq!(descriptor.device, 0xfedc);
         assert_eq!(descriptor.device_version, 0x0f);
-        assert_eq!(descriptor.input_cluster_count, 3);
+        assert_eq!(descriptor.input_cluster_count(), 3);
         let clusters = descriptor.input_clusters();
         assert_eq!(clusters.len(), 3);
         assert_eq!(clusters[0], 0x0000);
         assert_eq!(clusters[1], 0x0001);
         assert_eq!(clusters[2], 0x0002);
-        assert_eq!(descriptor.output_cluster_count, 4);
+        assert_eq!(descriptor.output_cluster_count(), 4);
         let clusters = descriptor.output_clusters();
         assert_eq!(clusters.len(), 4);
         assert_eq!(clusters[0], 0xffff);
@@ -317,7 +330,7 @@ mod tests {
         assert_eq!(req.descriptor.profile, 0xc05e);
         assert_eq!(req.descriptor.device, 0x0830);
         assert_eq!(req.descriptor.device_version, 0x02);
-        assert_eq!(req.descriptor.input_cluster_count, 6);
+        assert_eq!(req.descriptor.input_cluster_count(), 6);
         let clusters = req.descriptor.input_clusters();
         assert_eq!(clusters.len(), 6);
         assert_eq!(clusters[0], 0x0000);
@@ -326,7 +339,7 @@ mod tests {
         assert_eq!(clusters[3], 0x0009);
         assert_eq!(clusters[4], 0x0b05);
         assert_eq!(clusters[5], 0x1000);
-        assert_eq!(req.descriptor.output_cluster_count, 7);
+        assert_eq!(req.descriptor.output_cluster_count(), 7);
         let clusters = req.descriptor.output_clusters();
         assert_eq!(clusters.len(), 7);
         assert_eq!(clusters[0], 0x0003);
