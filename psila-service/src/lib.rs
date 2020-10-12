@@ -995,9 +995,7 @@ mod tests {
             cluser_library_handler,
         );
 
-        let timeout = service.timeout().unwrap();
-
-        assert_eq!(timeout, 2_000_000);
+        service.update(10).unwrap();
 
         let grant = tx_consumer.read().unwrap();
         let packet_length = grant[0] as usize;
