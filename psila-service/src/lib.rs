@@ -185,16 +185,16 @@ where
     /// ### Return
     /// A new timeout value that the timer shall be configured with, a timeout
     /// value of zero (0) shall be ignored
-    pub fn receive(&mut self, data: &[u8], timestamp: u32) -> Result<u32, Error> {
+    pub fn receive(&mut self, timestamp: u32, data: &[u8]) -> Result<(), Error> {
         self.timestamp = timestamp;
         match mac::Frame::decode(data, false) {
             Ok(frame) => {
                 if !self.mac.destination_me_or_broadcast(&frame) {
-                    return Ok(0);
+                    return Ok(());
                 }
-                let (packet_length, timeout) = self
-                    .mac
-                    .handle_frame(&frame, &mut self.buffer.borrow_mut()[..])?;
+                let packet_length =
+                    self.mac
+                        .handle_frame(timestamp, &frame, &mut self.buffer.borrow_mut()[..])?;
                 if packet_length > 0 {
                     self.queue_packet_from_buffer(packet_length)?;
                 }
@@ -205,27 +205,21 @@ where
                     }
                     self.handle_mac_frame(&frame)?;
                 }
-                Ok(timeout)
+                Ok(())
             }
             Err(_) => Err(Error::MalformedPacket),
         }
     }
 
-    /// Timeout, call this method when the timer has triggered a time-out
-    /// ### Return
-    /// A new timeout value that the timer shall be configured with, a timeout
-    /// value of zero (0) shall be ignored
-    pub fn timeout(&mut self) -> Result<u32, Error> {
-        let (packet_length, timeout) = self.mac.timeout(&mut self.buffer.borrow_mut()[..])?;
-        if packet_length > 0 {
-            self.queue_packet_from_buffer(packet_length)?;
-        }
-        Ok(timeout)
-    }
-
     /// Update, call this method at ragular intervals
     pub fn update(&mut self, timestamp: u32) -> Result<(), Error> {
         self.timestamp = timestamp;
+        let packet_length = self
+            .mac
+            .update(timestamp, &mut self.buffer.borrow_mut()[..])?;
+        if packet_length > 0 {
+            self.queue_packet_from_buffer(packet_length)?;
+        }
         if self.get_state() != NetworkState::Secure {
             return Ok(());
         }
@@ -265,7 +259,7 @@ where
         Ok(())
     }
 
-    /// Handle a network frame
+    /// Handle a network (NWK) frame
     fn handle_network_frame(
         &mut self,
         header: &psila_data::network::NetworkHeader,
@@ -301,13 +295,14 @@ where
                 self.handle_network_command(header, nwk_payload)?;
             }
             FrameType::InterPan => {
-                defmt::info!("Handle inter-PAN");
                 // Not supported yet
+                defmt::info!("Handle inter-PAN");
             }
         }
         Ok(())
     }
 
+    /// Handle network (NWK) command
     fn handle_network_command(
         &mut self,
         nwk_header: &psila_data::network::NetworkHeader,

@@ -29,6 +29,7 @@ pub struct MacService {
     identity: Identity,
     capabilities: CapabilityInformation,
     coordinator: Identity,
+    next_event_timestamp: u32,
 }
 
 impl MacService {
@@ -54,6 +55,7 @@ impl MacService {
             identity: Identity::from_extended(address),
             capabilities,
             coordinator: Identity::default(),
+            next_event_timestamp: 0,
         }
     }
 
@@ -317,7 +319,7 @@ impl MacService {
         match (self.state, status) {
             (State::QueryAssociationStatus, AssociationStatus::Successful) => {
                 defmt::info!(
-                    "mac: Association Response, Success, {:u16}:{:u16}",
+                    "MAC: Association Response, Success, {:u16}:{:u16}",
                     u16::from(pan_id),
                     address.0
                 );
@@ -327,7 +329,7 @@ impl MacService {
             }
             (State::QueryAssociationStatus, _) => {
                 defmt::info!(
-                    "mac: Association Response {:u16} {:u8}",
+                    "MAC: Association Response {:u16} {:u8}",
                     u16::from(pan_id),
                     u8::from(status)
                 );
@@ -337,7 +339,7 @@ impl MacService {
             }
             (_, AssociationStatus::Successful) => {
                 defmt::info!(
-                    "mac: Association Response, Success, {:u16}:{:u16}, Bad state",
+                    "MAC: Association Response, Success, {:u16}:{:u16}, Bad state",
                     u16::from(pan_id),
                     address.0
                 );
@@ -366,50 +368,62 @@ impl MacService {
         buffer: &mut [u8],
     ) -> Result<(usize, u32), Error> {
         if frame.header.seq == self.sequence.get() {
-            defmt::info!("mac: Acknowledge {:u8}", frame.header.seq);
+            defmt::info!("MAC: Acknowledge {:u8}", frame.header.seq);
             if let State::Associate = self.state {
                 self.state = State::QueryAssociationStatus;
-                defmt::info!("mac: Send data request");
+                defmt::info!("MAC: Send data request");
                 return self.build_data_request(self.coordinator.short, buffer);
             }
         } else {
-            defmt::warn!("mac: Acknowledge, unknown sequence {:u8}", frame.header.seq);
+            defmt::warn!("MAC: Acknowledge, unknown sequence {:u8}", frame.header.seq);
         }
         Ok((0, 0))
     }
 
     pub fn handle_frame(
         &mut self,
+        timestamp: u32,
         frame: &Frame,
         buffer: &mut [u8],
-    ) -> Result<(usize, u32), Error> {
-        match frame.header.frame_type {
+    ) -> Result<usize, Error> {
+        let (used, timeout) = match frame.header.frame_type {
             FrameType::Acknowledgement => self.handle_acknowledge(&frame, buffer),
             FrameType::Beacon => self.handle_beacon(&frame),
             FrameType::Data => Ok((0, 0)),
             FrameType::MacCommand => self.handle_command(&frame),
+        }?;
+        if timeout > 0 {
+            self.next_event_timestamp = timestamp.wrapping_add(timeout);
         }
+        Ok(used)
     }
 
-    pub fn timeout(&mut self, buffer: &mut [u8]) -> Result<(usize, u32), Error> {
-        match self.state {
+    pub fn update(&mut self, timestamp: u32, buffer: &mut [u8]) -> Result<usize, Error> {
+        if timestamp < self.next_event_timestamp {
+            return Ok(0);
+        }
+        let (used, timeout) = match self.state {
             State::Orphan => {
                 self.state = State::Scan;
-                defmt::info!("mac: Send beacon request");
+                defmt::info!("MAC: Send beacon request");
                 self.build_beacon_request(buffer)
             }
             State::Scan | State::QueryAssociationStatus => {
-                defmt::info!("mac: Association failed, retry");
+                defmt::info!("MAC: Association failed, retry");
                 self.state = State::Orphan;
                 Ok((0, 28_000_000))
             }
             State::Associate => {
                 // Send a association request
-                defmt::info!("mac: Send association request");
+                defmt::info!("MAC: Send association request");
                 self.build_association_request(self.pan_identifier, self.coordinator.short, buffer)
             }
             State::Associated => Ok((0, 0)),
+        }?;
+        if timeout > 0 {
+            self.next_event_timestamp = timestamp.wrapping_add(timeout);
         }
+        Ok(used)
     }
 
     fn match_short_address<T: Into<ShortAddress>>(&self, address: T) -> bool {
