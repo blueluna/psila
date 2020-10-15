@@ -10,6 +10,7 @@ use crate::Error;
 /// Requests the active endpoints for a remote device
 #[derive(Clone, Debug, PartialEq)]
 pub struct ActiveEndpointRequest {
+    /// Device address
     pub address: NetworkAddress,
 }
 
@@ -36,13 +37,18 @@ impl Pack<ActiveEndpointRequest, Error> for ActiveEndpointRequest {
 /// Response to a active endpoint request
 #[derive(Clone, Debug, PartialEq)]
 pub struct ActiveEndpointResponse {
+    /// Response status
     pub status: Status,
+    /// Device address
     pub address: NetworkAddress,
+    /// Number of endpoints
     pub endpoint_count: u8,
+    /// Endpoint identifiers
     pub endpoints: [u8; 32],
 }
 
 impl ActiveEndpointResponse {
+    /// Create a success response
     pub fn success_response(address: NetworkAddress, endpoints: &[u8]) -> Self {
         let mut eps = [0u8; 32];
         let count = if endpoints.len() > 32 {
@@ -59,6 +65,7 @@ impl ActiveEndpointResponse {
             endpoints: eps,
         }
     }
+    /// Create a failure response
     pub fn failure_response(status: Status, address: NetworkAddress) -> Self {
         assert!(status != Status::Success);
         let endpoints = [0u8; 32];
@@ -123,6 +130,7 @@ impl Pack<ActiveEndpointResponse, Error> for ActiveEndpointResponse {
 }
 
 impl ActiveEndpointResponse {
+    /// Get the endpoints
     pub fn endpoints(&self) -> &[u8] {
         let count = self.endpoint_count as usize;
         &self.endpoints[..count]

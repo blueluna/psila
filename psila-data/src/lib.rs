@@ -4,6 +4,7 @@
 //!
 //!
 
+#![warn(missing_docs)]
 #![cfg_attr(feature = "core", no_std)]
 
 #[macro_use]

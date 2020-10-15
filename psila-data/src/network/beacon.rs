@@ -1,3 +1,5 @@
+//! Network beacons
+
 use core::convert::TryFrom;
 
 use byteorder::{ByteOrder, LittleEndian};

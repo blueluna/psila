@@ -6,8 +6,11 @@ use crate::pack::{Pack, PackFixed};
 use crate::Error;
 
 extended_enum!(
+    /// Request type
     RequestType, u8,
+    /// Single device request
     SingleDevice => 0x00,
+    /// Extended request
     Extended => 0x01,
 );
 
@@ -16,8 +19,11 @@ extended_enum!(
 /// Requests the network address for a remote device
 #[derive(Clone, Debug, PartialEq)]
 pub struct NetworkAddressRequest {
+    /// Device address
     pub address: ExtendedAddress,
+    /// Request type
     pub request_type: RequestType,
+    /// Start index
     pub start_index: u8,
 }
 
@@ -54,8 +60,11 @@ impl Pack<NetworkAddressRequest, Error> for NetworkAddressRequest {
 /// Requests the extended address for a remote device
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExtendedAddressRequest {
+    /// Device address
     pub address: NetworkAddress,
+    /// Request type
     pub request_type: RequestType,
+    /// Start index
     pub start_index: u8,
 }
 
@@ -91,23 +100,30 @@ impl Pack<ExtendedAddressRequest, Error> for ExtendedAddressRequest {
 ///
 #[derive(Clone, Debug, PartialEq)]
 pub struct AddressResponse {
+    /// Response status
     pub status: Status,
+    /// Device extended address
     pub extended_address: ExtendedAddress,
+    /// Device network address
     pub network_address: NetworkAddress,
+    /// Start index
     pub start_index: u8,
+    /// Number of device addresses
     num_devices: Option<u8>,
+    /// Device addresses
     devices: [NetworkAddress; 32],
 }
 
 impl AddressResponse {
+    /// Extended address response
     pub fn is_extended(&self) -> bool {
         self.num_devices.is_some()
     }
-
+    /// No device addresses
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-
+    /// Number of devices
     pub fn len(&self) -> usize {
         if let Some(count) = self.num_devices {
             count as usize
@@ -115,11 +131,11 @@ impl AddressResponse {
             0
         }
     }
-
+    /// Device addresses
     pub fn devices(&self) -> &[NetworkAddress] {
         &self.devices[..self.len()]
     }
-
+    /// Create a single device response
     pub fn single_device_response(
         status: Status,
         extended_address: ExtendedAddress,

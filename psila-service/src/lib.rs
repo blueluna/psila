@@ -42,6 +42,7 @@ pub const LINK_STATUS_INTERVAL: u32 = 60_000_000;
 
 use psila_data::pack::PackFixed;
 
+/// Association state for this device in the network
 #[derive(Clone, Copy, PartialEq)]
 pub enum NetworkState {
     Orphan,
@@ -49,14 +50,22 @@ pub enum NetworkState {
     Secure,
 }
 
+/// Information for a device on the network
 // Also see 3.6.1.5 in the Zigbee specification
 pub struct NetworkDevice {
+    /// Device network address
     network_address: NetworkAddress,
+    /// Device extended (IEEE) address
     extended_address: ExtendedAddress,
+    /// Device last seen in milliseconds
     last_seen: u32,
+    /// Type of device
     device_type: psila_data::device_profile::link_quality::DeviceType,
+    /// Device relationship
     relationship: psila_data::device_profile::link_quality::Relationship,
+    /// Link quality to the device
     link_quality: u8,
+    /// Outgoing path cost to the device
     outgoing_cost: u8,
 }
 

@@ -5,10 +5,15 @@ const REJOIN: u8 = 0b0010_0000;
 const REQUEST: u8 = 0b0100_0000;
 const REMOVE_CHILDREN: u8 = 0b1000_0000;
 
+/// Leave request
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Leave {
+    /// Will rejoin
     pub rejoin: bool,
+    /// Request a device to leave the network if true.
+    /// If false the sending device intends to leave the network
     pub request: bool,
+    /// The children of the device will be removed if true
     pub remove_children: bool,
 }
 

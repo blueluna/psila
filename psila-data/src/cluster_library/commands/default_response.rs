@@ -1,12 +1,17 @@
+//! Handling of default response to requests
+
 use core::convert::TryFrom;
 
 use crate::cluster_library::ClusterLibraryStatus;
 use crate::pack::Pack;
 use crate::Error;
 
+/// Default response for request
 #[derive(Clone, Debug, PartialEq)]
 pub struct DefaultResponse {
+    /// Command identifier from the request
     pub command: u8,
+    /// Return status of the request
     pub status: ClusterLibraryStatus,
 }
 

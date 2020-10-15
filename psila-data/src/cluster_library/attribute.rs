@@ -125,6 +125,7 @@ extended_enum!(
 );
 
 impl AttributeDataType {
+    /// Get the type size for the attribute data type
     pub fn data_size(self) -> Option<usize> {
         match self {
             AttributeDataType::None | AttributeDataType::Unknown => Some(0),
@@ -184,6 +185,7 @@ impl AttributeDataType {
             | AttributeDataType::Bag => None,
         }
     }
+    /// Get the number of octets used for size for the attribute data type
     pub fn size_octets(self) -> Option<usize> {
         match self {
             AttributeDataType::None
@@ -242,7 +244,7 @@ impl AttributeDataType {
             | AttributeDataType::Bag => None,
         }
     }
-
+    /// Get the size for the attribute data type
     pub fn get_size(self, data: &[u8]) -> (Option<usize>, usize) {
         match (self.data_size(), self.size_octets()) {
             (Some(size), _) => (Some(size), 0),
@@ -363,6 +365,7 @@ pub enum AttributeValue {
 }
 
 impl AttributeValue {
+    /// Pack attribute value into a byte slice
     pub fn pack(&self, data: &mut [u8]) -> Result<(usize, AttributeDataType), Error> {
         let data_type = self.data_type();
         if let Some(num_octets) = data_type.data_size() {
@@ -495,7 +498,7 @@ impl AttributeValue {
         };
         Ok((length, data_type))
     }
-
+    /// Unpack byte slice into attribute value
     pub fn unpack(data: &[u8], data_type: AttributeDataType) -> Result<(Self, usize), Error> {
         if let Some(num_octets) = data_type.data_size() {
             if data.len() < num_octets {

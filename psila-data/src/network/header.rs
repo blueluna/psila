@@ -1,14 +1,21 @@
+//! Network header
+
 use core::convert::TryFrom;
 
 use crate::common::address::{EXTENDED_ADDRESS_SIZE, SHORT_ADDRESS_SIZE};
 use crate::pack::{Pack, PackFixed};
 use crate::{Error, ExtendedAddress, NetworkAddress};
 
-/// Frame Type Sub-Field
+/// Frame type sub-field
+///
+/// Indicates if this frame is a Data, Command or Inter-PAN frame.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum FrameType {
+    /// Data frame
     Data = 0b0000_0000,
+    /// Command frame
     Command = 0b0000_0001,
+    /// Inter-PAN frame
     InterPan = 0b0000_0011,
 }
 
@@ -25,10 +32,12 @@ impl TryFrom<u8> for FrameType {
     }
 }
 
-/// Discover Route Sub-Field
+/// Discover route sub-field
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DiscoverRoute {
+    /// Supress route discovery
     SurpressDiscovery = 0b0000_0000,
+    /// Enable route discovery
     EnableDiscovery = 0b0100_0000,
 }
 
@@ -163,14 +172,19 @@ impl PackFixed<MulticastControl, Error> for MulticastControl {
     }
 }
 
+/// Source route frame message
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceRouteFrame {
+    /// Index
     pub index: u8,
+    /// Number of entries
     num_entries: u8,
+    /// Entries
     entries: [NetworkAddress; 32],
 }
 
 impl SourceRouteFrame {
+    /// Create a source route frame from relay list
     pub fn new(relay_list: &[NetworkAddress]) -> Self {
         if relay_list.is_empty() {
             panic!("Relay list cannot be of length 0.");
@@ -183,23 +197,23 @@ impl SourceRouteFrame {
             entries,
         }
     }
-
+    /// No route entries
     pub fn is_empty(&self) -> bool {
         self.num_entries == 0
     }
-
+    /// Number of route entries
     pub fn len(&self) -> usize {
         self.num_entries as usize
     }
-
+    /// Get index
     pub fn get_index(&self) -> u8 {
         self.index
     }
-
+    /// Decrement index
     pub fn decrement_index(&mut self) {
         self.index -= 1;
     }
-
+    /// Route entries
     pub fn entries(&self) -> &[NetworkAddress] {
         &self.entries[..self.num_entries as usize]
     }
@@ -251,20 +265,32 @@ impl Pack<SourceRouteFrame, Error> for SourceRouteFrame {
 
 const MIN_NUM_BYTES: usize = 8;
 
+/// Network frame header
+///
 #[derive(Clone, Debug)]
 pub struct NetworkHeader {
+    /// Frame control field
     pub control: FrameControl,
+    /// Network destination address
     pub destination_address: NetworkAddress,
+    /// Network source address
     pub source_address: NetworkAddress,
+    /// Radius
     pub radius: u8,
+    /// Frame sequence number
     pub sequence_number: u8,
+    /// Optional extended (IEEE) destination address
     pub destination_ieee_address: Option<ExtendedAddress>,
+    /// Optional extended (IEEE) source address
     pub source_ieee_address: Option<ExtendedAddress>,
+    /// Optional multicast control field
     pub multicast_control: Option<MulticastControl>,
+    /// Optional source route frame field
     pub source_route_frame: Option<SourceRouteFrame>,
 }
 
 impl NetworkHeader {
+    /// Create a new data header with the given information
     pub fn new_data_header(
         protocol_version: u8,
         discover_route: DiscoverRoute,
@@ -296,7 +322,7 @@ impl NetworkHeader {
             source_route_frame,
         }
     }
-
+    /// Create a new command header with the given information
     pub fn new_command_header(
         protocol_version: u8,
         discover_route: DiscoverRoute,

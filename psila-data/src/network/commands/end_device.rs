@@ -4,25 +4,42 @@ use crate::error::Error;
 use crate::pack::Pack;
 
 extended_enum!(
+    /// Timeout
     Timeout, u8,
+    /// 10 second timeout
     Timeout10Seconds => 0x00,
+    /// 2 minutes timeout
     Timeout2Minutes => 0x01,
+    /// 4 minutes timeout
     Timeout4Minutes => 0x02,
+    /// 8 minutes timeout
     Timeout8Minutes => 0x03,
+    /// 16 minutes timeout
     Timeout16Minutes => 0x04,
+    /// 32 minutes timeout
     Timeout32Minutes => 0x05,
+    /// 64 minutes timeout
     Timeout64Minutes => 0x06,
+    /// 128 minutes timeout
     Timeout128Minutes => 0x07,
+    /// 256 minutes timeout
     Timeout256Minutes => 0x08,
+    /// 512 minutes timeout
     Timeout512Minutes => 0x09,
+    /// 1024 minutes timeout
     Timeout1024Minutes => 0x0a,
+    /// 2048 minutes timeout
     Timeout2048Minutes => 0x0b,
+    /// 4096 minutes timeout
     Timeout4096Minutes => 0x0c,
+    /// 8192 minutes timeout
     Timeout8192Minutes => 0x0d,
+    /// 16384 minutes timeout
     Timeout16384Minutes => 0x0e,
 );
 
 impl Timeout {
+    /// Get the timeout in seconds
     pub fn in_seconds(self) -> u32 {
         match self {
             Timeout::Timeout10Seconds => 10,
@@ -50,6 +67,7 @@ impl Timeout {
 /// within the timeout, the device can be removed from the neighbor table.
 #[derive(Clone, Debug, PartialEq)]
 pub struct EndDeviceTimeoutRequest {
+    /// Timeout
     pub timeout: Timeout,
 }
 

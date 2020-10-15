@@ -21,22 +21,23 @@ pub const SHORT_ADDRESS_UNASSIGNED: u16 = 0xfffe;
 pub struct ShortAddress(u16);
 
 impl ShortAddress {
+    /// Create a short address from a 16-bit value
     pub fn new(value: u16) -> Self {
         Self(value)
     }
-
+    /// Get the broadcast short address
     pub fn broadcast() -> Self {
         Self(SHORT_ADDRESS_BROADCAST)
     }
-
+    /// Is the address a broadcast address
     pub fn is_broadcast(self) -> bool {
         self.0 == SHORT_ADDRESS_BROADCAST
     }
-
+    /// Is the address unassigned
     pub fn is_unassigned(self) -> bool {
         self.0 == SHORT_ADDRESS_UNASSIGNED
     }
-
+    /// Is the address assigned
     pub fn is_assigned(self) -> bool {
         self.0 < SHORT_ADDRESS_UNASSIGNED
     }
@@ -160,14 +161,15 @@ pub const EXTENDED_ADDRESS_BROADCAST: u64 = 0xffff_ffff_ffff_ffffu64;
 pub struct ExtendedAddress(u64);
 
 impl ExtendedAddress {
+    /// Create a extended address from a 64-bit value
     pub fn new(address: u64) -> Self {
         Self(address)
     }
-
+    /// Create a extended broadcast address
     pub fn broadcast() -> Self {
         Self(EXTENDED_ADDRESS_BROADCAST)
     }
-
+    /// Is the extended address a broadcast address
     pub fn is_broadcast(self) -> bool {
         self.0 == EXTENDED_ADDRESS_BROADCAST
     }

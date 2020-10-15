@@ -133,6 +133,7 @@ pub struct ClusterLibraryHeader {
 }
 
 impl ClusterLibraryHeader {
+    /// Create a new response cluster library frame header
     pub fn new_response(request: &ClusterLibraryHeader, command: GeneralCommandIdentifier) -> Self {
         ClusterLibraryHeader {
             control: FrameControl {

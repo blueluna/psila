@@ -2,21 +2,25 @@ use crate::common::address::{NetworkAddress, SHORT_ADDRESS_SIZE};
 use crate::error::Error;
 use crate::pack::{Pack, PackFixed};
 
+/// Route record message
 #[derive(Clone, Debug, PartialEq)]
 pub struct RouteRecord {
+    /// Numer of entries
     num_entries: u8,
+    /// Network addresses
     entries: [NetworkAddress; 32],
 }
 
 impl RouteRecord {
+    /// No route record entries
     pub fn is_empty(&self) -> bool {
         self.num_entries == 0
     }
-
+    /// Number of record entries
     pub fn len(&self) -> usize {
         self.num_entries as usize
     }
-
+    /// Record entries
     pub fn entries(&self) -> &[NetworkAddress] {
         &self.entries[..self.num_entries as usize]
     }

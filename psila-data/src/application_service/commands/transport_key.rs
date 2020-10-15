@@ -1,3 +1,5 @@
+//! Handling of key transport
+
 use core::convert::TryFrom;
 
 use crate::common::address::{ExtendedAddress, EXTENDED_ADDRESS_SIZE};
@@ -9,11 +11,15 @@ use crate::Error;
 /// Trust center key descriptor
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct TrustCenterKey {
+    /// The key
     pub key: Key,
+    /// Destination address for the key
     pub destination: ExtendedAddress,
+    /// Source address for the key
     pub source: ExtendedAddress,
 }
 
+/// Size of a TrustCenterKey
 pub const TRUST_CENTER_KEY_SIZE: usize = KEY_SIZE + EXTENDED_ADDRESS_SIZE + EXTENDED_ADDRESS_SIZE;
 
 impl PackFixed<TrustCenterKey, Error> for TrustCenterKey {
@@ -54,12 +60,17 @@ impl PackFixed<TrustCenterKey, Error> for TrustCenterKey {
 /// Network key descriptor
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct NetworkKey {
+    /// The key
     pub key: Key,
+    /// Key sequence number
     pub sequence: u8,
+    /// Destination address for the key
     pub destination: ExtendedAddress,
+    /// Source address for the key
     pub source: ExtendedAddress,
 }
 
+/// Size of a NetworkKey
 pub const NETWORK_KEY_SIZE: usize = KEY_SIZE + 1 + EXTENDED_ADDRESS_SIZE + EXTENDED_ADDRESS_SIZE;
 
 impl PackFixed<NetworkKey, Error> for NetworkKey {
@@ -103,11 +114,15 @@ impl PackFixed<NetworkKey, Error> for NetworkKey {
 /// Application key descriptor
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct ApplicationKey {
+    /// The key
     pub key: Key,
+    /// Address to the partner
     pub partner: ExtendedAddress,
+    /// Indicates that this is the initiator of the key exchange
     pub initiator: bool,
 }
 
+/// Size of a ApplicationKey
 pub const APPLICATION_KEY_SIZE: usize = KEY_SIZE + EXTENDED_ADDRESS_SIZE + 1;
 
 impl PackFixed<ApplicationKey, Error> for ApplicationKey {
@@ -145,11 +160,17 @@ impl PackFixed<ApplicationKey, Error> for ApplicationKey {
 /// Key-transport messages
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TransportKey {
+    /// A trust center master key
     TrustCenterMasterKey(TrustCenterKey),
+    /// A standard network key
     StandardNetworkKey(NetworkKey),
+    /// A application master key
     ApplicationMasterKey(ApplicationKey),
+    /// A application link key
     ApplicationLinkKey(ApplicationKey),
+    /// A unique trust center link key
     UniqueTrustCenterLinkKey(TrustCenterKey),
+    /// A hight security network key
     HighSecurityNetworkKey(NetworkKey),
 }
 

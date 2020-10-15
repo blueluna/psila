@@ -3,6 +3,7 @@ use std::string::String;
 use crate::pack::Pack;
 use crate::Error;
 
+/// A vector of bytes
 pub type OctetString = std::vec::Vec<u8>;
 
 impl Pack<OctetString, Error> for OctetString {
@@ -28,6 +29,7 @@ impl Pack<OctetString, Error> for OctetString {
     }
 }
 
+/// A string
 pub type CharacterString = String;
 
 impl Pack<CharacterString, Error> for CharacterString {

@@ -1,3 +1,5 @@
+//! Handling of attribute requests
+
 use core::convert::TryFrom;
 
 use crate::cluster_library::{
@@ -12,8 +14,10 @@ pub type AttributeIdentifierVec = std::vec::Vec<AttributeIdentifier>;
 #[cfg(feature = "core")]
 pub type AttributeIdentifierVec = heapless::Vec<AttributeIdentifier, heapless::consts::U32>;
 
+/// Read attribute request data
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReadAttributes {
+    /// Attributes requested to be read
     pub attributes: AttributeIdentifierVec,
 }
 
@@ -46,14 +50,19 @@ impl Pack<ReadAttributes, Error> for ReadAttributes {
     }
 }
 
+/// Attribute identifier, status and optional value
 #[derive(Clone, Debug, PartialEq)]
 pub struct AttributeStatus {
+    /// Attribute identifier
     pub identifier: AttributeIdentifier,
+    /// Status for the command
     pub status: ClusterLibraryStatus,
+    /// Optional value for the attribute
     pub value: Option<AttributeValue>,
 }
 
 impl AttributeStatus {
+    /// Create a AttributeStatus from a value
     pub fn from_value(identifier: AttributeIdentifier, value: AttributeValue) -> Self {
         Self {
             identifier,
@@ -61,6 +70,7 @@ impl AttributeStatus {
             value: Some(value),
         }
     }
+    /// Create a AttributeStatus from status
     pub fn from_status(identifier: AttributeIdentifier, status: ClusterLibraryStatus) -> Self {
         Self {
             identifier,
@@ -128,12 +138,15 @@ pub type AttributeStatusVec = std::vec::Vec<AttributeStatus>;
 #[cfg(feature = "core")]
 pub type AttributeStatusVec = heapless::Vec<AttributeStatus, heapless::consts::U32>;
 
+/// Response to a attribute read request
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReadAttributesResponse {
+    /// Status and value of the requested attributes
     pub attributes: AttributeStatusVec,
 }
 
 impl ReadAttributesResponse {
+    /// Create a new empty response
     pub fn new() -> Self {
         Self {
             attributes: AttributeStatusVec::new(),
@@ -165,9 +178,12 @@ impl Pack<ReadAttributesResponse, Error> for ReadAttributesResponse {
     }
 }
 
+/// Attribute identifier with a value
 #[derive(Clone, Debug, PartialEq)]
 pub struct WriteAttributeRecord {
+    /// Attribute identifier
     pub identifier: AttributeIdentifier,
+    /// Attribute value
     pub value: AttributeValue,
 }
 
@@ -199,8 +215,10 @@ pub type WriteAttributeRecordVec = std::vec::Vec<WriteAttributeRecord>;
 #[cfg(feature = "core")]
 pub type WriteAttributeRecordVec = heapless::Vec<WriteAttributeRecord, heapless::consts::U16>;
 
+/// A vector of attributes to be written
 #[derive(Clone, Debug, PartialEq)]
 pub struct WriteAttributes {
+    /// Attribute identifiers and values
     pub attributes: WriteAttributeRecordVec,
 }
 
@@ -228,9 +246,12 @@ impl Pack<WriteAttributes, Error> for WriteAttributes {
     }
 }
 
+/// Attribute identifier and status
 #[derive(Clone, Debug, PartialEq)]
 pub struct WriteAttributeStatus {
+    /// Status
     pub status: ClusterLibraryStatus,
+    /// Attribute identifier
     pub identifier: AttributeIdentifier,
 }
 
@@ -260,12 +281,15 @@ pub type WriteAttributeStatusVec = std::vec::Vec<WriteAttributeStatus>;
 #[cfg(feature = "core")]
 pub type WriteAttributeStatusVec = heapless::Vec<WriteAttributeStatus, heapless::consts::U16>;
 
+/// Response to a write attributes request
 #[derive(Clone, Debug, PartialEq)]
 pub struct WriteAttributesResponse {
+    /// The attributes written
     pub attributes: WriteAttributeStatusVec,
 }
 
 impl WriteAttributesResponse {
+    /// Create a empty write attributes response
     pub fn new() -> Self {
         Self {
             attributes: WriteAttributeStatusVec::new(),
@@ -297,8 +321,10 @@ impl Pack<WriteAttributesResponse, Error> for WriteAttributesResponse {
     }
 }
 
+/// Report attributes
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReportAttributes {
+    /// The attributes
     pub attributes: WriteAttributeRecordVec,
 }
 
@@ -326,9 +352,12 @@ impl Pack<ReportAttributes, Error> for ReportAttributes {
     }
 }
 
+/// Discover attribtues
 #[derive(Clone, Debug, PartialEq)]
 pub struct DiscoverAttributes {
+    /// Start attribute identifier
     pub start: AttributeIdentifier,
+    /// Number of attributes
     pub count: u8,
 }
 
@@ -358,9 +387,12 @@ pub type DiscoverAttributeVec = std::vec::Vec<(AttributeIdentifier, AttributeDat
 pub type DiscoverAttributeVec =
     heapless::Vec<(AttributeIdentifier, AttributeDataType), heapless::consts::U16>;
 
+/// Discover attributes response
 #[derive(Clone, Debug, PartialEq)]
 pub struct DiscoverAttributesResponse {
+    /// Complete, if false there are more attributes to be discovered
     pub complete: bool,
+    /// The attributes
     pub attributes: DiscoverAttributeVec,
 }
 

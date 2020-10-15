@@ -89,6 +89,7 @@ impl TryFrom<u8> for KeyIdentifier {
     }
 }
 
+/// Security control field
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SecurityControl {
     /// Security level
@@ -100,7 +101,7 @@ pub struct SecurityControl {
 }
 
 impl SecurityControl {
-    // Change the security level to the provided security level
+    /// Change the security level to the provided security level
     pub fn set_level(&mut self, level: SecurityLevel) {
         self.level = level;
     }
@@ -132,6 +133,7 @@ impl PackFixed<SecurityControl, Error> for SecurityControl {
     }
 }
 
+/// Security header
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SecurityHeader {
     /// Security header flags

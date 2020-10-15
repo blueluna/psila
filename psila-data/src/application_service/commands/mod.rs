@@ -1,3 +1,4 @@
+//! Application service commands
 mod device;
 mod key;
 mod key_establishment;
@@ -103,6 +104,7 @@ pub enum Command {
 }
 
 impl Command {
+    /// Get the command identifier for the command
     pub fn identifier(&self) -> CommandIdentifier {
         use Command::*;
         match *self {

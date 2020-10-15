@@ -23,8 +23,11 @@ const COMMAND_IDENTIFIER_MASK: u8 = 0b1110_0000;
 /// command identifier is standardised as of yet.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NetworkUpdate {
+    /// Command identifier
     pub command_identifier: CommandIdentifier,
+    /// Extended PAN identifier
     pub extended_pan_identifier: ExtendedPanIdentifier,
+    /// PAN identifier
     pub pan_identifier: PanIdentifier,
 }
 

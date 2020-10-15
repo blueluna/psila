@@ -1,3 +1,5 @@
+//! Application service frame header
+
 use core::convert::TryFrom;
 
 use crate::error::Error;
@@ -5,12 +7,17 @@ use crate::pack::{Pack, PackFixed};
 
 use byteorder::{ByteOrder, LittleEndian};
 
-/// 2.2.5.1.1.1 Frame Type Sub-Field
+// 2.2.5.1.1.1 Frame Type Sub-Field
+/// Frame type sub-field
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum FrameType {
+    /// Data frame type
     Data = 0b00,
+    /// Command frame type
     Command = 0b01,
+    /// Acknowledge frame type
     Acknowledgement = 0b10,
+    /// Inter-PAN frame type
     InterPan = 0b11,
 }
 
@@ -28,12 +35,17 @@ impl TryFrom<u8> for FrameType {
     }
 }
 
-/// 2.2.5.1.1.2 Delivery Mode Sub-Field
+// 2.2.5.1.1.2 Delivery Mode Sub-Field
+/// Delivery mode sub-field
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DeliveryMode {
+    /// Unicast delivery mode
     Unicast = 0b0000,
+    /// Indirect delivery mode
     Indirect = 0b0100,
+    /// Broadcast delivery mode
     Broadcast = 0b1000,
+    /// Group addressing delivery mode
     GroupAdressing = 0b1100,
 }
 
@@ -51,14 +63,21 @@ impl TryFrom<u8> for DeliveryMode {
     }
 }
 
-/// 2.2.5.1.1 Frame Control Field
+// 2.2.5.1.1 Frame Control Field
+/// Frame control field
 #[derive(Copy, Clone, Debug)]
 pub struct FrameControl {
+    /// Frame type
     pub frame_type: FrameType,
+    /// Delivery mode
     pub delivery_mode: DeliveryMode,
+    /// Acknowledge format, false for data frame format and true for APS command frame format
     pub acknowledge_format: bool,
+    /// Security enabled
     pub security: bool,
+    /// Acknowledge requested
     pub acknowledge_request: bool,
+    /// Extended header
     pub extended_header: bool,
 }
 
@@ -99,19 +118,28 @@ impl PackFixed<FrameControl, Error> for FrameControl {
     }
 }
 
-/// 2.2.5 Frame Formats
+// 2.2.5 Frame Formats
+/// Application service frame header
 #[derive(Copy, Clone, Debug)]
 pub struct ApplicationServiceHeader {
+    /// Frame control field
     pub control: FrameControl,
+    /// Optional destination endpoint
     pub destination: Option<u8>,
+    /// Optional group address
     pub group: Option<u16>,
+    /// Optional cluster identifier
     pub cluster: Option<u16>,
+    /// Optional profile identifier
     pub profile: Option<u16>,
+    /// Optional source endpoint
     pub source: Option<u8>,
+    /// Frame counter
     pub counter: u8,
 }
 
 impl ApplicationServiceHeader {
+    /// Create a new application serivce header for data messages
     pub fn new_data_header(
         destination: u8,
         cluster: u16,
@@ -139,6 +167,7 @@ impl ApplicationServiceHeader {
         }
     }
 
+    /// Create a new application serivce header for acknowledge messages
     pub fn new_acknowledge_header(source: &ApplicationServiceHeader) -> Self {
         if source.control.acknowledge_format {
             ApplicationServiceHeader {

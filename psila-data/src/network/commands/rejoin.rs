@@ -20,8 +20,10 @@ extended_enum!(
     FastAssociationSuccesful => 0x80,
 );
 
+/// Rejoin request
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct RejoinRequest {
+    /// Device capability information
     pub capability: CapabilityInformation,
 }
 
@@ -43,9 +45,12 @@ impl Pack<RejoinRequest, Error> for RejoinRequest {
     }
 }
 
+/// Rejoin response
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct RejoinResponse {
+    /// Device address
     pub address: NetworkAddress,
+    /// Association status
     pub status: AssociationStatus,
 }
 

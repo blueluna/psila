@@ -23,6 +23,7 @@ use core::convert::TryFrom;
 use crate::error::Error;
 use crate::pack::Pack;
 
+/// Response flag
 pub const RESPONSE: u16 = 0x8000;
 
 // 2.4.2 Device Profile Overview
@@ -43,43 +44,77 @@ extended_enum!(
     ActiveEndpointRequest => 0x0005,
     /// Find other devices that match the criteria
     MatchDescriptorRequest => 0x0006,
+    /// Get the complex descriptor
     ComplexDescriptorRequest => 0x0010,
+    /// Get user descriptor
     UserDescriptorRequest => 0x0011,
+    /// Discovery cache request
     DiscoveryCacheRequest => 0x0012,
     /// Device announcement notification
     DeviceAnnounce => 0x0013,
+    /// Set user descipor
     SetUserDescriptor => 0x0014,
+    /// System server discovery request
     SystemServerDiscoveryRequest => 0x0015,
+    /// Discovery cache storage request
     DiscoveryCacheStorageRequest => 0x0016,
+    /// Node descriptor storage requst
     NodeDescriptorStorageRequest => 0x0017,
+    /// Power descriptor storage request
     PowerDescriptorStorageRequest => 0x0018,
+    /// Active endpoint storage request
     ActiveEndpointStorageRequest => 0x0019,
+    /// Simple descriptor storage request
     SimpleDescriptorStorageRequest => 0x001a,
+    /// Remove node cache
     RemoveNodeCache => 0x001b,
+    /// Find node cache
     FindNodeCache => 0x001c,
+    /// Estended simple descriptor request
     ExtendedSimpleDescriptorRequest => 0x001d,
+    /// Extended active endpoint request
     ExtendedActiveEndpointRequest => 0x001e,
+    /// Parent announce
     ParentAnnounce => 0x001f,
+    /// End-device bind request
     EndDeviceBindRequest => 0x0020,
+    /// Bind request
     BindRequest => 0x0021,
+    /// Unbind request
     UnbindRequest => 0x0022,
+    /// Bind register request
     BindRegisterRequest => 0x0023,
+    /// Replace device request
     ReplaceDeviceRequest => 0x0024,
+    /// Store backup bind entry request
     StoreBackupBindEntryRequest => 0x0025,
+    /// Remove backup bind entry request
     RemoveBackupBindEntryRequest => 0x0026,
+    /// Backup bind table request
     BackupBindTableRequest => 0x0027,
+    /// Recover bind table request
     RecoverBindTableRequest => 0x0028,
+    /// Backup source bind request
     BackupSourceBindRequest => 0x0029,
+    /// Recover source bind request
     RecoverSourceBindRequest => 0x002a,
+    /// Management network discovery request
     ManagementNetworkDiscoveryRequest => 0x0030,
     /// Management link quality indicator (LQI) request
     ManagementLinkQualityIndicatorRequest => 0x0031,
+    /// Management routing table request
     ManagementRoutingTableRequest => 0x0032,
+    /// Management binding table request
     ManagementBindingTableRequest => 0x0033,
+    /// Management leave request
     ManagementLeaveRequest => 0x0034,
+    /// Management direct join request
     ManagementDirectJoinRequest => 0x0035,
+    /// Management permit joining request
     ManagementPermitJoiningRequest => 0x0036,
+    /// Management cache request
     ManagementCacheRequest => 0x0037,
+    /// Management network update request
     ManagementNetworkUpdateRequest => 0x0038,
 );
 
@@ -117,9 +152,11 @@ extended_enum!(
     NotAuthorised => 0x8d,
     /// The device could not complete the operation because the device binding table is full
     DeviceBindingTableFull => 0x8e,
+    /// The requested index was not found
     InvalidIndex => 0x8f,
 );
 
+/// Device profile message
 #[derive(Clone, Debug, PartialEq)]
 pub enum DeviceProfileMessage {
     /// Request the network address of another device
@@ -160,6 +197,7 @@ pub enum DeviceProfileMessage {
 }
 
 impl DeviceProfileMessage {
+    /// Pack device profile message into a byte slice
     pub fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
         match *self {
             DeviceProfileMessage::NetworkAddressRequest(ref m) => m.pack(data),
@@ -184,7 +222,7 @@ impl DeviceProfileMessage {
             }
         }
     }
-
+    /// Unpack byte slice into a device profile message
     pub fn unpack(data: &[u8], cluster_identifier: u16) -> Result<(Self, usize), Error> {
         let response = (cluster_identifier & RESPONSE) == RESPONSE;
         let cluster_identifier = ClusterIdentifier::try_from(cluster_identifier & 0x7fff)?;
@@ -277,13 +315,17 @@ impl DeviceProfileMessage {
     }
 }
 
+/// Device profile frame
 #[derive(Clone, Debug, PartialEq)]
 pub struct DeviceProfileFrame {
+    /// Transaction sequence
     pub transaction_sequence: u8,
+    /// Device profile message
     pub message: DeviceProfileMessage,
 }
 
 impl DeviceProfileFrame {
+    /// Pack device profile frame into byte slice
     pub fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
         if data.is_empty() {
             return Err(Error::WrongNumberOfBytes);
@@ -292,7 +334,7 @@ impl DeviceProfileFrame {
         let used = self.message.pack(&mut data[1..])?;
         Ok(1 + used)
     }
-
+    /// Unpack byte slice into device profile frame
     pub fn unpack(data: &[u8], cluster_identifier: u16) -> Result<(Self, usize), Error> {
         if data.is_empty() {
             return Err(Error::WrongNumberOfBytes);

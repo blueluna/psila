@@ -20,6 +20,7 @@ pub const DEFAULT_LINK_KEY: [u8; KEY_SIZE] = [
     0x5a, 0x69, 0x67, 0x42, 0x65, 0x65, 0x41, 0x6c, 0x6c, 0x69, 0x61, 0x6e, 0x63, 0x65, 0x30, 0x39,
 ];
 
+/// Crypto provider
 pub struct CryptoProvider<Backend> {
     backend: Backend,
     buffer: [u8; 256],
@@ -29,6 +30,7 @@ impl<Backend> CryptoProvider<Backend>
 where
     Backend: CryptoBackend,
 {
+    /// Create a new crypto provider from the crypto backend
     pub fn new(backend: Backend) -> Self {
         Self {
             backend,
@@ -136,6 +138,7 @@ where
         Ok(())
     }
 
+    /// Decrypt payload
     pub fn decrypt_payload(
         &mut self,
         key: &[u8; KEY_SIZE],
@@ -202,6 +205,7 @@ where
         Ok(used)
     }
 
+    /// Encrypt network frame
     pub fn encrypt_network_frame(
         &mut self,
         header: NetworkHeader,

@@ -10,6 +10,7 @@ pub mod types;
 
 pub use profile_identifier::ProfileIdentifier;
 
+/// Convert link quality to path cost
 pub fn link_quality_to_cost(link_quality: u8) -> u8 {
     if link_quality > 50 {
         1

@@ -1,3 +1,5 @@
+//! Power descriptor message
+
 use core::convert::TryFrom;
 
 use crate::common::address::NetworkAddress;
@@ -44,9 +46,13 @@ extended_enum!(
 /// Power descriptor for a node
 #[derive(Clone, Debug, PartialEq)]
 pub struct NodePowerDescriptor {
+    /// Power mode
     pub mode: PowerMode,
+    /// Available power sources
     pub available_sources: PowerSource,
+    /// Current power source
     pub current_sources: PowerSource,
+    /// Power level
     pub level: PowerLevel,
 }
 
@@ -92,6 +98,7 @@ impl Default for NodePowerDescriptor {
 /// Requests the power descriptor for a remote device
 #[derive(Clone, Debug, PartialEq)]
 pub struct PowerDescriptorRequest {
+    /// Device address
     pub address: NetworkAddress,
 }
 
@@ -118,12 +125,16 @@ impl Pack<PowerDescriptorRequest, Error> for PowerDescriptorRequest {
 /// Response to a power descriptor request
 #[derive(Clone, Debug, PartialEq)]
 pub struct PowerDescriptorResponse {
+    /// Response status
     pub status: Status,
+    /// Device address
     pub address: NetworkAddress,
+    /// Power descriptor
     pub descriptor: NodePowerDescriptor,
 }
 
 impl PowerDescriptorResponse {
+    /// Create a failure response
     pub fn failure_response(status: Status, address: NetworkAddress) -> Self {
         assert!(status != Status::Success);
         PowerDescriptorResponse {

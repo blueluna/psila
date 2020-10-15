@@ -1,3 +1,5 @@
+//! Cluster library commands
+
 mod attributes;
 mod default_response;
 
@@ -16,60 +18,111 @@ pub use default_response::DefaultResponse;
 extended_enum!(
     /// Cluster library general command identifiers
     GeneralCommandIdentifier, u8,
+    /// Read attributes request
     ReadAttributes => 0x00,
+    /// Read attributes response
     ReadAttributesResponse => 0x01,
+    /// Write attributes request
     WriteAttributes => 0x02,
+    /// Write attributes undivided request
+    ///
+    /// Writes attributes, but do not generate error if the attribute does not exists on the device
     WriteAttributesUndivided => 0x03,
+    /// Write attributes response
     WriteAttributesResponse => 0x04,
+    /// Write attributes, do not generate a response
     WriteAttributesNoResponse => 0x05,
+    /// Configure reporting request for attribtues
     ConfigureReporting => 0x06,
+    /// Report configuration response
     ConfigureReportingResponse => 0x07,
+    /// Read reporting configuration request
     ReadReportingConfiguration => 0x08,
+    /// Read reporting configuration response
     ReadReportingConfigurationResponse => 0x09,
+    /// Report attributes
     ReportAttributes => 0x0a,
+    /// Default response
     DefaultResponse => 0x0b,
+    /// Disover attribtues request
     DiscoverAttributes => 0x0c,
+    /// Discover attributes response
     DiscoverAttributesResponse => 0x0d,
+    /// Read structured attributes request
     ReadAttributesStructured => 0x0e,
+    /// Write structured attributes request
     WriteAttributesStructured => 0x0f,
+    /// Write structured attributes response
     WriteAttributesStructuredResponse => 0x10,
+    /// Discover commands received request
     DiscoverCommandsReceived => 0x11,
+    /// Discover commands received response
     DiscoverCommandsReceivedResponse => 0x12,
+    /// Discover commands generated request
     DiscoverCommandsGenerated => 0x13,
+    /// Discover commands generated response
     DiscoverCommandsGeneratedResponse => 0x14,
+    /// Discover attributes request, extended
     DiscoverAttributesExtended => 0x15,
+    /// Discover attributes response, extended
     DiscoverAttributesExtendedResponse => 0x16,
 );
 
 /// Cluster library general command
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
+    /// Read attributes request
     ReadAttributes(ReadAttributes),
+    /// Read attributes response
     ReadAttributesResponse(ReadAttributesResponse),
+    /// Write attributes request
     WriteAttributes(WriteAttributes),
+    /// Write attributes undivided request
+    ///
+    /// Writes attributes, but do not generate error if the attribute does not exists on the device
     WriteAttributesUndivided(WriteAttributes),
+    /// Write attributes response
     WriteAttributesResponse(WriteAttributesResponse),
+    /// Write attributes, do not generate a response
     WriteAttributesNoResponse(WriteAttributes),
+    /// Configure reporting request for attribtues
     ConfigureReporting,
+    /// Report configuration response
     ConfigureReportingResponse,
+    /// Read reporting configuration request
     ReadReportingConfiguration,
+    /// Read reporting configuration response
     ReadReportingConfigurationResponse,
+    /// Report attributes
     ReportAttributes(ReportAttributes),
+    /// Default response
     DefaultResponse(DefaultResponse),
+    /// Disover attribtues request
     DiscoverAttributes(DiscoverAttributes),
+    /// Discover attributes response
     DiscoverAttributesResponse(DiscoverAttributesResponse),
+    /// Read structured attributes request
     ReadAttributesStructured,
+    /// Write structured attributes request
     WriteAttributesStructured,
+    /// Write structured attributes response
     WriteAttributesStructuredResponse,
+    /// Discover commands received request
     DiscoverCommandsReceived,
+    /// Discover commands received response
     DiscoverCommandsReceivedResponse,
+    /// Discover commands generated request
     DiscoverCommandsGenerated,
+    /// Discover commands generated response
     DiscoverCommandsGeneratedResponse,
+    /// Discover attributes request, extended
     DiscoverAttributesExtended,
+    /// Discover attributes response, extended
     DiscoverAttributesExtendedResponse,
 }
 
 impl Command {
+    /// pack command into byte slice
     pub fn pack(&self, data: &mut [u8]) -> Result<(usize, GeneralCommandIdentifier), Error> {
         let used = match self {
             Command::ReadAttributes(cmd) => cmd.pack(data)?,
@@ -98,7 +151,7 @@ impl Command {
         };
         Ok((used, self.command_identifier()))
     }
-
+    /// unpack byte slice into command
     pub fn unpack(data: &[u8], command: GeneralCommandIdentifier) -> Result<(Self, usize), Error> {
         match command {
             GeneralCommandIdentifier::ReadAttributes => {
@@ -180,7 +233,7 @@ impl Command {
             }
         }
     }
-
+    /// Get the commands identifier for the command
     pub fn command_identifier(&self) -> GeneralCommandIdentifier {
         match self {
             Command::ReadAttributes(_) => GeneralCommandIdentifier::ReadAttributes,

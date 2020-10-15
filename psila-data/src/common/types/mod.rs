@@ -1,3 +1,5 @@
+//! Common data types
+
 #[cfg(feature = "core")]
 mod types_core;
 

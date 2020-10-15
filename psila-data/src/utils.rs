@@ -1,5 +1,7 @@
 /// Creates an enum with various traits.
-/// The first key-value pair is the default used if any conversion would fail.
+///
+/// The traits implemented are TryFrom, From and PartialEq
+///
 #[macro_export]
 macro_rules! extended_enum {
     ($(#[$outer:meta])* $name:ident, $ty:ty, $($(#[$inner:meta])* $var:ident => $val:expr),+ $(,)*) => (

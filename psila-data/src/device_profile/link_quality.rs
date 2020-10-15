@@ -1,3 +1,5 @@
+//! Link quality message
+
 use core::convert::TryFrom;
 
 use crate::common::address::{ExtendedAddress, ExtendedPanIdentifier, NetworkAddress};
@@ -193,10 +195,15 @@ const MGMTLQIRSP_HEADER_SIZE: usize = 4;
 /// `Neighbor` entries.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ManagementLinkQualityIndicatorResponse {
+    /// Response status
     pub status: Status,
+    /// Total numer of neighbors
     pub neighbors_total: u8,
+    /// Start index
     pub index: u8,
+    /// Number of neighbors in the response
     num_neighbors: u8,
+    /// Neighbors
     neighbors: [Neighbor; NEIGHBOR_MAX_COUNT],
 }
 

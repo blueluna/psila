@@ -1,3 +1,5 @@
+//! Route request message
+
 use core::convert::TryFrom;
 
 use crate::common::address::{
@@ -7,16 +9,24 @@ use crate::error::Error;
 use crate::pack::{Pack, PackFixed};
 
 extended_enum!(
+    /// Many-to-one support
     ManyToOne, u8,
+    /// No a many-to-one support
     No => 0x00,
+    /// Route request table suppoer
     RouteRequestTableSupport => 0x01,
+    /// No route request table suppoer
     NoRouteRequestTableSupport => 0x02,
 );
 
+/// Route request options
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Options {
+    /// Many-to-one support
     pub many_to_one: ManyToOne,
+    /// Includes extended destination address
     pub destination_ieee_address: bool,
+    /// Multicast request
     pub multicast: bool,
 }
 
@@ -48,18 +58,27 @@ impl PackFixed<Options, Error> for Options {
     }
 }
 
+/// Address type
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum AddressType {
+    /// Single cast address
     Singlecast(NetworkAddress),
+    /// Multicast address
     Multicast(GroupIdentifier),
 }
 
+/// Route request message
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct RouteRequest {
+    /// Options
     pub options: Options,
+    /// Route request identifier
     pub identifier: u8,
+    /// Destination address
     pub destination_address: AddressType,
+    /// Path cost
     pub path_cost: u8,
+    /// Optional extended destionation address
     pub destination_ieee_address: Option<ExtendedAddress>,
 }
 

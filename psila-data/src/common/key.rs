@@ -8,12 +8,19 @@ use crate::Error;
 extended_enum!(
 // 4.4.3 Transport-Key Services
 // Table 4.14 KeyType Parameter of the Transport-Key Primitive
+/// Key type
 KeyType, u8,
+/// Trust center master key
 TrustCenterMasterKey => 0x00,
+/// Standard network key
 StandardNetworkKey => 0x01,
+/// Application master key
 ApplicationMasterKey => 0x02,
+/// Application link key
 ApplicationLinkKey => 0x03,
+/// Unique trust center link key
 UniqueTrustCenterLinkKey => 0x04,
+/// High security network key
 HighSecurityNetworkKey => 0x05,
 );
 

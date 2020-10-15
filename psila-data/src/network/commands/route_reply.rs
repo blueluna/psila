@@ -1,11 +1,17 @@
+//! Route reply message
+
 use crate::common::address::{ExtendedAddress, NetworkAddress, EXTENDED_ADDRESS_SIZE};
 use crate::error::Error;
 use crate::pack::{Pack, PackFixed};
 
+/// Route reply options
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Options {
+    /// Includes originator extended (IEEE) address
     pub orginator_ieee_address: bool,
+    /// Includes responder extended (IEEE) address
     pub responder_ieee_address: bool,
+    /// Includes multicast information
     pub multicast: bool,
 }
 
@@ -36,14 +42,22 @@ impl PackFixed<Options, Error> for Options {
     }
 }
 
+/// Route reply message
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct RouteReply {
+    /// Options
     pub options: Options,
+    /// Route request identifier
     pub identifier: u8,
+    /// Originator network address
     pub orginator_address: NetworkAddress,
+    ///  Responder network address
     pub responder_address: NetworkAddress,
+    /// Path cost
     pub path_cost: u8,
+    /// Optional originator extended address
     pub orginator_ieee_address: Option<ExtendedAddress>,
+    /// Optional responder extended address
     pub responder_ieee_address: Option<ExtendedAddress>,
 }
 

@@ -12,19 +12,26 @@ const CLUSTER_COUNT_MAX: usize = 16;
 /// Simple descriptor for a node endpoint
 #[derive(Clone, Debug, PartialEq)]
 pub struct SimpleDescriptor {
+    /// Endpoint identifier
     pub endpoint: u8,
+    /// Profile identifier
     pub profile: u16,
+    /// Device identifier
     pub device: u16,
+    /// Device version
     pub device_version: u8,
     /// Server clusters implemented by the device
     input_cluster_count: u8,
+    /// Input clusters
     input_clusters: [u16; CLUSTER_COUNT_MAX],
     /// Client clusters implemented by the device
     output_cluster_count: u8,
+    /// Output clusters
     output_clusters: [u16; CLUSTER_COUNT_MAX],
 }
 
 impl SimpleDescriptor {
+    /// Create a simple descriptor
     pub fn new(
         endpoint: u8,
         profile: u16,
@@ -59,21 +66,25 @@ impl SimpleDescriptor {
         }
     }
 
+    /// Number of input clusters
     #[inline]
     pub fn input_cluster_count(&self) -> usize {
         self.input_cluster_count as usize
     }
 
+    /// Input clusters
     pub fn input_clusters(&self) -> &[u16] {
         let count = self.input_cluster_count();
         &self.input_clusters[..count]
     }
 
+    /// Number of output clusters
     #[inline]
     pub fn output_cluster_count(&self) -> usize {
         self.output_cluster_count as usize
     }
 
+    /// Output clusters
     pub fn output_clusters(&self) -> &[u16] {
         let count = self.output_cluster_count();
         &self.output_clusters[..count]
@@ -167,7 +178,9 @@ impl Default for SimpleDescriptor {
 /// Requests the simple descriptor for a remote device endpoint
 #[derive(Clone, Debug, PartialEq)]
 pub struct SimpleDescriptorRequest {
+    /// Device address
     pub address: NetworkAddress,
+    /// Endpoint identifier
     pub endpoint: u8,
 }
 
@@ -196,12 +209,16 @@ impl Pack<SimpleDescriptorRequest, Error> for SimpleDescriptorRequest {
 /// Response to a simple descriptor request
 #[derive(Clone, Debug, PartialEq)]
 pub struct SimpleDescriptorResponse {
+    /// Response status
     pub status: Status,
+    /// Device address
     pub address: NetworkAddress,
+    /// Simple descriptor for the requested endpoint
     pub descriptor: SimpleDescriptor,
 }
 
 impl SimpleDescriptorResponse {
+    /// Create a success response
     pub fn success_response(address: NetworkAddress, descriptor: SimpleDescriptor) -> Self {
         Self {
             status: Status::Success,
@@ -209,6 +226,7 @@ impl SimpleDescriptorResponse {
             descriptor,
         }
     }
+    /// Create a failure response
     pub fn failure_response(status: Status, address: NetworkAddress) -> Self {
         Self {
             status,

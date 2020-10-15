@@ -1,3 +1,5 @@
+//! Node descriptor message
+
 use byteorder::{ByteOrder, LittleEndian};
 use core::convert::TryFrom;
 
@@ -7,28 +9,43 @@ use crate::pack::{Pack, PackFixed};
 use crate::Error;
 
 bitflags! {
+    /// Flags that denotes which bands used
     pub struct BandFlags: u8 {
+        /// 868 MHz band
         const BAND_868MHZ = 0b0000_0001;
+        /// 902 to 928 MHz bands
         const BAND_902TO928MHZ = 0b0000_0100;
+        /// 2.4 GHz band
         const BAND_2400TO2483MHZ = 0b0000_1000;
     }
 }
 
 bitflags! {
+    /// Server functionality flags
     pub struct ServerFlags: u8 {
+        /// Primary trust center
         const PRIMARY_TRUST_CENTER      = 0b0000_0001;
+        /// Backup trust center
         const BACKUP_TRUST_CENTER       = 0b0000_0010;
+        /// Primary binding table
         const PRIMARY_BINDING_TABLE     = 0b0000_0100;
+        /// Backup binding table
         const BACKUP_BINDING_TABLE      = 0b0000_1000;
+        /// Primary discovery cache
         const PRIMARY_DISCOVERY_CACHE   = 0b0001_0000;
+        /// Backup discovery cache
         const BACKUP_DISCOVERY_CACHE    = 0b0010_0000;
+        /// Network manager
         const NETWORK_MANAGER           = 0b0100_0000;
     }
 }
 
+/// Server mask
 #[derive(Clone, Debug, PartialEq)]
 pub struct ServerMask {
+    /// Server flags
     pub flags: ServerFlags,
+    /// Stack complience version
     pub stack_complience_version: u8,
 }
 
@@ -62,8 +79,11 @@ impl Default for ServerMask {
 }
 
 bitflags! {
+    /// Descriptor capability
     pub struct DescriptorCapability: u8 {
+        /// Extended active endpoint list available
         const EXTENDED_ACTIVE_END_POINT_LIST_AVAILABLE  = 0b0000_0001;
+        /// Extended simple descriptor list available
         const EXTENDED_SIMPLE_DESCRIPTOR_LIST_AVAILABLE = 0b0000_0010;
     }
 }
@@ -179,6 +199,7 @@ impl Default for NodeDescriptor {
 /// Requests the node descriptor for a remote device
 #[derive(Clone, Debug, PartialEq)]
 pub struct NodeDescriptorRequest {
+    /// Device address
     pub address: NetworkAddress,
 }
 
@@ -205,12 +226,16 @@ impl Pack<NodeDescriptorRequest, Error> for NodeDescriptorRequest {
 /// Respond to a node descriptor request
 #[derive(Clone, Debug, PartialEq)]
 pub struct NodeDescriptorResponse {
+    /// Response status
     pub status: Status,
+    /// Device address
     pub address: NetworkAddress,
+    /// Node descriptor
     pub descriptor: NodeDescriptor,
 }
 
 impl NodeDescriptorResponse {
+    /// Create a failure response
     pub fn failure_response(status: Status, address: NetworkAddress) -> Self {
         assert!(status != Status::Success);
         NodeDescriptorResponse {

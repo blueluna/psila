@@ -8,10 +8,14 @@ const INCOMING_COST_MASK: u8 = 0b0000_0111;
 const OUTGOING_COST_MASK: u8 = 0b0111_0000;
 const LINK_STATUS_ENTRY_SIZE: usize = 3;
 
+/// Link status entry
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct LinkStatusEntry {
+    /// Device address
     pub address: NetworkAddress,
+    /// Incoming link cost
     pub incoming_cost: u8,
+    /// Outgoing link cost
     pub outgoing_cost: u8,
 }
 
@@ -56,27 +60,33 @@ const NUMBER_OF_ENTRIES_MASK: u8 = 0b0001_1111;
 const FIRST_FRAME: u8 = 0b0010_0000;
 const LAST_FRAME: u8 = 0b0100_0000;
 
+/// Link status message
 #[derive(Clone, Debug, PartialEq)]
 pub struct LinkStatus {
+    /// This is the first frame
     pub first_frame: bool,
+    /// This is the last frame
     pub last_frame: bool,
+    /// Number of entries
     num_entries: u8,
+    /// Link status entries
     entries: [LinkStatusEntry; 32],
 }
 
 impl LinkStatus {
+    /// No link status entries
     pub fn is_empty(&self) -> bool {
         self.num_entries == 0
     }
-
+    /// Number of link status entries
     pub fn len(&self) -> usize {
         self.num_entries as usize
     }
-
+    /// Link status entries
     pub fn entries(&self) -> &[LinkStatusEntry] {
         &self.entries[..self.num_entries as usize]
     }
-
+    /// Create link status message from entries
     pub fn new(devices: &[LinkStatusEntry]) -> Self {
         let mut entries = [LinkStatusEntry::default(); 32];
         let num_entries = devices.len();

@@ -12,27 +12,34 @@ use byteorder::{ByteOrder, LittleEndian};
 /// Requests simmple descriptor for devices matching the requested requirements
 #[derive(Clone, Debug, PartialEq)]
 pub struct MatchDescriptorRequest {
+    /// Device address
     pub address: NetworkAddress,
+    /// Profile
     pub profile: u16,
+    /// Number of input clusters
     num_input_clusters: u8,
+    /// Input clusters
     input_clusters: [u16; 32],
+    /// Number of output clusters
     num_output_clusters: u8,
+    /// Output clusters
     output_clusters: [u16; 32],
 }
 
 impl MatchDescriptorRequest {
+    /// Number of input clusters
     pub fn input_clusters_len(&self) -> usize {
         self.num_input_clusters as usize
     }
-
+    /// Input clusters
     pub fn input_clusters_entries(&self) -> &[u16] {
         &self.input_clusters[..self.num_input_clusters as usize]
     }
-
+    /// Number of output clusters
     pub fn output_clusters_len(&self) -> usize {
         self.num_output_clusters as usize
     }
-
+    /// Output clusters
     pub fn output_clusters_entries(&self) -> &[u16] {
         &self.output_clusters[..self.num_output_clusters as usize]
     }
@@ -110,21 +117,26 @@ impl Pack<MatchDescriptorRequest, Error> for MatchDescriptorRequest {
 /// Requests simple descriptor for devices matching the requested requirements
 #[derive(Clone, Debug, PartialEq)]
 pub struct MatchDescriptorResponse {
+    /// Response status
     pub status: Status,
+    /// Device address
     pub address: NetworkAddress,
+    /// Number of endpoint entries
     num_entries: u8,
+    /// Endpoints
     entries: [u8; 32],
 }
 
 impl MatchDescriptorResponse {
+    /// No endpoints
     pub fn is_empty(&self) -> bool {
         self.num_entries == 0
     }
-
+    /// Number of endpoints
     pub fn len(&self) -> usize {
         self.num_entries as usize
     }
-
+    /// Endpoints
     pub fn entries(&self) -> &[u8] {
         &self.entries[..self.num_entries as usize]
     }
