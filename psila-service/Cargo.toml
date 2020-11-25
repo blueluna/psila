@@ -10,10 +10,7 @@ ieee802154 = "0.3"
 psila-crypto = { path = "../psila-crypto" }
 psila-data = { path = "../psila-data" }
 heapless = { version = "0.5" }
-
-[dependencies.defmt]
-git = "https://github.com/knurling-rs/defmt"
-branch = "main"
+defmt = "0.1"
 
 [dev-dependencies]
 psila-crypto-openssl = { path = "../psila-crypto-openssl" }
