@@ -363,7 +363,7 @@ where
                     let frame_size = mac_header_len + nwk_frame_size;
                     match self.queue_packet_from_buffer(frame_size) {
                         Ok(()) => {
-                            defmt::info!("< Queued route response {:usize}", frame_size);
+                            defmt::info!("< Queued route response {=usize}", frame_size);
                         }
                         Err(err) => {
                             defmt::error!("< Failed to queue route response");
@@ -488,7 +488,7 @@ where
                 self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
             }
         } else {
-            defmt::info!("> APS command, {:u8}", u8::from(command_identifier));
+            defmt::info!("> APS command, {=u8}", u8::from(command_identifier));
         }
         Ok(())
     }
@@ -519,7 +519,7 @@ where
             let frame_size = mac_header_len + nwk_frame_size;
             match self.queue_packet_from_buffer(frame_size) {
                 Ok(()) => {
-                    defmt::info!("< Queued acknowledge {:usize}", frame_size);
+                    defmt::info!("< Queued acknowledge {=usize}", frame_size);
                 }
                 Err(err) => {
                     defmt::error!("< Failed to queue acknowledge");
@@ -571,7 +571,7 @@ where
                 }
                 Ok(_) => {}
                 Err(_) => {
-                    defmt::info!("> DP Invalid cluster {:u16}", cluster);
+                    defmt::info!("> DP Invalid cluster {=u16}", cluster);
                 }
             }
         } else {
@@ -707,7 +707,7 @@ where
                 }
                 Ok(_) => {}
                 Err(_) => {
-                    defmt::warn!("> DP Invalid cluster {:u16}", cluster);
+                    defmt::warn!("> DP Invalid cluster {=u16}", cluster);
                 }
             }
         }
@@ -741,7 +741,7 @@ where
                             )?
                         } else {
                             defmt::error!(
-                            "Unknown general command. Profile {:u16} Cluster {:u16} Command {:u8}",
+                            "Unknown general command. Profile {=u16} Cluster {=u16} Command {=u8}",
                             profile,
                             cluster,
                             header.command
@@ -797,7 +797,7 @@ where
                 }
             }
             Err(_) => {
-                defmt::error!("Failed to parse ZCL {:u16} {:u16}", profile, cluster);
+                defmt::error!("Failed to parse ZCL {=u16} {=u16}", profile, cluster);
             }
         }
         Ok(())
@@ -868,7 +868,7 @@ where
                         response_data[out_offset + 2] = status.into();
                         out_offset += 3;
                     } else {
-                        defmt::warn!("Unsupported data type {:u8}", u8::from(data_type));
+                        defmt::warn!("Unsupported data type {=u8}", u8::from(data_type));
                         break;
                     }
                 }
@@ -879,7 +879,7 @@ where
             }
             _ => {
                 defmt::warn!(
-                    "Ignored general command {:u8}",
+                    "Ignored general command {=u8}",
                     u8::from(command_identifier)
                 );
                 (GeneralCommandIdentifier::DefaultResponse, 0)
@@ -924,7 +924,7 @@ where
         let frame_size = mac_header_len + nwk_frame_size;
         match self.queue_packet_from_buffer(frame_size) {
             Ok(()) => {
-                defmt::info!("< Queued network link status {:usize}", frame_size);
+                defmt::info!("< Queued network link status {=usize}", frame_size);
             }
             Err(err) => {
                 defmt::error!("< Failed to queue network link status");

@@ -277,7 +277,7 @@ impl MacService {
             if beacon.superframe_spec.pan_coordinator && beacon.superframe_spec.association_permit {
                 if let State::Scan = self.state {
                     defmt::info!(
-                        "mac: Beacon {:u16}:{:u16} permit join",
+                        "mac: Beacon {=u16}:{=u16} permit join",
                         u16::from(src_id),
                         u16::from(src_short)
                     );
@@ -287,7 +287,7 @@ impl MacService {
                 }
             } else {
                 defmt::info!(
-                    "mac: Beacon {:u16}:{:u16}",
+                    "mac: Beacon {=u16}:{=u16}",
                     u16::from(src_id),
                     u16::from(src_short)
                 );
@@ -310,7 +310,7 @@ impl MacService {
         };
         if pan_id != self.pan_identifier {
             defmt::warn!(
-                "Invalid PAN indetifier {:u16} != {:u16}",
+                "Invalid PAN indetifier {=u16} != {=u16}",
                 u16::from(pan_id),
                 u16::from(self.pan_identifier)
             );
@@ -319,7 +319,7 @@ impl MacService {
         match (self.state, status) {
             (State::QueryAssociationStatus, AssociationStatus::Successful) => {
                 defmt::info!(
-                    "MAC: Association Response, Success, {:u16}:{:u16}",
+                    "MAC: Association Response, Success, {=u16}:{=u16}",
                     u16::from(pan_id),
                     address.0
                 );
@@ -329,7 +329,7 @@ impl MacService {
             }
             (State::QueryAssociationStatus, _) => {
                 defmt::info!(
-                    "MAC: Association Response {:u16} {:u8}",
+                    "MAC: Association Response {=u16} {=u8}",
                     u16::from(pan_id),
                     u8::from(status)
                 );
@@ -339,7 +339,7 @@ impl MacService {
             }
             (_, AssociationStatus::Successful) => {
                 defmt::info!(
-                    "MAC: Association Response, Success, {:u16}:{:u16}, Bad state",
+                    "MAC: Association Response, Success, {=u16}:{=u16}, Bad state",
                     u16::from(pan_id),
                     address.0
                 );
@@ -368,14 +368,14 @@ impl MacService {
         buffer: &mut [u8],
     ) -> Result<(usize, u32), Error> {
         if frame.header.seq == self.sequence.get() {
-            defmt::info!("MAC: Acknowledge {:u8}", frame.header.seq);
+            defmt::info!("MAC: Acknowledge {=u8}", frame.header.seq);
             if let State::Associate = self.state {
                 self.state = State::QueryAssociationStatus;
                 defmt::info!("MAC: Send data request");
                 return self.build_data_request(self.coordinator.short, buffer);
             }
         } else {
-            defmt::warn!("MAC: Acknowledge, unknown sequence {:u8}", frame.header.seq);
+            defmt::warn!("MAC: Acknowledge, unknown sequence {=u8}", frame.header.seq);
         }
         Ok((0, 0))
     }

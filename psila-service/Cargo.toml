@@ -10,7 +10,7 @@ ieee802154 = "0.3"
 psila-crypto = { path = "../psila-crypto" }
 psila-data = { path = "../psila-data" }
 heapless = { version = "0.5" }
-defmt = "0.1"
+defmt = "0.2"
 
 [dev-dependencies]
 psila-crypto-openssl = { path = "../psila-crypto-openssl" }
