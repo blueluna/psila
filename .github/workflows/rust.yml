@@ -7,7 +7,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Build
-      run: cargo build --verbose
+    - name: Toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+        target: thumbv7em-none-eabihf
+    - name: Host build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+    - name: Target build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --features=core --workspace --exclude psila-host --exclude psila-crypto-openssl --target thumbv7em-none-eabihf
     - name: Run tests
-      run: cargo test --verbose
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
