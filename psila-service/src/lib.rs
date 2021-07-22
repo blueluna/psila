@@ -7,7 +7,7 @@ use core::convert::TryFrom;
 
 use bbqueue::{ArrayLength, Producer};
 
-use heapless::{consts::U16, Vec};
+use heapless::Vec;
 
 use psila_data::{
     self,
@@ -15,7 +15,7 @@ use psila_data::{
         AttributeDataType, AttributeIdentifier, ClusterLibraryStatus, GeneralCommandIdentifier,
     },
     pack::Pack,
-    CapabilityInformation, ExtendedAddress, Key, NetworkAddress,
+    CapabilityInformation, ExtendedAddress, Key, NetworkAddress, PanIdentifier,
 };
 
 use psila_crypto::CryptoBackend;
@@ -95,7 +95,7 @@ pub struct PsilaService<'a, N: ArrayLength<u8>, CB, CLH> {
     scratch: core::cell::RefCell<[u8; PACKET_BUFFER_MAX]>,
     timestamp: u32,
     next_link_status: u32,
-    known_devices: Vec<NetworkDevice, U16>,
+    known_devices: Vec<NetworkDevice, 16>,
     cluser_library_handler: CLH,
 }
 
@@ -148,6 +148,35 @@ where
             (_, _) => {}
         }
         self.state = state;
+    }
+
+    pub fn set_network(
+        &mut self,
+        pan_identifier: PanIdentifier,
+        network_address: NetworkAddress,
+        coordinator_identity: Identity,
+    ) -> Result<(), Error> {
+        if self.get_state() == NetworkState::Orphan {
+            self.mac
+                .set_network(pan_identifier, network_address, coordinator_identity)?;
+            self.set_state(NetworkState::Associated);
+        }
+        Ok(())
+    }
+
+    pub fn set_network_key(&mut self, key: Key, key_sequence: u8) -> Result<(), Error> {
+        use psila_data::application_service::commands::transport_key::NetworkKey;
+        if self.get_state() == NetworkState::Associated {
+            let key = NetworkKey {
+                key,
+                sequence: key_sequence,
+                destination: self.identity.extended,
+                source: ExtendedAddress::broadcast(),
+            };
+            self.security_manager.set_network_key(key);
+            self.set_state(NetworkState::Secure);
+        }
+        Ok(())
     }
 
     /// Push a packet onto the queue
@@ -326,7 +355,10 @@ where
                 defmt::info!("> Network Route request");
                 let (req, _) = commands::RouteRequest::unpack(&payload[1..])?;
                 let nwk_match = match req.destination_address {
-                    commands::AddressType::Singlecast(address) => address == self.identity.short,
+                    commands::AddressType::Singlecast(address) => {
+                        // defmt::info!("> Short address {:}", address);
+                        address == self.identity.short
+                    }
                     commands::AddressType::Multicast(_) => false,
                 };
                 let extended_match = match req.destination_ieee_address {
@@ -393,7 +425,27 @@ where
                 defmt::info!("> Network Rejoin response");
             }
             commands::CommandIdentifier::LinkStatus => {
-                // defmt::info!("> Network Link Status");
+                let mut cost = 0xff;
+                match commands::LinkStatus::unpack(&payload[1..]) {
+                    Ok((req, _)) => {
+                        for entry in req.entries() {
+                            if entry.address == self.identity.short {
+                                cost = entry.incoming_cost;
+                                break;
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        defmt::info!("> Invalid Link Status");
+                    }
+                }
+                if cost < 0xff {
+                    for device in &mut self.known_devices {
+                        if nwk_header.source_address == device.network_address {
+                            device.outgoing_cost = cost;
+                        }
+                    }
+                }
             }
             commands::CommandIdentifier::NetworkReport => {
                 defmt::info!("> Network Network report");
@@ -475,17 +527,7 @@ where
                 defmt::info!("> APS Set network key");
                 self.set_state(NetworkState::Secure);
                 self.security_manager.set_network_key(key);
-                let mac_header = self
-                    .mac
-                    .build_data_header(NetworkAddress::broadcast(), false);
-                let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
-                let nwk_frame_size = self.application_service.build_device_announce(
-                    &self.identity,
-                    self.capability,
-                    &mut self.buffer.borrow_mut()[mac_header_len..],
-                    &mut self.security_manager,
-                )?;
-                self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
+                self.queue_device_announce()?;
             }
         } else {
             defmt::info!("> APS command, {=u8}", u8::from(command_identifier));
@@ -886,6 +928,20 @@ where
             }
         };
         Ok((command, used))
+    }
+
+    fn queue_device_announce(&mut self) -> Result<(), Error> {
+        let mac_header = self
+            .mac
+            .build_data_header(NetworkAddress::broadcast(), false);
+        let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+        let nwk_frame_size = self.application_service.build_device_announce(
+            &self.identity,
+            self.capability,
+            &mut self.buffer.borrow_mut()[mac_header_len..],
+            &mut self.security_manager,
+        )?;
+        self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)
     }
 
     fn queue_network_link_status(&mut self) -> Result<(), Error> {

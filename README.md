@@ -27,15 +27,13 @@ Defines traits for cryptographical backend for use with Psila.
 
 ### psila-crypto-rust-crypto
 
-A implementation of the psila-cryto using Rust Crypto crates.
-
-(RustCrypto)[https://github.com/RustCrypto].
+A implementation of the psila-cryto using [Rust Crypto](https://github.com/RustCrypto) crates.
 
 ### psila-service
 
 A implementation of a service that handles and produce packages.
 
-### psila-Host
+### psila-host
 
 A tool which listens on specially encoded packets over serial port and decodes
 these packets.

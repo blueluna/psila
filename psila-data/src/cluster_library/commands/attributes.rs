@@ -12,7 +12,7 @@ use crate::Error;
 pub type AttributeIdentifierVec = std::vec::Vec<AttributeIdentifier>;
 
 #[cfg(feature = "core")]
-pub type AttributeIdentifierVec = heapless::Vec<AttributeIdentifier, heapless::consts::U32>;
+pub type AttributeIdentifierVec = heapless::Vec<AttributeIdentifier, 32>;
 
 /// Read attribute request data
 #[derive(Clone, Debug, PartialEq)]
@@ -136,7 +136,7 @@ impl Pack<AttributeStatus, Error> for AttributeStatus {
 pub type AttributeStatusVec = std::vec::Vec<AttributeStatus>;
 
 #[cfg(feature = "core")]
-pub type AttributeStatusVec = heapless::Vec<AttributeStatus, heapless::consts::U32>;
+pub type AttributeStatusVec = heapless::Vec<AttributeStatus, 32>;
 
 /// Response to a attribute read request
 #[derive(Clone, Debug, PartialEq)]
@@ -213,7 +213,7 @@ impl Pack<WriteAttributeRecord, Error> for WriteAttributeRecord {
 pub type WriteAttributeRecordVec = std::vec::Vec<WriteAttributeRecord>;
 
 #[cfg(feature = "core")]
-pub type WriteAttributeRecordVec = heapless::Vec<WriteAttributeRecord, heapless::consts::U16>;
+pub type WriteAttributeRecordVec = heapless::Vec<WriteAttributeRecord, 16>;
 
 /// A vector of attributes to be written
 #[derive(Clone, Debug, PartialEq)]
@@ -279,7 +279,7 @@ impl Pack<WriteAttributeStatus, Error> for WriteAttributeStatus {
 pub type WriteAttributeStatusVec = std::vec::Vec<WriteAttributeStatus>;
 
 #[cfg(feature = "core")]
-pub type WriteAttributeStatusVec = heapless::Vec<WriteAttributeStatus, heapless::consts::U16>;
+pub type WriteAttributeStatusVec = heapless::Vec<WriteAttributeStatus, 16>;
 
 /// Response to a write attributes request
 #[derive(Clone, Debug, PartialEq)]
@@ -385,7 +385,7 @@ pub type DiscoverAttributeVec = std::vec::Vec<(AttributeIdentifier, AttributeDat
 
 #[cfg(feature = "core")]
 pub type DiscoverAttributeVec =
-    heapless::Vec<(AttributeIdentifier, AttributeDataType), heapless::consts::U16>;
+    heapless::Vec<(AttributeIdentifier, AttributeDataType), 16>;
 
 /// Discover attributes response
 #[derive(Clone, Debug, PartialEq)]

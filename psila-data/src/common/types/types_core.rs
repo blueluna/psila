@@ -1,9 +1,9 @@
-use heapless::{self, consts::U256, String, Vec};
+use heapless::{self, String, Vec};
 
 use crate::pack::Pack;
 use crate::Error;
 
-pub type OctetString = Vec<u8, U256>;
+pub type OctetString = Vec<u8, 256>;
 
 impl Pack<OctetString, Error> for OctetString {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
@@ -31,7 +31,7 @@ impl Pack<OctetString, Error> for OctetString {
     }
 }
 
-pub type CharacterString = String<U256>;
+pub type CharacterString = String<256>;
 
 impl Pack<CharacterString, Error> for CharacterString {
     fn pack(&self, data: &mut [u8]) -> Result<usize, Error> {
@@ -51,12 +51,8 @@ impl Pack<CharacterString, Error> for CharacterString {
         if data.len() <= length {
             return Err(Error::WrongNumberOfBytes);
         }
-        let mut value = OctetString::new();
-        if value.extend_from_slice(&data[1..=length]).is_err() {
-            return Err(Error::InvalidValue);
-        }
-        match CharacterString::from_utf8(value) {
-            Ok(value) => Ok((value, length + 1)),
+        match core::str::from_utf8(&data[1..=length]) {
+            Ok(value) => Ok((CharacterString::from(value), length + 1)),
             Err(_) => Err(Error::InvalidValue),
         }
     }

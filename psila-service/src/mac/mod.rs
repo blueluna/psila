@@ -59,6 +59,19 @@ impl MacService {
         }
     }
 
+    pub fn set_network(
+        &mut self,
+        pan_identifier: PanIdentifier,
+        short_address: psila_data::ShortAddress,
+        coordinator: Identity,
+    ) -> Result<(), Error> {
+        self.pan_identifier = pan_identifier;
+        self.identity.short = short_address;
+        self.coordinator = coordinator;
+        self.state = State::Associated;
+        Ok(())
+    }
+
     pub fn state(&self) -> State {
         self.state
     }

@@ -15,7 +15,7 @@ pub use header::{KeyIdentifier, SecurityControl, SecurityHeader, SecurityLevel};
 pub use psila_crypto::BLOCK_SIZE;
 pub use psila_crypto::LENGTH_FIELD_LENGTH;
 
-/// Default link key
+/// Default link key, "ZigBeeAlliance09"
 pub const DEFAULT_LINK_KEY: [u8; KEY_SIZE] = [
     0x5a, 0x69, 0x67, 0x42, 0x65, 0x65, 0x41, 0x6c, 0x6c, 0x69, 0x61, 0x6e, 0x63, 0x65, 0x30, 0x39,
 ];
