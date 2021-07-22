@@ -1,12 +1,12 @@
 use std::convert::From;
 
-use psila_crypto_openssl::OpenSslBackend;
+use psila_crypto_rust_crypto::RustCryptoBackend;
 use psila_data::application_service::commands::transport_key::NetworkKey;
 use psila_data::{common::key::Key, pack::Pack, security};
 
 pub struct SecurityService {
     pub keys: Vec<(Key, String)>,
-    crypto_provider: security::CryptoProvider<OpenSslBackend>,
+    crypto_provider: security::CryptoProvider<RustCryptoBackend>,
 }
 
 impl SecurityService {
@@ -16,7 +16,7 @@ impl SecurityService {
             Key::from(security::DEFAULT_LINK_KEY),
             "Default Link Key".to_string(),
         ));
-        let backend = OpenSslBackend::default();
+        let backend = RustCryptoBackend::default();
         let crypto_provider = security::CryptoProvider::new(backend);
         SecurityService {
             keys,

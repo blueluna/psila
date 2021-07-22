@@ -11,7 +11,7 @@ slice-deque = "0.1.16"
 ieee802154 = "0.3"
 esercom = { git = "https://github.com/blueluna/esercom.git", branch = "master" }
 psila-data = { path = "../psila-data" }
-psila-crypto-openssl = { path = "../psila-crypto-openssl" }
+psila-crypto-rust-crypto = { path = "../psila-crypto-rust-crypto" }
 serde = "1.0"
 serde_derive = "1.0"
 toml = "0.5"

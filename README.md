@@ -17,23 +17,25 @@ Handling the on/off profile in home automation.
 
 The implementation has been divided into a few separate crates.
 
-### Psila-data
+### psila-data
 
 Implements packing and unpacking of packets.
 
-### Psila-crypto
+### psila-crypto
 
 Defines traits for cryptographical backend for use with Psila.
 
-### Psila-crypto-openssl
+### psila-crypto-rust-crypto
 
-A implementation of the psila-cryto using openssl.
+A implementation of the psila-cryto using Rust Crypto crates.
 
-### Psila-service
+(RustCrypto)[https://github.com/RustCrypto].
+
+### psila-service
 
 A implementation of a service that handles and produce packages.
 
-### Psila-Host
+### psila-Host
 
 A tool which listens on specially encoded packets over serial port and decodes
 these packets.

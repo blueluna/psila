@@ -21,7 +21,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --features=core --workspace --exclude psila-host --exclude psila-crypto-openssl --target thumbv7em-none-eabihf
+        args: --features=core --workspace --exclude psila-host --target thumbv7em-none-eabihf
     - name: Run tests
       uses: actions-rs/cargo@v1
       with:

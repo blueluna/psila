@@ -1,4 +1,7 @@
 #![no_std]
+#![warn(missing_docs)]
+
+//! Traits for crypto backend used in Psila
 
 /// Length of the message length field (L) in octets. Always 2 for Z
 pub const LENGTH_FIELD_LENGTH: usize = 2;
@@ -40,6 +43,8 @@ pub enum Error {
     IntegrityCheckFailed,
     /// Operation not available
     OperationNotAvailable,
+    /// Generic backend error
+    BackendError,
     /// Other error, probably a error code from the backend
     Other(u32),
 }

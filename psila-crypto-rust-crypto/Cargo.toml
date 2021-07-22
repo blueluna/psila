@@ -1,0 +1,12 @@
+[package]
+name = "psila-crypto-rust-crypto"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+psila-crypto = { path = "../psila-crypto" }
+aes = { version = "0.7" }
+ccm = { version = "0.4", default-features = false }
+
+[dev-dependencies]
+psila-data = { path = "../psila-data" }
