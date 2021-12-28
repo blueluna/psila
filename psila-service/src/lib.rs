@@ -5,7 +5,7 @@
 use core::convert::From;
 use core::convert::TryFrom;
 
-use bbqueue::{ArrayLength, Producer};
+use bbqueue::{Producer};
 
 use heapless::Vec;
 
@@ -83,7 +83,7 @@ impl Default for NetworkDevice {
     }
 }
 
-pub struct PsilaService<'a, N: ArrayLength<u8>, CB, CLH> {
+pub struct PsilaService<'a, CB, CLH, const N: usize> {
     mac: MacService,
     application_service: ApplicationServiceContext,
     security_manager: security::SecurityManager<CB>,
@@ -99,7 +99,7 @@ pub struct PsilaService<'a, N: ArrayLength<u8>, CB, CLH> {
     cluser_library_handler: CLH,
 }
 
-impl<'a, N: ArrayLength<u8>, CB, CLH> PsilaService<'a, N, CB, CLH>
+impl<'a, CB, CLH, const N: usize> PsilaService<'a, CB, CLH, N>
 where
     CB: CryptoBackend,
     CLH: ClusterLibraryHandler,
