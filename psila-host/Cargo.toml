@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 clap = "2.32"
 byteorder = { version = "1", default-features = false }
-slice-deque = "0.1.16"
+slice-deque = "0.3"
 ieee802154 = "0.3"
 esercom = { git = "https://github.com/blueluna/esercom.git", branch = "master" }
 psila-data = { path = "../psila-data" }
