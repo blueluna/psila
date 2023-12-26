@@ -5,7 +5,7 @@
 use core::convert::From;
 use core::convert::TryFrom;
 
-use bbqueue::{Producer};
+use bbqueue::Producer;
 
 use heapless::Vec;
 
@@ -40,6 +40,7 @@ pub const PACKET_BUFFER_MAX: usize = 128;
 /// Link status reporting interval in microseconds
 pub const LINK_STATUS_INTERVAL: u32 = 60_000_000;
 
+use crate::mac::{pack_header, unpack_frame};
 use psila_data::pack::PackFixed;
 
 /// Association state for this device in the network
@@ -198,7 +199,7 @@ where
     /// ### Return
     /// true if the message was addressed to this device
     pub fn handle_acknowledge(&mut self, data: &[u8]) -> Result<bool, Error> {
-        match mac::Frame::decode(data, false) {
+        match unpack_frame(data) {
             Ok(frame) => {
                 if !self.mac.destination_me_or_broadcast(&frame) {
                     return Ok(false);
@@ -210,7 +211,7 @@ where
                         frame.header.seq,
                         false,
                         &mut self.buffer.borrow_mut()[..],
-                    );
+                    )?;
                     self.queue_packet_from_buffer(packet_length)?;
                 }
                 Ok(true)
@@ -225,7 +226,7 @@ where
     /// value of zero (0) shall be ignored
     pub fn receive(&mut self, timestamp: u32, data: &[u8]) -> Result<(), Error> {
         self.timestamp = timestamp;
-        match mac::Frame::decode(data, false) {
+        match unpack_frame(data) {
             Ok(frame) => {
                 if !self.mac.destination_me_or_broadcast(&frame) {
                     return Ok(());
@@ -289,7 +290,6 @@ where
                 }
             }
             mac::FrameType::Beacon => {
-                defmt::info!("Handle network beacon");
                 let _ = BeaconInformation::unpack(frame.payload)?;
             }
             _ => (),
@@ -334,6 +334,7 @@ where
             }
             FrameType::InterPan => {
                 // Not supported yet
+                #[cfg(feature = "defmt")]
                 defmt::info!("Handle inter-PAN");
             }
         }
@@ -352,14 +353,23 @@ where
 
         match command_identifier {
             commands::CommandIdentifier::RouteRequest => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> Network Route request");
                 let (req, _) = commands::RouteRequest::unpack(&payload[1..])?;
                 let nwk_match = match req.destination_address {
                     commands::AddressType::Singlecast(address) => {
-                        // defmt::info!("> Short address {:}", address);
+                        #[cfg(feature = "defmt")]
+                        defmt::info!(
+                            "> Network Route request, unicast {=u16:04x}",
+                            u16::from(address)
+                        );
                         address == self.identity.short
                     }
-                    commands::AddressType::Multicast(_) => false,
+                    commands::AddressType::Multicast(_) => {
+                        #[cfg(feature = "defmt")]
+                        defmt::info!("> Network Route request, multicast");
+                        false
+                    }
                 };
                 let extended_match = match req.destination_ieee_address {
                     Some(address) => address == self.identity.extended,
@@ -370,7 +380,8 @@ where
                         nwk_header.source_address, // destination address
                         false,                     // request acknowledge
                     );
-                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let mac_header_len =
+                        pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
                     let reply = commands::RouteReply {
                         options: commands::route_reply::Options {
                             orginator_ieee_address: false,
@@ -395,33 +406,42 @@ where
                     let frame_size = mac_header_len + nwk_frame_size;
                     match self.queue_packet_from_buffer(frame_size) {
                         Ok(()) => {
+                            #[cfg(feature = "defmt")]
                             defmt::info!("< Queued route response {=usize}", frame_size);
                         }
                         Err(err) => {
+                            #[cfg(feature = "defmt")]
                             defmt::error!("< Failed to queue route response");
                             return Err(err);
                         }
                     }
                 } else if extended_match {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("Extended match");
                 }
             }
             commands::CommandIdentifier::RouteReply => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> Network Route reply");
             }
             commands::CommandIdentifier::NetworkStatus => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> Network Network status");
             }
             commands::CommandIdentifier::Leave => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> Network Leave");
             }
             commands::CommandIdentifier::RouteRecord => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> Network Route record");
             }
             commands::CommandIdentifier::RejoinRequest => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> Network Rejoin request");
             }
             commands::CommandIdentifier::RejoinResponse => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> Network Rejoin response");
             }
             commands::CommandIdentifier::LinkStatus => {
@@ -436,6 +456,7 @@ where
                         }
                     }
                     Err(_) => {
+                        #[cfg(feature = "defmt")]
                         defmt::info!("> Invalid Link Status");
                     }
                 }
@@ -448,15 +469,19 @@ where
                 }
             }
             commands::CommandIdentifier::NetworkReport => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> Network Network report");
             }
             commands::CommandIdentifier::NetworkUpdate => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> Network Network update");
             }
             commands::CommandIdentifier::EndDeviceTimeoutRequest => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> Network End-device timeout request");
             }
             commands::CommandIdentifier::EndDeviceTimeoutResponse => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> Network End-device timeout response");
             }
         }
@@ -494,6 +519,7 @@ where
                         )?;
                     }
                 } else {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("Application service data");
                 }
             }
@@ -502,10 +528,12 @@ where
                 self.handle_application_service_command(aps_payload)?;
             }
             FrameType::InterPan => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> APS inter-PAN");
                 // Not supported yet
             }
             FrameType::Acknowledgement => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("> APS acknowledge");
                 // ...
             }
@@ -524,12 +552,14 @@ where
             let key_type = KeyType::try_from(aps_payload[1])?;
             if key_type == KeyType::StandardNetworkKey {
                 let key = NetworkKey::unpack(&aps_payload[2..])?;
+                #[cfg(feature = "defmt")]
                 defmt::info!("> APS Set network key");
                 self.set_state(NetworkState::Secure);
                 self.security_manager.set_network_key(key);
                 self.queue_device_announce()?;
             }
         } else {
+            #[cfg(feature = "defmt")]
             defmt::info!("> APS command, {=u8}", u8::from(command_identifier));
         }
         Ok(())
@@ -541,16 +571,11 @@ where
         aps_header: &psila_data::application_service::ApplicationServiceHeader,
     ) -> Result<(), Error> {
         if aps_header.control.acknowledge_request {
-            if aps_header.control.acknowledge_format {
-                defmt::info!("APS acknowledge request, compact");
-            } else {
-                defmt::info!("APS acknowledge request, extended");
-            }
             let mac_header = self.mac.build_data_header(
                 nwk_header.source_address, // destination address
                 false,                     // request acknowledge
             );
-            let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+            let mac_header_len = pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
             let nwk_frame_size = self.application_service.build_acknowledge(
                 &self.identity,
                 nwk_header.source_address,
@@ -560,10 +585,9 @@ where
             )?;
             let frame_size = mac_header_len + nwk_frame_size;
             match self.queue_packet_from_buffer(frame_size) {
-                Ok(()) => {
-                    defmt::info!("< Queued acknowledge {=usize}", frame_size);
-                }
+                Ok(()) => (),
                 Err(err) => {
+                    #[cfg(feature = "defmt")]
                     defmt::error!("< Failed to queue acknowledge");
                     return Err(err);
                 }
@@ -585,34 +609,44 @@ where
         if response {
             match device_profile::ClusterIdentifier::try_from(cluster & !device_profile::RESPONSE) {
                 Ok(device_profile::ClusterIdentifier::NetworkAddressRequest) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Network address response");
                 }
                 Ok(device_profile::ClusterIdentifier::ExtendedAddressRequest) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Extended address response");
                 }
                 Ok(device_profile::ClusterIdentifier::NodeDescriptorRequest) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Node descriptor response");
                 }
                 Ok(device_profile::ClusterIdentifier::PowerDescriptorRequest) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Power descriptor response");
                 }
                 Ok(device_profile::ClusterIdentifier::SimpleDescriptorRequest) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Simple descriptor response");
                 }
                 Ok(device_profile::ClusterIdentifier::ActiveEndpointRequest) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Active endpoint response");
                 }
                 Ok(device_profile::ClusterIdentifier::MatchDescriptorRequest) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Match descriptor response");
                 }
                 Ok(device_profile::ClusterIdentifier::DeviceAnnounce) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Device announce (response)");
                 }
                 Ok(device_profile::ClusterIdentifier::ManagementLinkQualityIndicatorRequest) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Link quality indicator response");
                 }
                 Ok(_) => {}
                 Err(_) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Invalid cluster {=u16}", cluster);
                 }
             }
@@ -629,7 +663,8 @@ where
                         nwk_header.source_address, // destination address
                         false,                     // request acknowledge
                     );
-                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let mac_header_len =
+                        pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
                     let nwk_frame_size = self.application_service.build_network_address_response(
                         &self.identity,
                         nwk_header.source_address,
@@ -651,7 +686,8 @@ where
                         nwk_header.source_address, // destination address
                         false,                     // request acknowledge
                     );
-                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let mac_header_len =
+                        pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
                     let nwk_frame_size = self.application_service.build_extended_address_response(
                         &self.identity,
                         nwk_header.source_address,
@@ -668,7 +704,8 @@ where
                         nwk_header.source_address, // destination address
                         false,                     // request acknowledge
                     );
-                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let mac_header_len =
+                        pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
                     let nwk_frame_size = self.application_service.build_node_descriptor_response(
                         &self.identity,
                         nwk_header.source_address,
@@ -686,7 +723,8 @@ where
                         nwk_header.source_address, // destination address
                         false,                     // request acknowledge
                     );
-                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let mac_header_len =
+                        pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
                     let nwk_frame_size = self.application_service.build_power_descriptor_response(
                         &self.identity,
                         nwk_header.source_address,
@@ -706,7 +744,8 @@ where
                     let descriptor = self
                         .cluser_library_handler
                         .get_simple_desciptor(req.endpoint);
-                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let mac_header_len =
+                        pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
                     let nwk_frame_size =
                         self.application_service.build_simple_descriptor_response(
                             &self.identity,
@@ -726,7 +765,8 @@ where
                         false,                     // request acknowledge
                     );
                     let endpoints = self.cluser_library_handler.active_endpoints();
-                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let mac_header_len =
+                        pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
                     let nwk_frame_size = self.application_service.build_active_endpoint_response(
                         &self.identity,
                         nwk_header.source_address,
@@ -739,16 +779,20 @@ where
                     self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
                 }
                 Ok(device_profile::ClusterIdentifier::MatchDescriptorRequest) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Match descriptor request");
                 }
                 Ok(device_profile::ClusterIdentifier::DeviceAnnounce) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Device announce");
                 }
                 Ok(device_profile::ClusterIdentifier::ManagementLinkQualityIndicatorRequest) => {
+                    #[cfg(feature = "defmt")]
                     defmt::info!("> DP Link quality indicator request");
                 }
                 Ok(_) => {}
                 Err(_) => {
+                    #[cfg(feature = "defmt")]
                     defmt::warn!("> DP Invalid cluster {=u16}", cluster);
                 }
             }
@@ -782,6 +826,7 @@ where
                                 &payload[used..],
                             )?
                         } else {
+                            #[cfg(feature = "defmt")]
                             defmt::error!(
                             "Unknown general command. Profile {=u16} Cluster {=u16} Command {=u8}",
                             profile,
@@ -822,7 +867,8 @@ where
                         nwk_header.source_address, // destination address
                         false,                     // request acknowledge
                     );
-                    let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+                    let mac_header_len =
+                        pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
                     let nwk_frame_size = self.application_service.build_cluster_library_response(
                         &self.identity,
                         nwk_header.source_address,
@@ -839,6 +885,7 @@ where
                 }
             }
             Err(_) => {
+                #[cfg(feature = "defmt")]
                 defmt::error!("Failed to parse ZCL {=u16} {=u16}", profile, cluster);
             }
         }
@@ -910,6 +957,7 @@ where
                         response_data[out_offset + 2] = status.into();
                         out_offset += 3;
                     } else {
+                        #[cfg(feature = "defmt")]
                         defmt::warn!("Unsupported data type {=u8}", u8::from(data_type));
                         break;
                     }
@@ -919,12 +967,28 @@ where
                     out_offset,
                 )
             }
+            GeneralCommandIdentifier::DefaultResponse => {
+                match psila_data::cluster_library::commands::DefaultResponse::unpack(payload) {
+                    Ok((default_response, _)) => {
+                        if default_response.status != ClusterLibraryStatus::Success {
+                            #[cfg(feature = "defmt")]
+                            defmt::warn!("Default response Profile {=u16} Cluster {=u16} Endpoint {=u8} Command {=u8} Status {=u8}", profile, cluster, endpoint, default_response.command, u8::from(default_response.status));
+                        }
+                    }
+                    Err(_error) => {
+                        #[cfg(feature = "defmt")]
+                        defmt::warn!("Invalid default response");
+                    }
+                }
+                (GeneralCommandIdentifier::DefaultResponse, 0) // size zero, no response sent
+            }
             _ => {
+                #[cfg(feature = "defmt")]
                 defmt::warn!(
                     "Ignored general command {=u8}",
                     u8::from(command_identifier)
                 );
-                (GeneralCommandIdentifier::DefaultResponse, 0)
+                (GeneralCommandIdentifier::DefaultResponse, 0) // size zero, no response sent
             }
         };
         Ok((command, used))
@@ -934,7 +998,7 @@ where
         let mac_header = self
             .mac
             .build_data_header(NetworkAddress::broadcast(), false);
-        let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+        let mac_header_len = pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
         let nwk_frame_size = self.application_service.build_device_announce(
             &self.identity,
             self.capability,
@@ -950,7 +1014,7 @@ where
             NetworkAddress::broadcast(), // destination address
             false,                       // request acknowledge
         );
-        let mac_header_len = mac_header.encode(&mut self.buffer.borrow_mut()[..]);
+        let mac_header_len = pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
         let mut entries = [LinkStatusEntry::default(); 32];
         let mut num_entries = 0;
         for device in self.known_devices.iter() {
@@ -980,9 +1044,11 @@ where
         let frame_size = mac_header_len + nwk_frame_size;
         match self.queue_packet_from_buffer(frame_size) {
             Ok(()) => {
-                defmt::info!("< Queued network link status {=usize}", frame_size);
+                #[cfg(feature = "defmt")]
+                defmt::info!("< Queued network link status");
             }
             Err(err) => {
+                #[cfg(feature = "defmt")]
                 defmt::error!("< Failed to queue network link status");
                 return Err(err);
             }

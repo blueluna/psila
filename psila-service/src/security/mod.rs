@@ -33,15 +33,18 @@ where
     fn get_key(&self, header: &SecurityHeader) -> Option<Key> {
         match header.control.identifier {
             KeyIdentifier::Data => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("Data key");
                 None
             }
             KeyIdentifier::Network => self.network_key.map(|k| k.key),
             KeyIdentifier::KeyTransport => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("Key-transport key");
                 Some(self.default_link_key)
             }
             KeyIdentifier::KeyLoad => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("Key-load key");
                 Some(self.default_link_key)
             }
@@ -68,6 +71,7 @@ where
                 output_payload,
             )?
         } else {
+            #[cfg(feature = "defmt")]
             defmt::warn!("No key found");
             0
         };

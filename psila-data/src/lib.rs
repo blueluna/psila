@@ -38,6 +38,7 @@ pub use utils::clear;
 
 #[cfg(all(test, not(feature = "core")))]
 mod tests {
+    use byte::BytesExt;
     use ieee802154::mac::{self};
 
     use super::application_service::ApplicationServiceHeader;
@@ -54,7 +55,9 @@ mod tests {
             0x12, 0x67, 0x4c, 0xf4, 0x8d, 0xce, 0xa0, 0xa0, 0x70, 0x0f, 0x0b, 0xcd, 0xbc, 0x0a,
             0xf4,
         ];
-        let mac = mac::Frame::decode(&data[..], false).unwrap();
+        let mac = data
+            .read_with::<mac::Frame>(&mut 0, mac::FooterMode::None)
+            .unwrap();
         let payload = mac.payload;
         let (_nwk, used) = NetworkHeader::unpack(&payload[..]).unwrap();
         let payload = &payload[used..];

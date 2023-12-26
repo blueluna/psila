@@ -201,7 +201,6 @@ where
             &aad,
             &mut output_payload,
         )?;
-
         Ok(used)
     }
 

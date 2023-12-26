@@ -1,15 +1,84 @@
+use byte::BytesExt;
 use core::cell::Cell;
 
+use ieee802154::mac::security::SecurityContext;
 pub use ieee802154::mac::{
     command::{AssociationStatus, CapabilityInformation, Command},
     Address, AddressMode, ExtendedAddress, Frame, FrameContent, FrameType, FrameVersion, Header,
-    Security, ShortAddress, WriteFooter,
+    ShortAddress,
 };
-
+use ieee802154::mac::{FooterMode, FrameSerDesContext};
 use psila_data::PanIdentifier;
 
 use crate::identity::Identity;
 use crate::Error;
+
+pub(crate) fn unpack_header(data: &[u8]) -> Result<Header, Error> {
+    match data.read_with::<Header>(&mut 0, ()) {
+        Ok(header) => Ok(header),
+        Err(error) => {
+            match error {
+                byte::Error::Incomplete => {
+                    #[cfg(feature = "defmt")]
+                    defmt::error!("Failed to unpack header, Incomplete, {}", data.len());
+                }
+                byte::Error::BadOffset(offset) => {
+                    #[cfg(feature = "defmt")]
+                    defmt::error!("Failed to unpack header, Bad offset {}", offset);
+                }
+                byte::Error::BadInput { err: message } => {
+                    #[cfg(feature = "defmt")]
+                    defmt::error!("Failed to unpack header, Bad input {}", message);
+                }
+            }
+            Err(error.into())
+        }
+    }
+}
+
+pub(crate) fn pack_header(header: &Header, data: &mut [u8]) -> Result<usize, Error> {
+    let mut len = 0usize;
+    data.write_with(
+        &mut len,
+        *header,
+        &Some(&mut SecurityContext::no_security()),
+    )?;
+    Ok(len)
+}
+
+pub(crate) fn unpack_frame(data: &[u8]) -> Result<Frame, Error> {
+    match data.read_with::<Frame>(&mut 0, FooterMode::None) {
+        Ok(frame) => Ok(frame),
+        Err(error) => {
+            match error {
+                byte::Error::Incomplete => {
+                    #[cfg(feature = "defmt")]
+                    defmt::error!("Failed to unpack frame, Incomplete, {}", data.len());
+                }
+                byte::Error::BadOffset(offset) => {
+                    #[cfg(feature = "defmt")]
+                    defmt::error!("Failed to unpack frame, Bad offset {}", offset);
+                }
+                byte::Error::BadInput { err: message } => {
+                    #[cfg(feature = "defmt")]
+                    defmt::error!("Failed to unpack frame, Bad input {}", message);
+                }
+            }
+            Err(error.into())
+        }
+    }
+}
+
+pub(crate) fn pack_frame(frame: &Frame, data: &mut [u8]) -> Result<usize, Error> {
+    let mut len = 0usize;
+    data.write_with(
+        &mut len,
+        *frame,
+        &mut FrameSerDesContext::no_security(FooterMode::None),
+    )?;
+    // defmt::info!("pack_frame seq {=u8}, {=[u8]:02x}", frame.header.seq, data[..len]);
+    Ok(len)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum State {
@@ -102,27 +171,29 @@ impl MacService {
         frame_type: FrameType,
         pending: bool,
         acknowledge: bool,
-        destination: Address,
-        source: Address,
+        destination: Option<Address>,
+        source: Option<Address>,
     ) -> Header {
         let sequence = if frame_type == FrameType::Acknowledgement {
             0
         } else {
             self.sequence_next()
         };
-        let compression = if let (Some(dst), Some(src)) = (destination.pan_id(), source.pan_id()) {
-            dst == src
+        let compression = if let (Some(dst), Some(src)) = (destination, source) {
+            dst.pan_id() == src.pan_id()
         } else {
             false
         };
         Header {
             seq: sequence,
             frame_type,
-            security: Security::None,
+            auxiliary_security_header: None,
             frame_pending: pending,
             ack_request: acknowledge,
             pan_id_compress: compression,
             version: self.version,
+            ie_present: false,
+            seq_no_suppress: false,
             destination,
             source,
         }
@@ -134,14 +205,14 @@ impl MacService {
         frame_type: FrameType,
         pending: bool,
         acknowledge: bool,
-        destination: Address,
+        destination: Option<Address>,
     ) -> Header {
         let source = if self.identity.assigned_short() {
             Address::Short(self.pan_identifier.into(), self.identity.short.into())
         } else {
             Address::Extended(self.pan_identifier.into(), self.identity.extended.into())
         };
-        self.create_header(frame_type, pending, acknowledge, destination, source)
+        self.create_header(frame_type, pending, acknowledge, destination, Some(source))
     }
 
     /// Build a Imm-Ack frame
@@ -161,14 +232,13 @@ impl MacService {
     ///
     /// No payload
     ///
-    pub fn build_acknowledge(&self, sequence: u8, pending: bool, mut data: &mut [u8]) -> usize {
-        let mut header = self.create_header(
-            FrameType::Acknowledgement,
-            pending,
-            false,
-            Address::None,
-            Address::None,
-        );
+    pub fn build_acknowledge(
+        &self,
+        sequence: u8,
+        pending: bool,
+        data: &mut [u8],
+    ) -> Result<usize, Error> {
+        let mut header = self.create_header(FrameType::Acknowledgement, pending, false, None, None);
         header.seq = sequence;
         let frame = Frame {
             header,
@@ -176,7 +246,7 @@ impl MacService {
             payload: &[],
             footer: [0u8; 2],
         };
-        frame.encode(&mut data, WriteFooter::No)
+        pack_frame(&frame, data)
     }
 
     /// Build a beacon request frame
@@ -207,7 +277,7 @@ impl MacService {
             false,
             false,
             Address::broadcast(&AddressMode::Short),
-            Address::None,
+            None,
         );
         let frame = Frame {
             header,
@@ -215,7 +285,8 @@ impl MacService {
             payload: &[],
             footer: [0u8; 2],
         };
-        Ok((frame.encode(data, WriteFooter::No), 2_000_000))
+        let length = pack_frame(&frame, data)?;
+        Ok((length, 2_000_000))
     }
 
     pub fn build_association_request(
@@ -229,14 +300,21 @@ impl MacService {
             self.identity.extended.into(),
         );
         let destination = Address::Short(pan_id.into(), destination.into());
-        let header = self.create_header(FrameType::MacCommand, false, true, destination, source);
+        let header = self.create_header(
+            FrameType::MacCommand,
+            false,
+            true,
+            Some(destination),
+            Some(source),
+        );
         let frame = Frame {
             header,
             content: FrameContent::Command(Command::AssociationRequest(self.capabilities)),
             payload: &[],
             footer: [0u8; 2],
         };
-        Ok((frame.encode(data, WriteFooter::No), 5_000_000))
+        let length = pack_frame(&frame, data)?;
+        Ok((length, 5_000_000))
     }
 
     pub fn build_data_request(
@@ -248,7 +326,10 @@ impl MacService {
             FrameType::MacCommand,
             false,
             true,
-            Address::Short(self.pan_identifier.into(), destination.into()),
+            Some(Address::Short(
+                self.pan_identifier.into(),
+                destination.into(),
+            )),
         );
         let frame = Frame {
             header,
@@ -256,7 +337,8 @@ impl MacService {
             payload: &[0u8; 0],
             footer: [0u8; 2],
         };
-        Ok((frame.encode(data, WriteFooter::No), 0))
+        let length = pack_frame(&frame, data)?;
+        Ok((length, 0))
     }
 
     pub fn build_data_header(
@@ -268,7 +350,10 @@ impl MacService {
             FrameType::Data,
             false, // Pending data
             acknowledge,
-            Address::Short(self.pan_identifier.into(), destination.into()),
+            Some(Address::Short(
+                self.pan_identifier.into(),
+                destination.into(),
+            )),
         )
     }
 
@@ -281,7 +366,7 @@ impl MacService {
     }
 
     fn handle_beacon(&mut self, frame: &Frame) -> Result<(usize, u32), Error> {
-        let (src_id, src_short) = if let Address::Short(id, short) = frame.header.source {
+        let (src_id, src_short) = if let Some(Address::Short(id, short)) = frame.header.source {
             (id.into(), short.into())
         } else {
             return Err(Error::InvalidAddress);
@@ -289,8 +374,9 @@ impl MacService {
         if let FrameContent::Beacon(beacon) = &frame.content {
             if beacon.superframe_spec.pan_coordinator && beacon.superframe_spec.association_permit {
                 if let State::Scan = self.state {
+                    #[cfg(feature = "defmt")]
                     defmt::info!(
-                        "mac: Beacon {=u16}:{=u16} permit join",
+                        "mac: Beacon {=u16:04x}:{=u16:04x} permit join",
                         u16::from(src_id),
                         u16::from(src_short)
                     );
@@ -299,12 +385,15 @@ impl MacService {
                     self.state = State::Associate;
                 }
             } else {
+                #[cfg(feature = "defmt")]
                 defmt::info!(
-                    "mac: Beacon {=u16}:{=u16}",
+                    "mac: Beacon {=u16:04x}:{=u16:04x}",
                     u16::from(src_id),
                     u16::from(src_short)
                 );
             }
+        } else {
+            // Failed to parse beacon
         }
         Ok((0, 0))
     }
@@ -315,13 +404,15 @@ impl MacService {
         address: ShortAddress,
         status: AssociationStatus,
     ) -> Result<(usize, u32), Error> {
-        let pan_id = if let Some(pan_id) = header.source.pan_id() {
-            pan_id.into()
+        let pan_id = if let Some(src) = header.source {
+            src.pan_id().into()
         } else {
+            #[cfg(feature = "defmt")]
             defmt::warn!("Invalid PAN indetifier");
             return Err(Error::InvalidPanIdentifier);
         };
         if pan_id != self.pan_identifier {
+            #[cfg(feature = "defmt")]
             defmt::warn!(
                 "Invalid PAN indetifier {=u16} != {=u16}",
                 u16::from(pan_id),
@@ -331,6 +422,7 @@ impl MacService {
         }
         match (self.state, status) {
             (State::QueryAssociationStatus, AssociationStatus::Successful) => {
+                #[cfg(feature = "defmt")]
                 defmt::info!(
                     "MAC: Association Response, Success, {=u16}:{=u16}",
                     u16::from(pan_id),
@@ -341,6 +433,7 @@ impl MacService {
                 self.state = State::Associated;
             }
             (State::QueryAssociationStatus, _) => {
+                #[cfg(feature = "defmt")]
                 defmt::info!(
                     "MAC: Association Response {=u16} {=u8}",
                     u16::from(pan_id),
@@ -351,6 +444,7 @@ impl MacService {
                 self.state = State::Orphan;
             }
             (_, AssociationStatus::Successful) => {
+                #[cfg(feature = "defmt")]
                 defmt::info!(
                     "MAC: Association Response, Success, {=u16}:{=u16}, Bad state",
                     u16::from(pan_id),
@@ -381,13 +475,14 @@ impl MacService {
         buffer: &mut [u8],
     ) -> Result<(usize, u32), Error> {
         if frame.header.seq == self.sequence.get() {
-            defmt::info!("MAC: Acknowledge {=u8}", frame.header.seq);
             if let State::Associate = self.state {
                 self.state = State::QueryAssociationStatus;
+                #[cfg(feature = "defmt")]
                 defmt::info!("MAC: Send data request");
                 return self.build_data_request(self.coordinator.short, buffer);
             }
         } else {
+            #[cfg(feature = "defmt")]
             defmt::warn!("MAC: Acknowledge, unknown sequence {=u8}", frame.header.seq);
         }
         Ok((0, 0))
@@ -402,8 +497,11 @@ impl MacService {
         let (used, timeout) = match frame.header.frame_type {
             FrameType::Acknowledgement => self.handle_acknowledge(&frame, buffer),
             FrameType::Beacon => self.handle_beacon(&frame),
-            FrameType::Data => Ok((0, 0)),
             FrameType::MacCommand => self.handle_command(&frame),
+            FrameType::Data
+            | FrameType::Multipurpose
+            | FrameType::FragOrFragAck
+            | FrameType::Extended => Ok((0, 0)),
         }?;
         if timeout > 0 {
             self.next_event_timestamp = timestamp.wrapping_add(timeout);
@@ -418,16 +516,19 @@ impl MacService {
         let (used, timeout) = match self.state {
             State::Orphan => {
                 self.state = State::Scan;
+                #[cfg(feature = "defmt")]
                 defmt::info!("MAC: Send beacon request");
                 self.build_beacon_request(buffer)
             }
             State::Scan | State::QueryAssociationStatus => {
+                #[cfg(feature = "defmt")]
                 defmt::info!("MAC: Association failed, retry");
                 self.state = State::Orphan;
                 Ok((0, 28_000_000))
             }
             State::Associate => {
                 // Send a association request
+                #[cfg(feature = "defmt")]
                 defmt::info!("MAC: Send association request");
                 self.build_association_request(self.pan_identifier, self.coordinator.short, buffer)
             }
@@ -474,11 +575,11 @@ impl MacService {
 
     fn destination_me(&self, frame: &Frame) -> bool {
         match frame.header.destination {
-            Address::None => false,
-            Address::Short(pan_id, address) => {
+            None => false,
+            Some(Address::Short(pan_id, address)) => {
                 self.match_associated_pan(pan_id) && self.match_short_address(address)
             }
-            Address::Extended(pan_id, address) => {
+            Some(Address::Extended(pan_id, address)) => {
                 self.match_associated_pan(pan_id) && self.match_extended_address(address)
             }
         }
@@ -486,15 +587,15 @@ impl MacService {
 
     fn broadcast_destination(&self, frame: &Frame) -> bool {
         match frame.header.destination {
-            Address::None => true,
-            Address::Short(pan_id, address) => {
+            None => true,
+            Some(Address::Short(pan_id, address)) => {
                 if address == ieee802154::mac::ShortAddress::broadcast() {
                     self.match_associated_pan_or_broadcast(pan_id)
                 } else {
                     false
                 }
             }
-            Address::Extended(pan_id, address) => {
+            Some(Address::Extended(pan_id, address)) => {
                 if address == ieee802154::mac::ExtendedAddress::broadcast() {
                     self.match_associated_pan_or_broadcast(pan_id)
                 } else {
@@ -514,6 +615,11 @@ mod tests {
     use super::*;
 
     #[test]
+    fn unpack_acknowledge() {
+        unpack_frame(&[2u8, 0u8, 4u8]).unwrap();
+    }
+
+    #[test]
     fn build_acknowledge() {
         let address = psila_data::ExtendedAddress::new(0x8899_aabb_ccdd_eeff);
         let capabilities = psila_data::CapabilityInformation {
@@ -527,7 +633,7 @@ mod tests {
         let service = MacService::new(address, capabilities);
 
         let mut data = [0u8; 256];
-        let size = service.build_acknowledge(0xaa, false, &mut data);
+        let size = service.build_acknowledge(0xaa, false, &mut data).unwrap();
 
         assert_eq!(size, 3);
         assert_eq!(data[..size], [0x02, 0x00, 0xaa]);

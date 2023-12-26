@@ -34,3 +34,14 @@ impl From<psila_crypto::Error> for Error {
         Self::CryptoError(error)
     }
 }
+
+impl From<byte::Error> for Error {
+    /// From a byte error
+    fn from(error: byte::Error) -> Self {
+        match error {
+            byte::Error::Incomplete => Error::NotEnoughSpace,
+            byte::Error::BadOffset(_) => Error::MalformedPacket,
+            byte::Error::BadInput { err: _ } => Error::MalformedPacket,
+        }
+    }
+}

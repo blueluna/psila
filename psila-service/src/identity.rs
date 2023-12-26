@@ -15,7 +15,7 @@ pub struct Identity {
 impl Identity {
     /// Create `Identity` from extended address. will set the short address to broadcast.
     pub fn from_extended(extended_address: ExtendedAddress) -> Self {
-        assert!(extended_address != ExtendedAddress::broadcast());
+        assert_ne!(extended_address, ExtendedAddress::broadcast());
         Identity {
             short: psila_data::ShortAddress::broadcast(),
             extended: extended_address,
@@ -33,17 +33,17 @@ impl Identity {
     }
 
     /// Check if the provided address was addressed to this identity
-    pub fn addressed_to(&self, address: &Address) -> bool {
+    pub fn addressed_to(&self, address: &Option<Address>) -> bool {
         match *address {
-            Address::None => false,
-            Address::Short(_, short_address) => {
+            None => false,
+            Some(Address::Short(_, short_address)) => {
                 if self.assigned_short() {
                     self.short == short_address
                 } else {
                     false
                 }
             }
-            Address::Extended(_, extended_address) => {
+            Some(Address::Extended(_, extended_address)) => {
                 if self.assigned_extended() {
                     self.extended == extended_address
                 } else {

@@ -4,7 +4,8 @@ use std::convert::TryFrom;
 
 use crate::security::SecurityService;
 
-use ieee802154::mac::{self, beacon::BeaconOrder};
+use byte::BytesExt;
+use ieee802154::mac::{self, beacon::BeaconOrder, FooterMode};
 use psila_data::{
     self,
     application_service::{self, ApplicationServiceHeader},
@@ -901,7 +902,8 @@ impl Parser {
 
     fn parse_mac(&mut self, packet: &[u8]) {
         use mac::Address;
-        match mac::Frame::decode(packet, false) {
+
+        match packet.read_with::<mac::Frame>(&mut 0, FooterMode::None) {
             Ok(frame) => {
                 print!("802.15.4");
                 match frame.header.frame_type {
@@ -916,6 +918,15 @@ impl Parser {
                     }
                     mac::FrameType::MacCommand => {
                         print!(" TYPE: Command");
+                    }
+                    mac::FrameType::Multipurpose => {
+                        print!(" TYPE: Multipurpose");
+                    }
+                    mac::FrameType::FragOrFragAck => {
+                        print!(" TYPE:  Fragment of Fragment Ack");
+                    }
+                    mac::FrameType::Extended => {
+                        print!(" TYPE: Extended");
                     }
                 }
                 print!(
@@ -937,24 +948,24 @@ impl Parser {
                 );
                 print!(" SEQ: {}", frame.header.seq);
                 match frame.header.destination {
-                    Address::Short(i, a) => {
+                    Some(Address::Short(i, a)) => {
                         print!(" DST: {:04x}:{:04x}", i.0, a.0);
                     }
-                    Address::Extended(i, a) => {
+                    Some(Address::Extended(i, a)) => {
                         print!(" DST: {:04x}:{:016x}", i.0, a.0);
                     }
-                    Address::None => {
+                    None => {
                         print!(" DST: None");
                     }
                 }
                 match frame.header.source {
-                    Address::Short(i, a) => {
+                    Some(Address::Short(i, a)) => {
                         print!(" SRC: {:04x}:{:04x}", i.0, a.0);
                     }
-                    Address::Extended(i, a) => {
+                    Some(Address::Extended(i, a)) => {
                         print!(" SRC: {:04x}:{:016x}", i.0, a.0);
                     }
-                    Address::None => {
+                    None => {
                         print!(" SRC: None");
                     }
                 }
@@ -1077,28 +1088,22 @@ impl Parser {
                         }
                         println!();
                     }
+                    mac::FrameContent::Multipurpose => (),
+                    mac::FrameContent::FragOrFragAck => (),
+                    mac::FrameContent::Extended => (),
                 }
             }
             Err(e) => {
                 print!("Unknown Packet, ");
                 match e {
-                    mac::DecodeError::NotEnoughBytes => {
-                        println!("NotEnoughBytes");
+                    byte::Error::Incomplete => {
+                        println!("Incomplete");
                     }
-                    mac::DecodeError::InvalidFrameType(_) => {
-                        println!("InvalidFrameType");
+                    byte::Error::BadOffset(offset) => {
+                        println!("Bad offset {}", offset);
                     }
-                    mac::DecodeError::SecurityNotSupported => {
-                        println!("SecurityNotSupported");
-                    }
-                    mac::DecodeError::InvalidAddressMode(_) => {
-                        println!("Invalid Address Mode");
-                    }
-                    mac::DecodeError::InvalidFrameVersion(_) => {
-                        println!("InvalidFrameVersion");
-                    }
-                    mac::DecodeError::InvalidValue => {
-                        println!("InvalidValue");
+                    byte::Error::BadInput { err: text } => {
+                        println!("Bad Input {}", text);
                     }
                 }
             }

@@ -384,8 +384,7 @@ impl Pack<DiscoverAttributes, Error> for DiscoverAttributes {
 pub type DiscoverAttributeVec = std::vec::Vec<(AttributeIdentifier, AttributeDataType)>;
 
 #[cfg(feature = "core")]
-pub type DiscoverAttributeVec =
-    heapless::Vec<(AttributeIdentifier, AttributeDataType), 16>;
+pub type DiscoverAttributeVec = heapless::Vec<(AttributeIdentifier, AttributeDataType), 16>;
 
 /// Discover attributes response
 #[derive(Clone, Debug, PartialEq)]

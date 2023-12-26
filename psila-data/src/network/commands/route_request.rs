@@ -78,7 +78,7 @@ pub struct RouteRequest {
     pub destination_address: AddressType,
     /// Path cost
     pub path_cost: u8,
-    /// Optional extended destionation address
+    /// Optional extended destination address
     pub destination_ieee_address: Option<ExtendedAddress>,
 }
 

@@ -3,15 +3,14 @@
 use psila_crypto::{CryptoBackend, Error, BLOCK_SIZE};
 
 use aes::{
+    cipher::{BlockEncrypt, NewBlockCipher},
     Aes128,
-    cipher::{BlockEncrypt, NewBlockCipher}
 };
 use ccm::{
     aead::{generic_array::GenericArray, AeadInPlace, NewAead},
     consts::{U13, U16, U4, U8},
     Ccm,
 };
-
 
 #[cfg(test)]
 mod test;
@@ -26,9 +25,7 @@ pub struct RustCryptoBackend {
 
 impl Default for RustCryptoBackend {
     fn default() -> Self {
-        Self {
-            cipher: None,
-        }
+        Self { cipher: None }
     }
 }
 
@@ -58,7 +55,11 @@ impl CryptoBackend for RustCryptoBackend {
             }
             4 => {
                 let cipher = AesCcmMic4::new(key);
-                match cipher.encrypt_in_place_detached(nonce, additional_data, &mut message_output[..payload_len]) {
+                match cipher.encrypt_in_place_detached(
+                    nonce,
+                    additional_data,
+                    &mut message_output[..payload_len],
+                ) {
                     Ok(tag) => {
                         mic.copy_from_slice(tag.as_slice());
                         Ok(payload_len)
@@ -68,7 +69,11 @@ impl CryptoBackend for RustCryptoBackend {
             }
             8 => {
                 let cipher = AesCcmMic8::new(key);
-                match cipher.encrypt_in_place_detached(nonce, additional_data, &mut message_output[..payload_len]) {
+                match cipher.encrypt_in_place_detached(
+                    nonce,
+                    additional_data,
+                    &mut message_output[..payload_len],
+                ) {
                     Ok(tag) => {
                         mic.copy_from_slice(tag.as_slice());
                         Ok(payload_len)
@@ -78,7 +83,11 @@ impl CryptoBackend for RustCryptoBackend {
             }
             16 => {
                 let cipher = AesCcmMic16::new(key);
-                match cipher.encrypt_in_place_detached(nonce, additional_data, &mut message_output[..payload_len]) {
+                match cipher.encrypt_in_place_detached(
+                    nonce,
+                    additional_data,
+                    &mut message_output[..payload_len],
+                ) {
                     Ok(tag) => {
                         mic.copy_from_slice(tag.as_slice());
                         Ok(payload_len)
@@ -110,13 +119,16 @@ impl CryptoBackend for RustCryptoBackend {
         let payload_len = message.len();
         message_output[..payload_len].copy_from_slice(&message);
         match mic.len() {
-            0 => {
-                Err(Error::NotImplemented)
-            }
+            0 => Err(Error::NotImplemented),
             4 => {
                 let tag: &GenericArray<u8, U4> = GenericArray::from_slice(mic);
                 let cipher = AesCcmMic4::new(key);
-                match cipher.decrypt_in_place_detached(nonce, additional_data, &mut message_output[..payload_len], tag) {
+                match cipher.decrypt_in_place_detached(
+                    nonce,
+                    additional_data,
+                    &mut message_output[..payload_len],
+                    tag,
+                ) {
                     Ok(_) => Ok(payload_len),
                     Err(_e) => Err(Error::BackendError),
                 }
@@ -124,7 +136,12 @@ impl CryptoBackend for RustCryptoBackend {
             8 => {
                 let tag: &GenericArray<u8, U8> = GenericArray::from_slice(mic);
                 let cipher = AesCcmMic8::new(key);
-                match cipher.decrypt_in_place_detached(nonce, additional_data, &mut message_output[..payload_len], tag) {
+                match cipher.decrypt_in_place_detached(
+                    nonce,
+                    additional_data,
+                    &mut message_output[..payload_len],
+                    tag,
+                ) {
                     Ok(_) => Ok(payload_len),
                     Err(_e) => Err(Error::BackendError),
                 }
@@ -132,7 +149,12 @@ impl CryptoBackend for RustCryptoBackend {
             16 => {
                 let tag: &GenericArray<u8, U16> = GenericArray::from_slice(mic);
                 let cipher = AesCcmMic16::new(key);
-                match cipher.decrypt_in_place_detached(nonce, additional_data, &mut message_output[..payload_len], tag) {
+                match cipher.decrypt_in_place_detached(
+                    nonce,
+                    additional_data,
+                    &mut message_output[..payload_len],
+                    tag,
+                ) {
                     Ok(_) => Ok(payload_len),
                     Err(_e) => Err(Error::BackendError),
                 }
@@ -147,9 +169,7 @@ impl CryptoBackend for RustCryptoBackend {
                 self.cipher = Some(aes);
                 Ok(())
             }
-            Err(_) => {
-                Err(Error::InvalidKeySize)
-            }
+            Err(_) => Err(Error::InvalidKeySize),
         }
     }
 
@@ -165,8 +185,7 @@ impl CryptoBackend for RustCryptoBackend {
             output.copy_from_slice(input);
             let block: &mut GenericArray<u8, U16> = GenericArray::from_mut_slice(output);
             cipher.encrypt_block(block);
-        }
-        else {
+        } else {
             return Err(Error::InvalidKey);
         }
         Ok(())
@@ -176,4 +195,3 @@ impl CryptoBackend for RustCryptoBackend {
         self.aes128_ecb_encrypt_process_block(input, output)
     }
 }
-

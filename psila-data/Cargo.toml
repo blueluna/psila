@@ -14,10 +14,11 @@ default = []
 core = ["heapless"]
 
 [dependencies]
+byte = "0.2.4"
 byteorder = { version = "1", default-features = false }
 bitflags = "1.3"
 hash32 = "0.2"
 hash32-derive = "0.1"
-heapless = { version = "0.7", optional = true }
-ieee802154 = "0.3"
+heapless = { version = "0.7.7", optional = true }
+ieee802154 = { git = "https://github.com/blueluna/ieee-802.15.4.git" }
 psila-crypto = { path = "../psila-crypto" }

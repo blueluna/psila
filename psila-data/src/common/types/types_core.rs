@@ -1,3 +1,4 @@
+use core::convert::TryFrom;
 use heapless::{self, String, Vec};
 
 use crate::pack::Pack;
@@ -52,7 +53,10 @@ impl Pack<CharacterString, Error> for CharacterString {
             return Err(Error::WrongNumberOfBytes);
         }
         match core::str::from_utf8(&data[1..=length]) {
-            Ok(value) => Ok((CharacterString::from(value), length + 1)),
+            Ok(value) => match CharacterString::try_from(value) {
+                Ok(string) => Ok((string, length + 1)),
+                Err(_) => Err(Error::InvalidValue),
+            },
             Err(_) => Err(Error::InvalidValue),
         }
     }

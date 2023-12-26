@@ -32,7 +32,7 @@ extended_enum!(
     WriteAttributesResponse => 0x04,
     /// Write attributes, do not generate a response
     WriteAttributesNoResponse => 0x05,
-    /// Configure reporting request for attribtues
+    /// Configure reporting request for attributes
     ConfigureReporting => 0x06,
     /// Report configuration response
     ConfigureReportingResponse => 0x07,
@@ -44,7 +44,7 @@ extended_enum!(
     ReportAttributes => 0x0a,
     /// Default response
     DefaultResponse => 0x0b,
-    /// Disover attribtues request
+    /// Discover attributes request
     DiscoverAttributes => 0x0c,
     /// Discover attributes response
     DiscoverAttributesResponse => 0x0d,

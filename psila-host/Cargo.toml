@@ -5,10 +5,11 @@ authors = ["Erik Svensson <erik.public@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-clap = "2.32"
+byte = "0.2.4"
 byteorder = { version = "1", default-features = false }
+clap = "2.32"
 slice-deque = "0.3"
-ieee802154 = "0.3"
+ieee802154 = { git = "https://github.com/blueluna/ieee-802.15.4.git" }
 esercom = { git = "https://github.com/blueluna/esercom.git", branch = "master" }
 psila-data = { path = "../psila-data" }
 psila-crypto-rust-crypto = { path = "../psila-crypto-rust-crypto" }
