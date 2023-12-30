@@ -64,7 +64,7 @@ fn main() {
         if let Some(config) = read_config(file_path) {
             for (n, key) in config.keys.iter().enumerate() {
                 let name = format!("User {}", n);
-                if let Ok(k) = Key::from_str(&key) {
+                if let Ok(k) = Key::from_str(key) {
                     parser.security.add_key(k.into(), &name)
                 }
             }

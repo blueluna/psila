@@ -22,13 +22,13 @@ pub(crate) fn unpack_header(data: &[u8]) -> Result<Header, Error> {
                     #[cfg(feature = "defmt")]
                     defmt::error!("Failed to unpack header, Incomplete, {}", data.len());
                 }
-                byte::Error::BadOffset(offset) => {
+                byte::Error::BadOffset(_offset) => {
                     #[cfg(feature = "defmt")]
-                    defmt::error!("Failed to unpack header, Bad offset {}", offset);
+                    defmt::error!("Failed to unpack header, Bad offset {}", _offset);
                 }
-                byte::Error::BadInput { err: message } => {
+                byte::Error::BadInput { err: _message } => {
                     #[cfg(feature = "defmt")]
-                    defmt::error!("Failed to unpack header, Bad input {}", message);
+                    defmt::error!("Failed to unpack header, Bad input {}", _message);
                 }
             }
             Err(error.into())
@@ -55,13 +55,13 @@ pub(crate) fn unpack_frame(data: &[u8]) -> Result<Frame, Error> {
                     #[cfg(feature = "defmt")]
                     defmt::error!("Failed to unpack frame, Incomplete, {}", data.len());
                 }
-                byte::Error::BadOffset(offset) => {
+                byte::Error::BadOffset(_offset) => {
                     #[cfg(feature = "defmt")]
-                    defmt::error!("Failed to unpack frame, Bad offset {}", offset);
+                    defmt::error!("Failed to unpack frame, Bad offset {}", _offset);
                 }
-                byte::Error::BadInput { err: message } => {
+                byte::Error::BadInput { err: _message } => {
                     #[cfg(feature = "defmt")]
-                    defmt::error!("Failed to unpack frame, Bad input {}", message);
+                    defmt::error!("Failed to unpack frame, Bad input {}", _message);
                 }
             }
             Err(error.into())

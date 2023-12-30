@@ -2,7 +2,6 @@
 
 #![no_std]
 
-use core::convert::From;
 use core::convert::TryFrom;
 
 use bbqueue::Producer;

@@ -10,6 +10,7 @@ use crate::Error;
 
 bitflags! {
     /// Flags that denotes which bands used
+    #[derive(Clone, Debug, PartialEq)]
     pub struct BandFlags: u8 {
         /// 868 MHz band
         const BAND_868MHZ = 0b0000_0001;
@@ -22,6 +23,7 @@ bitflags! {
 
 bitflags! {
     /// Server functionality flags
+    #[derive(Clone, Debug, PartialEq)]
     pub struct ServerFlags: u8 {
         /// Primary trust center
         const PRIMARY_TRUST_CENTER      = 0b0000_0001;
@@ -80,6 +82,7 @@ impl Default for ServerMask {
 
 bitflags! {
     /// Descriptor capability
+    #[derive(Clone, Debug, PartialEq)]
     pub struct DescriptorCapability: u8 {
         /// Extended active endpoint list available
         const EXTENDED_ACTIVE_END_POINT_LIST_AVAILABLE  = 0b0000_0001;

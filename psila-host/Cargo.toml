@@ -5,7 +5,7 @@ authors = ["Erik Svensson <erik.public@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-byte = "0.2.4"
+byte = "0.2"
 byteorder = { version = "1", default-features = false }
 clap = "2.32"
 slice-deque = "0.3"
@@ -15,7 +15,7 @@ psila-data = { path = "../psila-data" }
 psila-crypto-rust-crypto = { path = "../psila-crypto-rust-crypto" }
 serde = "1.0"
 serde_derive = "1.0"
-toml = "0.5"
+toml = "0.8"
 chrono = "0.4"
 
 [dependencies.serialport]

@@ -2,12 +2,9 @@
 
 use psila_crypto::{CryptoBackend, Error, BLOCK_SIZE};
 
-use aes::{
-    cipher::{BlockEncrypt, NewBlockCipher},
-    Aes128,
-};
+use aes::{cipher::BlockEncrypt, Aes128};
 use ccm::{
-    aead::{generic_array::GenericArray, AeadInPlace, NewAead},
+    aead::{generic_array::GenericArray, AeadInPlace, KeyInit},
     consts::{U13, U16, U4, U8},
     Ccm,
 };
