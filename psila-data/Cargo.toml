@@ -14,7 +14,7 @@ default = []
 core = ["heapless"]
 
 [dependencies]
-byte = "0.2"
+byte = { git = "https://github.com/andylokandy/byte.git" }
 byteorder = { version = "1", default-features = false }
 bitflags = "2.4"
 hash32 = "0.2"

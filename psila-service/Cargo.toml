@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 bbqueue = "0.5"
-byte = "0.2"
+byte = { git = "https://github.com/andylokandy/byte.git" }
 ieee802154 = { git = "https://github.com/blueluna/ieee-802.15.4.git" }
 psila-crypto = { path = "../psila-crypto" }
 psila-data = { path = "../psila-data" }

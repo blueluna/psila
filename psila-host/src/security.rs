@@ -70,9 +70,7 @@ impl SecurityService {
                         return size;
                     }
                 }
-                Err(e) => {
-                    println!(" Decryption failed, {:?}", e);
-                }
+                Err(_e) => ()
             }
         }
         println!(" No valid key found");

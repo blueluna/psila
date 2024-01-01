@@ -14,7 +14,7 @@ use crate::identity::Identity;
 use crate::Error;
 
 pub(crate) fn unpack_header(data: &[u8]) -> Result<Header, Error> {
-    match data.read_with::<Header>(&mut 0, ()) {
+    match data.read::<Header>(&mut 0) {
         Ok(header) => Ok(header),
         Err(error) => {
             match error {
