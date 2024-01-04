@@ -821,7 +821,7 @@ impl Parser {
                     DiscoverRoute::EnableDiscovery => {
                         print!("DSC ");
                     }
-                    DiscoverRoute::SurpressDiscovery => {}
+                    DiscoverRoute::SuppressDiscovery => {}
                 }
                 if network_frame.control.security {
                     print!("SEC ");

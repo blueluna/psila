@@ -11,7 +11,7 @@ use heapless::Vec;
 use psila_data::{
     self,
     cluster_library::{
-        AttributeDataType, AttributeIdentifier, ClusterLibraryStatus, GeneralCommandIdentifier,
+        AttributeDataType, AttributeIdentifier, ClusterLibraryStatus, GeneralCommandIdentifier, Destination
     },
     pack::Pack,
     CapabilityInformation, ExtendedAddress, Key, NetworkAddress, PanIdentifier,
@@ -32,6 +32,7 @@ pub use identity::Identity;
 
 use application_service::ApplicationServiceContext;
 use mac::MacService;
+use psila_data::application_service::header::DeliveryMode;
 
 /// Max buffer size
 pub const PACKET_BUFFER_MAX: usize = 128;
@@ -96,7 +97,7 @@ pub struct PsilaService<'a, CB, CLH, const N: usize> {
     timestamp: u32,
     next_link_status: u32,
     known_devices: Vec<NetworkDevice, 16>,
-    cluser_library_handler: CLH,
+    cluster_library_handler: CLH,
 }
 
 impl<'a, CB, CLH, const N: usize> PsilaService<'a, CB, CLH, N>
@@ -109,7 +110,7 @@ where
         tx_queue: Producer<'a, N>,
         address: ExtendedAddress,
         default_link_key: Key,
-        cluser_library_handler: CLH,
+        cluster_library_handler: CLH,
     ) -> Self {
         let capability = CapabilityInformation {
             alternate_pan_coordinator: false,
@@ -132,7 +133,7 @@ where
             timestamp: 0,
             next_link_status: 0,
             known_devices: Vec::new(),
-            cluser_library_handler,
+            cluster_library_handler,
         }
     }
 
@@ -249,7 +250,7 @@ where
         }
     }
 
-    /// Update, call this method at ragular intervals
+    /// Update, call this method at regular intervals
     pub fn update(&mut self, timestamp: u32) -> Result<(), Error> {
         self.timestamp = timestamp;
         let packet_length = self
@@ -499,27 +500,52 @@ where
 
         match aps_header.control.frame_type {
             FrameType::Data => {
-                if let (Some(cluster), Some(profile), Some(ep_src), Some(ep_dst)) = (
+                if let (Some(cluster), Some(profile)) = (
                     aps_header.cluster,
-                    aps_header.profile,
-                    aps_header.source,
-                    aps_header.destination,
+                    aps_header.profile
                 ) {
                     if profile == 0x0000 {
                         self.handle_device_profile(nwk_header, cluster, aps_payload)?;
                     } else {
-                        self.handle_cluster_library(
-                            nwk_header,
-                            profile,
-                            cluster,
-                            ep_src,
-                            ep_dst,
-                            aps_payload,
-                        )?;
+                        match aps_header.control.delivery_mode {
+                            DeliveryMode::Unicast | DeliveryMode::Broadcast => {
+                                if let (Some(ep_src), Some(ep_dst)) = (
+                                    aps_header.source,
+                                    aps_header.destination,
+                                ) {
+                                    self.handle_cluster_library(
+                                        nwk_header,
+                                        profile,
+                                        cluster,
+                                        ep_src,
+                                        Destination::Endpoint(ep_dst),
+                                        aps_payload,
+                                    )?;
+                                }
+                            }
+                            DeliveryMode::GroupAdressing => {
+                                if let (Some(ep_src), Some(group)) = (aps_header.source, aps_header.group) {
+                                    self.handle_cluster_library(
+                                        nwk_header,
+                                        profile,
+                                        cluster,
+                                        ep_src,
+                                        Destination::Group(group),
+                                        aps_payload,
+                                    )?;
+                                }
+
+                            }
+                            DeliveryMode::Indirect => {
+
+                            }
+                        }
                     }
                 } else {
                     #[cfg(feature = "defmt")]
-                    defmt::info!("Application service data");
+                    {
+                        defmt::warn!("Application service data");
+                    }
                 }
             }
             FrameType::Command => {
@@ -741,8 +767,8 @@ where
                         false,                     // request acknowledge
                     );
                     let descriptor = self
-                        .cluser_library_handler
-                        .get_simple_desciptor(req.endpoint);
+                        .cluster_library_handler
+                        .get_simple_descriptor(req.endpoint);
                     let mac_header_len =
                         pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
                     let nwk_frame_size =
@@ -763,7 +789,7 @@ where
                         nwk_header.source_address, // destination address
                         false,                     // request acknowledge
                     );
-                    let endpoints = self.cluser_library_handler.active_endpoints();
+                    let endpoints = self.cluster_library_handler.active_endpoints();
                     let mac_header_len =
                         pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
                     let nwk_frame_size = self.application_service.build_active_endpoint_response(
@@ -805,7 +831,7 @@ where
         profile: u16,
         cluster: u16,
         ep_src: u8,
-        ep_dst: u8,
+        destination: Destination,
         payload: &[u8],
     ) -> Result<(), Error> {
         use psila_data::cluster_library::{self, commands, ClusterLibraryHeader, FrameType};
@@ -820,7 +846,7 @@ where
                             self.handle_general_cluster_command(
                                 profile,
                                 cluster,
-                                ep_dst,
+                                destination.clone(),
                                 command,
                                 &payload[used..],
                             )?
@@ -835,10 +861,10 @@ where
                             (GeneralCommandIdentifier::DefaultResponse, 0)
                         }
                     } else {
-                        let status = match self.cluser_library_handler.run(
+                        let status = match self.cluster_library_handler.run(
                             profile,
                             cluster,
-                            ep_dst,
+                            destination.clone(),
                             header.command,
                             &payload[used..],
                         ) {
@@ -868,19 +894,30 @@ where
                     );
                     let mac_header_len =
                         pack_header(&mac_header, &mut self.buffer.borrow_mut()[..])?;
-                    let nwk_frame_size = self.application_service.build_cluster_library_response(
-                        &self.identity,
-                        nwk_header.source_address,
-                        profile,
-                        cluster,
-                        ep_src,
-                        ep_dst,
-                        &zcl_header,
-                        &self.scratch.borrow()[..response_size],
-                        &mut self.buffer.borrow_mut()[mac_header_len..],
-                        &mut self.security_manager,
-                    )?;
-                    self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
+                    if let Destination::Endpoint(ep_dst) = destination {
+                        let nwk_frame_size = self.application_service.build_cluster_library_response(
+                            &self.identity,
+                            nwk_header.source_address,
+                            profile,
+                            cluster,
+                            ep_src,
+                            ep_dst,
+                            &zcl_header,
+                            &self.scratch.borrow()[..response_size],
+                            &mut self.buffer.borrow_mut()[mac_header_len..],
+                            &mut self.security_manager,
+                        )?;
+                        self.queue_packet_from_buffer(mac_header_len + nwk_frame_size)?;
+                    }
+                    else {
+                        #[cfg(feature = "defmt")]
+                        defmt::warn!(
+                            "APS response failed, no destination endpoint. Profile {=u16:04x} Cluster {=u16:04x} Command {=u8:02x}",
+                            profile,
+                            cluster,
+                            header.command
+                        );
+                    }
                 }
             }
             Err(_) => {
@@ -895,7 +932,7 @@ where
         &mut self,
         profile: u16,
         cluster: u16,
-        endpoint: u8,
+        destination: Destination,
         command_identifier: GeneralCommandIdentifier,
         payload: &[u8],
     ) -> Result<(GeneralCommandIdentifier, usize), Error> {
@@ -908,16 +945,16 @@ where
                     let identifier = AttributeIdentifier::unpack(chunk)?;
                     let _ = identifier.pack(&mut response_data[offset..offset + 2])?;
                     offset += 2;
-                    let used = match self.cluser_library_handler.read_attribute(
+                    let used = match self.cluster_library_handler.read_attribute(
                         profile,
                         cluster,
-                        endpoint,
+                        destination.clone(),
                         identifier.into(),
                         &mut response_data[offset + 2..],
                     ) {
-                        Ok((attribut_type, used)) => {
+                        Ok((attribute_type, used)) => {
                             response_data[offset] = ClusterLibraryStatus::Success.into();
-                            response_data[offset + 1] = attribut_type.into();
+                            response_data[offset + 1] = attribute_type.into();
                             used + 2
                         }
                         Err(status) => {
@@ -940,10 +977,10 @@ where
                     let (data_size, used) = data_type.get_size(&payload[in_offset..]);
                     if let Some(data_size) = data_size {
                         in_offset += used;
-                        let status = match self.cluser_library_handler.write_attribute(
+                        let status = match self.cluster_library_handler.write_attribute(
                             profile,
                             cluster,
-                            endpoint,
+                            destination.clone(),
                             identifier.into(),
                             data_type,
                             &payload[in_offset..in_offset + data_size],
@@ -971,7 +1008,16 @@ where
                     Ok((default_response, _)) => {
                         if default_response.status != ClusterLibraryStatus::Success {
                             #[cfg(feature = "defmt")]
-                            defmt::warn!("Default response Profile {=u16} Cluster {=u16} Endpoint {=u8} Command {=u8} Status {=u8}", profile, cluster, endpoint, default_response.command, u8::from(default_response.status));
+                            {
+                                match destination {
+                                    Destination::Endpoint(endpoint) => {
+                                        defmt::warn!("Default response Profile {=u16:04x} Cluster {=u16:04x} Endpoint {=u8:02x} Command {=u8:02x} Status {=u8:02x}", profile, cluster, endpoint, default_response.command, u8::from(default_response.status));
+                                    }
+                                    Destination::Group(group) => {
+                                        defmt::warn!("Default response Profile {=u16:04x} Cluster {=u16:04x} Group {=u16:04x} Command {=u8:02x} Status {=u8:02x}", profile, cluster, group, default_response.command, u8::from(default_response.status));
+                                    }
+                                }
+                            }
                         }
                     }
                     Err(_error) => {

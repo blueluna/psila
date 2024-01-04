@@ -35,8 +35,8 @@ impl TryFrom<u8> for FrameType {
 /// Discover route sub-field
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DiscoverRoute {
-    /// Supress route discovery
-    SurpressDiscovery = 0b0000_0000,
+    /// Suppress route discovery
+    SuppressDiscovery = 0b0000_0000,
     /// Enable route discovery
     EnableDiscovery = 0b0100_0000,
 }
@@ -46,7 +46,7 @@ impl TryFrom<u8> for DiscoverRoute {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value & 0b1100_0000 {
-            0b0000_0000 => Ok(DiscoverRoute::SurpressDiscovery),
+            0b0000_0000 => Ok(DiscoverRoute::SuppressDiscovery),
             0b0100_0000 => Ok(DiscoverRoute::EnableDiscovery),
             _ => Err(Error::UnknownDiscoverRoute),
         }
@@ -531,7 +531,7 @@ mod tests {
         let fc = FrameControl::unpack(&data[..2]).unwrap();
         assert_eq!(fc.frame_type, FrameType::Data);
         assert_eq!(fc.protocol_version, 0);
-        assert_eq!(fc.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(fc.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(fc.multicast, false);
         assert_eq!(fc.security, false);
         assert_eq!(fc.contains_source_route_frame, false);
@@ -542,7 +542,7 @@ mod tests {
         let fc = FrameControl::unpack(&data[..2]).unwrap();
         assert_eq!(fc.frame_type, FrameType::Command);
         assert_eq!(fc.protocol_version, 0);
-        assert_eq!(fc.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(fc.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(fc.multicast, false);
         assert_eq!(fc.security, false);
         assert_eq!(fc.contains_source_route_frame, false);
@@ -553,7 +553,7 @@ mod tests {
         let fc = FrameControl::unpack(&data[..2]).unwrap();
         assert_eq!(fc.frame_type, FrameType::InterPan);
         assert_eq!(fc.protocol_version, 0);
-        assert_eq!(fc.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(fc.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(fc.multicast, false);
         assert_eq!(fc.security, false);
         assert_eq!(fc.contains_source_route_frame, false);
@@ -564,7 +564,7 @@ mod tests {
         let fc = FrameControl::unpack(&data[..2]).unwrap();
         assert_eq!(fc.frame_type, FrameType::Data);
         assert_eq!(fc.protocol_version, 1);
-        assert_eq!(fc.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(fc.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(fc.multicast, false);
         assert_eq!(fc.security, false);
         assert_eq!(fc.contains_source_route_frame, false);
@@ -575,7 +575,7 @@ mod tests {
         let fc = FrameControl::unpack(&data[..2]).unwrap();
         assert_eq!(fc.frame_type, FrameType::Data);
         assert_eq!(fc.protocol_version, 15);
-        assert_eq!(fc.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(fc.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(fc.multicast, false);
         assert_eq!(fc.security, false);
         assert_eq!(fc.contains_source_route_frame, false);
@@ -601,7 +601,7 @@ mod tests {
         let fc = FrameControl::unpack(&data[..2]).unwrap();
         assert_eq!(fc.frame_type, FrameType::Data);
         assert_eq!(fc.protocol_version, 0);
-        assert_eq!(fc.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(fc.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(fc.multicast, true);
         assert_eq!(fc.security, false);
         assert_eq!(fc.contains_source_route_frame, false);
@@ -612,7 +612,7 @@ mod tests {
         let fc = FrameControl::unpack(&data[..2]).unwrap();
         assert_eq!(fc.frame_type, FrameType::Data);
         assert_eq!(fc.protocol_version, 0);
-        assert_eq!(fc.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(fc.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(fc.multicast, false);
         assert_eq!(fc.security, true);
         assert_eq!(fc.contains_source_route_frame, false);
@@ -623,7 +623,7 @@ mod tests {
         let fc = FrameControl::unpack(&data[..2]).unwrap();
         assert_eq!(fc.frame_type, FrameType::Data);
         assert_eq!(fc.protocol_version, 0);
-        assert_eq!(fc.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(fc.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(fc.multicast, false);
         assert_eq!(fc.security, false);
         assert_eq!(fc.contains_source_route_frame, true);
@@ -634,7 +634,7 @@ mod tests {
         let fc = FrameControl::unpack(&data[..2]).unwrap();
         assert_eq!(fc.frame_type, FrameType::Data);
         assert_eq!(fc.protocol_version, 0);
-        assert_eq!(fc.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(fc.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(fc.multicast, false);
         assert_eq!(fc.security, false);
         assert_eq!(fc.contains_source_route_frame, false);
@@ -645,7 +645,7 @@ mod tests {
         let fc = FrameControl::unpack(&data[..2]).unwrap();
         assert_eq!(fc.frame_type, FrameType::Data);
         assert_eq!(fc.protocol_version, 0);
-        assert_eq!(fc.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(fc.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(fc.multicast, false);
         assert_eq!(fc.security, false);
         assert_eq!(fc.contains_source_route_frame, false);
@@ -656,7 +656,7 @@ mod tests {
         let fc = FrameControl::unpack(&data[..2]).unwrap();
         assert_eq!(fc.frame_type, FrameType::Data);
         assert_eq!(fc.protocol_version, 0);
-        assert_eq!(fc.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(fc.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(fc.multicast, false);
         assert_eq!(fc.security, false);
         assert_eq!(fc.contains_source_route_frame, false);
@@ -670,7 +670,7 @@ mod tests {
         let fc = FrameControl::unpack(&data[..2]).unwrap();
         assert_eq!(fc.frame_type, FrameType::InterPan);
         assert_eq!(fc.protocol_version, 2);
-        assert_eq!(fc.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(fc.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(fc.multicast, false);
         assert_eq!(fc.security, false);
         assert_eq!(fc.contains_source_route_frame, false);
@@ -725,7 +725,7 @@ mod tests {
         let control = FrameControl {
             frame_type: FrameType::Data,
             protocol_version: 2,
-            discover_route: DiscoverRoute::SurpressDiscovery,
+            discover_route: DiscoverRoute::SuppressDiscovery,
             multicast: false,
             security: true,
             contains_source_route_frame: false,
@@ -754,7 +754,7 @@ mod tests {
         let control = FrameControl {
             frame_type: FrameType::Data,
             protocol_version: 2,
-            discover_route: DiscoverRoute::SurpressDiscovery,
+            discover_route: DiscoverRoute::SuppressDiscovery,
             multicast: true,
             security: false,
             contains_source_route_frame: false,
@@ -769,7 +769,7 @@ mod tests {
         let control = FrameControl {
             frame_type: FrameType::Data,
             protocol_version: 2,
-            discover_route: DiscoverRoute::SurpressDiscovery,
+            discover_route: DiscoverRoute::SuppressDiscovery,
             multicast: false,
             security: false,
             contains_source_route_frame: true,
@@ -784,7 +784,7 @@ mod tests {
         let control = FrameControl {
             frame_type: FrameType::Data,
             protocol_version: 2,
-            discover_route: DiscoverRoute::SurpressDiscovery,
+            discover_route: DiscoverRoute::SuppressDiscovery,
             multicast: false,
             security: false,
             contains_source_route_frame: false,
@@ -799,7 +799,7 @@ mod tests {
         let control = FrameControl {
             frame_type: FrameType::Data,
             protocol_version: 2,
-            discover_route: DiscoverRoute::SurpressDiscovery,
+            discover_route: DiscoverRoute::SuppressDiscovery,
             multicast: false,
             security: false,
             contains_source_route_frame: false,
@@ -842,7 +842,7 @@ mod tests {
         assert_eq!(used, 8);
         assert_eq!(nwk.control.frame_type, FrameType::Data);
         assert_eq!(nwk.control.protocol_version, 2);
-        assert_eq!(nwk.control.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(nwk.control.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(nwk.control.multicast, false);
         assert_eq!(nwk.control.security, false);
         assert_eq!(nwk.control.contains_source_route_frame, false);
@@ -866,7 +866,7 @@ mod tests {
         assert_eq!(used, 2);
         assert_eq!(nwk.control.frame_type, FrameType::InterPan);
         assert_eq!(nwk.control.protocol_version, 2);
-        assert_eq!(nwk.control.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(nwk.control.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(nwk.control.multicast, false);
         assert_eq!(nwk.control.security, false);
         assert_eq!(nwk.control.contains_source_route_frame, false);
@@ -894,7 +894,7 @@ mod tests {
         assert_eq!(used, 12);
         assert_eq!(nwk.control.frame_type, FrameType::Data);
         assert_eq!(nwk.control.protocol_version, 2);
-        assert_eq!(nwk.control.discover_route, DiscoverRoute::SurpressDiscovery);
+        assert_eq!(nwk.control.discover_route, DiscoverRoute::SuppressDiscovery);
         assert_eq!(nwk.control.multicast, false);
         assert_eq!(nwk.control.security, true);
         assert_eq!(nwk.control.contains_source_route_frame, true);
@@ -915,7 +915,7 @@ mod tests {
         let control = FrameControl {
             frame_type: FrameType::Data,
             protocol_version: 2,
-            discover_route: DiscoverRoute::SurpressDiscovery,
+            discover_route: DiscoverRoute::SuppressDiscovery,
             multicast: false,
             security: true,
             contains_source_route_frame: false,

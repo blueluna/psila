@@ -53,7 +53,22 @@ pub(crate) fn unpack_frame(data: &[u8]) -> Result<Frame, Error> {
             match error {
                 byte::Error::Incomplete => {
                     #[cfg(feature = "defmt")]
-                    defmt::error!("Failed to unpack frame, Incomplete, {}", data.len());
+                    {
+                        if let Ok(header) = unpack_header(data) {
+                            defmt::error!(
+                                "Failed to unpack frame, Incomplete, {} {=[u8]:02x} {=?}",
+                                data.len(),
+                                data,
+                                header
+                            );
+                        } else {
+                            defmt::error!(
+                                "Failed to unpack frame, Incomplete, {} {=[u8]:02x}",
+                                data.len(),
+                                data
+                            );
+                        }
+                    }
                 }
                 byte::Error::BadOffset(_offset) => {
                     #[cfg(feature = "defmt")]
@@ -482,8 +497,10 @@ impl MacService {
                 return self.build_data_request(self.coordinator.short, buffer);
             }
         } else {
-            #[cfg(feature = "defmt")]
-            defmt::warn!("MAC: Acknowledge, unknown sequence {=u8}", frame.header.seq);
+            if self.destination_me(frame) {
+                #[cfg(feature = "defmt")]
+                defmt::warn!("MAC: Acknowledge, unknown sequence {=u8}", frame.header.seq);
+            }
         }
         Ok((0, 0))
     }

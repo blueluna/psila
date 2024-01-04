@@ -70,7 +70,7 @@ impl SecurityService {
                         return size;
                     }
                 }
-                Err(_e) => ()
+                Err(_e) => (),
             }
         }
         println!(" No valid key found");

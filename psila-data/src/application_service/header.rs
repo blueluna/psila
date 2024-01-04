@@ -63,6 +63,19 @@ impl TryFrom<u8> for DeliveryMode {
     }
 }
 
+
+impl From<DeliveryMode> for u8 {
+
+    fn from(value: DeliveryMode) -> u8 {
+        match value {
+            DeliveryMode::Unicast => 0b0000u8,
+            DeliveryMode::Indirect => 0b0100u8,
+            DeliveryMode::Broadcast => 0b1000u8,
+            DeliveryMode::GroupAdressing => 0b1100u8,
+        }
+    }
+}
+
 // 2.2.5.1.1 Frame Control Field
 /// Frame control field
 #[derive(Copy, Clone, Debug)]
@@ -139,7 +152,7 @@ pub struct ApplicationServiceHeader {
 }
 
 impl ApplicationServiceHeader {
-    /// Create a new application serivce header for data messages
+    /// Create a new application service header for data messages
     pub fn new_data_header(
         destination: u8,
         cluster: u16,
@@ -167,8 +180,8 @@ impl ApplicationServiceHeader {
         }
     }
 
-    /// Create a new application serivce header for acknowledge messages
-    pub fn new_acknowledge_header(source: &ApplicationServiceHeader) -> Self {
+    /// Create a new application service header for acknowledge messages
+    pub fn new_acknowledge_header(source: &ApplicationServiceHeader, source_endpoint: u8) -> Self {
         if source.control.acknowledge_format {
             ApplicationServiceHeader {
                 control: FrameControl {
@@ -187,6 +200,9 @@ impl ApplicationServiceHeader {
                 counter: source.counter,
             }
         } else {
+            let src_ep = if let Some(src) = source.source {
+                src
+            } else { source_endpoint };
             ApplicationServiceHeader {
                 control: FrameControl {
                     frame_type: FrameType::Acknowledgement,
@@ -196,16 +212,17 @@ impl ApplicationServiceHeader {
                     acknowledge_request: false,
                     extended_header: false,
                 },
-                destination: source.destination,
+                destination: Some(src_ep),
                 group: None,
                 cluster: source.cluster,
                 profile: source.profile,
-                source: source.source,
+                source: source.destination,
                 counter: source.counter,
             }
         }
     }
 
+    /// Given a frame control field, deduce which additional fields to find in the rest of the header
     fn which_fields(control: FrameControl) -> (bool, bool, bool, bool, usize) {
         let (has_destination, has_group, has_cluster_profile, has_source) = match control.frame_type
         {

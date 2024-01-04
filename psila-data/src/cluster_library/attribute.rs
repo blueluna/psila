@@ -869,6 +869,12 @@ impl AttributeValue {
     }
 }
 
+impl From<bool> for AttributeValue {
+    fn from(value: bool) -> Self {
+        AttributeValue::Boolean(if value { 1 } else { 0 })
+    }
+}
+
 #[cfg(not(feature = "core"))]
 const STRING_INVALID: &str = "Invalid";
 

@@ -61,7 +61,7 @@ impl ApplicationServiceContext {
         buffer: &mut [u8],
         security: &mut SecurityManager<CB>,
     ) -> Result<usize, Error> {
-        let aps_header = ApplicationServiceHeader::new_acknowledge_header(source_header);
+        let aps_header = ApplicationServiceHeader::new_acknowledge_header(source_header, 1);
         let network_header = NetworkHeader::new_data_header(
             2,                              // protocol version
             DiscoverRoute::EnableDiscovery, // discovery route

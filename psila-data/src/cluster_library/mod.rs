@@ -6,6 +6,7 @@ use crate::common::address::ShortAddress;
 use crate::Error;
 
 mod attribute;
+pub mod basic;
 pub mod commands;
 mod frame;
 
@@ -90,3 +91,13 @@ extended_enum!(
     /// The cluster is not supported.
     UnsupportedCluster => 0xc3,
 );
+
+/// Cluster library destination, either end-point or group.
+#[derive(Clone)]
+pub enum Destination
+{
+    /// End-point destination
+    Endpoint(u8),
+    /// Group destination
+    Group(u16),
+}
