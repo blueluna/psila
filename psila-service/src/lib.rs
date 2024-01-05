@@ -182,11 +182,18 @@ where
 
     /// Push a packet onto the queue
     fn queue_packet_from_buffer(&mut self, length: usize) -> Result<(), Error> {
+        self.queue_packet_from_buffer_no_cca(length, false)
+    }
+
+    /// Push a packet onto the queue
+    fn queue_packet_from_buffer_no_cca(&mut self, length: usize, no_cca: bool) -> Result<(), Error> {
         assert!(length < PACKET_BUFFER_MAX);
+        const NO_CCA_MARKER: u8 = 0x80;
+        let marker = if no_cca { NO_CCA_MARKER } else { 0u8 };
         let grant_size = length + 1;
         match self.tx_queue.grant_exact(grant_size) {
             Ok(mut grant) => {
-                grant[0] = length as u8;
+                grant[0] = (length as u8) | marker;
                 grant[1..].copy_from_slice(&self.buffer.borrow()[..length]);
                 grant.commit(grant_size);
                 Ok(())
@@ -212,7 +219,7 @@ where
                         false,
                         &mut self.buffer.borrow_mut()[..],
                     )?;
-                    self.queue_packet_from_buffer(packet_length)?;
+                    self.queue_packet_from_buffer_no_cca(packet_length, true)?;
                 }
                 Ok(true)
             }
