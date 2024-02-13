@@ -6,3 +6,4 @@ members = [
     "psila-host",
     "psila-service",
 ]
+resolver = "2"

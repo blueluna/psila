@@ -2,6 +2,6 @@
 name = "psila-crypto"
 version = "0.0.1"
 authors = ["Erik Svensson <erik.public@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]

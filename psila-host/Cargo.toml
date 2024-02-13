@@ -2,14 +2,14 @@
 name = "psila-host"
 version = "0.0.1"
 authors = ["Erik Svensson <erik.public@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-byte = { git = "https://github.com/andylokandy/byte.git" }
+byte = "0.2.7"
 byteorder = { version = "1", default-features = false }
 clap = "2.32"
 slice-deque = "0.3"
-ieee802154 = { git = "https://github.com/blueluna/ieee-802.15.4.git" }
+ieee802154 = { git = "https://github.com/rust-iot/rust-ieee802.15.4.git" }
 esercom = { git = "https://github.com/blueluna/esercom.git", branch = "master" }
 psila-data = { path = "../psila-data" }
 psila-crypto-rust-crypto = { path = "../psila-crypto-rust-crypto" }

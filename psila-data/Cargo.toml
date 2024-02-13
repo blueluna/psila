@@ -4,7 +4,7 @@ description = "Library for reading/writing Zigbee packages."
 version = "0.0.1"
 authors = ["Erik Svensson <erik.public@gmail.com>"]
 license = "MIT"
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/blueluna/psilas"
 categories = ["network-programming"]
 keywords = ["zigbee", "iot", "wpan", "network"]
@@ -14,11 +14,11 @@ default = []
 core = ["heapless"]
 
 [dependencies]
-byte = { git = "https://github.com/andylokandy/byte.git" }
+byte = "0.2.7"
 byteorder = { version = "1", default-features = false }
 bitflags = "2.4"
 hash32 = "0.2"
 hash32-derive = "0.1"
 heapless = { version = "0.7.7", optional = true }
-ieee802154 = { git = "https://github.com/blueluna/ieee-802.15.4.git" }
+ieee802154 = { git = "https://github.com/rust-iot/rust-ieee802.15.4.git" }
 psila-crypto = { path = "../psila-crypto" }
